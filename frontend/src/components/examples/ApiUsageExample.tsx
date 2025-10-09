@@ -158,7 +158,7 @@ export const ApiUsageExample: React.FC = () => {
                 <div>
                   <p className="font-medium">Invoice #{invoice.invoice_number}</p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Project ID: {invoice.project_id} - {invoice.status}
+                    Project ID: {typeof invoice.project_id === 'string' ? invoice.project_id : invoice.project_id.id} - {invoice.status}
                   </p>
                 </div>
                 <div className="flex gap-2">

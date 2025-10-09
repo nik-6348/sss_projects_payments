@@ -16,7 +16,7 @@ const PaymentForm: React.FC<{
             payment_method: payment.payment_method,
             payment_date: payment.payment_date
         } : {
-            project_id: invoice.project_id,
+            project_id: typeof invoice.project_id === 'string' ? invoice.project_id : invoice.project_id.id,
             invoice_id: invoice.id,
             amount: invoice.amount,
             payment_method: 'bank_transfer',

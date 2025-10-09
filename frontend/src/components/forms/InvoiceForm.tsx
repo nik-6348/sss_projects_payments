@@ -8,7 +8,7 @@ const InvoiceForm: React.FC<{
     defaultProjectId?: string;
     onSave: (data: InvoiceFormData) => void;
     onCancel?: () => void;
-}> = ({ invoice, projects, defaultProjectId, onSave, onCancel }) => {
+}> = ({ invoice, projects, defaultProjectId, onSave }) => {
     const [formData, setFormData] = React.useState<InvoiceFormData>(
         invoice ? {
             project_id: typeof invoice.project_id === 'string' 
