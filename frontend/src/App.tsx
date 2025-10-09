@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { AuthProvider, useAuth } from './utils/auth';
-import type { Project, Invoice, Payment, ProjectFormData, InvoiceFormData, PaymentFormData, ProjectStatus, InvoiceStatus, PaymentMethod } from './types';
+import type { Project, Invoice, Payment, ProjectFormData, InvoiceFormData, ProjectStatus, InvoiceStatus, PaymentMethod } from './types';
 import apiClient from './utils/api';
 import {
     Modal,
@@ -18,8 +18,7 @@ import {
 } from './components/ui';
 import {
     ProjectForm,
-    InvoiceForm,
-    PaymentForm
+    InvoiceForm
 } from './components/forms';
 import {
     DashboardPage,
@@ -326,9 +325,6 @@ function AppContent() {
         await handleSaveProject(projectData);
     };
 
-    const handleInvoiceFormSubmit = async (invoiceData: InvoiceFormData) => {
-        await handleSaveInvoice(invoiceData);
-    };
 
     const handleDeleteProject = async (projectId: string) => {
         const project = projects.find(p => p.id === projectId);
@@ -363,7 +359,35 @@ function AppContent() {
         );
     };
 
-    const handleSaveInvoice = async (invoiceData: InvoiceFormData) => {
+    const handleDeleteInvoice = async (invoiceId: string) => {
+        const invoice = invoices.find(i => i.id === invoiceId);
+        showConfirmation(
+            'Delete Invoice',
+            `Are you sure you want to delete invoice "${invoice?.invoice_number}"? This action cannot be undone.`,
+            async () => {
+                try {
+                    setDataLoading(true);
+                    const response = await apiClient.deleteInvoice(invoiceId);
+                    if (response.success) {
+                        // Update local state
+                        setInvoices(invoices.filter(i => i.id !== invoiceId));
+                        toast.success('Invoice deleted successfully!');
+                    } else {
+                        toast.error(response.error || 'Failed to delete invoice');
+                    }
+                } catch (err: any) {
+                    const errorMessage = apiClient.handleError(err);
+                    toast.error(errorMessage);
+                    console.error('Error deleting invoice:', err);
+                } finally {
+                    setDataLoading(false);
+                }
+                closeConfirmation();
+            }
+        );
+    };
+
+    const handleSaveInvoice = async (invoiceData: InvoiceFormData, invoiceId?: string) => {
         try {
             setDataLoading(true);
 
@@ -376,9 +400,9 @@ function AppContent() {
             };
 
             let response;
-            if ('id' in invoiceData) {
+            if (invoiceId) {
                 // Update existing invoice
-                response = await apiClient.updateInvoice(invoiceData.id as string, invoicePayload as any);
+                response = await apiClient.updateInvoice(invoiceId, invoicePayload as any);
                 if (response.success && response.data) {
                     const updatedInvoice: Invoice = {
                         id: response.data._id,
@@ -390,7 +414,7 @@ function AppContent() {
                         due_date: response.data.due_date ? new Date(response.data.due_date).toISOString().split('T')[0] : ''
                     };
                     setInvoices(invoices.map(i =>
-                        i.id === invoiceData.id ? updatedInvoice : i
+                        i.id === invoiceId ? updatedInvoice : i
                     ));
                     toast.success('Invoice updated successfully!');
                 }
@@ -426,60 +450,6 @@ function AppContent() {
         }
     };
 
-    const handleSavePayment = async (paymentData: PaymentFormData) => {
-        try {
-            setDataLoading(true);
-
-            const paymentPayload = {
-                invoice_id: paymentData.invoice_id || undefined,
-                project_id: paymentData.project_id,
-                amount: paymentData.amount,
-                payment_method: paymentData.payment_method,
-                payment_date: paymentData.payment_date
-            };
-
-            const response = await apiClient.createPayment(paymentPayload as any);
-            if (response.success && response.data) {
-                const newPayment: Payment = {
-                    id: response.data._id,
-                    invoice_id: response.data.invoice_id,
-                    project_id: response.data.project_id,
-                    amount: response.data.amount,
-                    payment_method: response.data.payment_method as PaymentMethod,
-                    payment_date: response.data.payment_date ? new Date(response.data.payment_date).toISOString().split('T')[0] : ''
-                };
-
-                setPayments([...payments, newPayment]);
-
-                const invoice = invoices.find(i => i.id === paymentData.invoice_id);
-                if (invoice) {
-                    const invoicePayments = [...payments, newPayment].filter(p => p.invoice_id === invoice.id);
-                    const totalPaidForInvoice = invoicePayments.reduce((sum, p) => sum + p.amount, 0);
-
-                    if (totalPaidForInvoice >= invoice.amount) {
-                        // Update invoice status via API
-                        await apiClient.updateInvoiceStatus(invoice.id, { status: 'paid' });
-                        setInvoices(invoices.map(i =>
-                            i.id === paymentData.invoice_id ? { ...i, status: 'paid' } : i
-                        ));
-                        toast.success('Payment recorded and invoice marked as paid!');
-                    } else {
-                        toast.success('Payment recorded successfully!');
-                    }
-                }
-            } else {
-                throw new Error(response.error || 'Failed to save payment');
-            }
-
-            closeModal();
-        } catch (err: any) {
-            const errorMessage = apiClient.handleError(err);
-            toast.error(errorMessage);
-            console.error('Error saving payment:', err);
-        } finally {
-            setDataLoading(false);
-        }
-    };
 
     // Modal Openers
     const openProjectForm = (project?: Project | null) => {
@@ -514,12 +484,16 @@ function AppContent() {
     };
 
     const openInvoiceForm = (invoice?: Invoice | null, defaultProjectId?: string) => {
+        const handleSave = (invoiceData: InvoiceFormData) => {
+            handleSaveInvoice(invoiceData, invoice?.id);
+        };
+
         openModal(
             <InvoiceForm
                 invoice={invoice}
                 projects={projects}
                 defaultProjectId={defaultProjectId}
-                onSave={handleInvoiceFormSubmit}
+                onSave={handleSave}
                 onCancel={closeModal}
             />,
             invoice ? 'Edit Invoice' : 'Create New Invoice',
@@ -546,36 +520,6 @@ function AppContent() {
         );
     };
 
-    const openPaymentForm = (invoice: Invoice) => {
-        openModal(
-            <PaymentForm
-                invoice={invoice}
-                onSave={handleSavePayment}
-                onCancel={closeModal}
-            />,
-            `Add Payment for ${invoice.invoice_number}`,
-            <>
-                <button
-                    type="button"
-                    onClick={closeModal}
-                    className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto"
-                >
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    onClick={() => {
-                        // Trigger form submission programmatically
-                        const form = document.querySelector('form') as HTMLFormElement;
-                        if (form) form.requestSubmit();
-                    }}
-                    className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto"
-                >
-                    Save Payment
-                </button>
-            </>
-        );
-    };
 
     const SidebarItem: React.FC<{
         view: string;
@@ -650,6 +594,7 @@ function AppContent() {
                         projects={projects}
                         onAddInvoice={() => openInvoiceForm()}
                         onEditInvoice={(invoice) => openInvoiceForm(invoice)}
+                        onDeleteInvoice={handleDeleteInvoice}
                     />
                 );
             case 'projectDetail':
@@ -660,8 +605,16 @@ function AppContent() {
                 const project = projects.find(p => p.id === id);
                 if (!project) return <div>Project not found!</div>;
 
-                const projectInvoices = invoices.filter(i => i.project_id === id);
+                const projectInvoices = invoices.filter(i => {
+                    // Handle both string project_id and nested project object
+                    if (typeof i.project_id === 'string') {
+                        return i.project_id === id;
+                    } else {
+                        return i.project_id.id === id;
+                    }
+                });
                 const projectPayments = payments.filter(p => p.project_id === id);
+                
 
                 return (
                     <ProjectDetailPage
@@ -670,8 +623,9 @@ function AppContent() {
                         payments={projectPayments}
                         onEditProject={(p) => openProjectForm(p)}
                         onAddInvoice={(pid) => openInvoiceForm(null, pid)}
-                        onAddPayment={(invoice) => openPaymentForm(invoice)}
                         onDeleteProject={handleDeleteProject}
+                        onEditInvoice={(invoice) => openInvoiceForm(invoice)}
+                        onDeleteInvoice={handleDeleteInvoice}
                     />
                 );
             default:

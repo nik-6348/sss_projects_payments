@@ -1,15 +1,16 @@
 import React from 'react';
-import { FileText, Plus, Edit2, Eye, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileText, Plus, Edit2, Eye, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 import type { Invoice, Project } from '../types';
-import { GlassCard, PrimaryButton, StatusChip } from '../components/ui';
+import { GlassCard, PrimaryButton, StatusChip, ConfirmationModal } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils';
 
 interface InvoicesListPageProps {
   invoices: Invoice[];
-  projects: Project[];
+  projects?: Project[]; // Made optional since project data can be nested in invoice
   onAddInvoice: () => void;
   onEditInvoice?: (invoice: Invoice) => void;
   onViewInvoice?: (invoiceId: string) => void;
+  onDeleteInvoice?: (invoiceId: string) => void;
 }
 
 type TabType = 'all' | 'overdue' | 'paid';
@@ -19,9 +20,19 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
   projects,
   onAddInvoice,
   onEditInvoice,
-  onViewInvoice
+  onViewInvoice,
+  onDeleteInvoice
 }) => {
   const [activeTab, setActiveTab] = React.useState<TabType>('all');
+  const [deleteModal, setDeleteModal] = React.useState<{
+    isOpen: boolean;
+    invoiceId: string | null;
+    invoiceNumber: string;
+  }>({
+    isOpen: false,
+    invoiceId: null,
+    invoiceNumber: ''
+  });
 
   // Filter invoices based on active tab
   const filteredInvoices = React.useMemo(() => {
@@ -48,6 +59,33 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
     { id: 'overdue' as TabType, label: 'Overdue', count: counts.overdue, icon: AlertCircle },
     { id: 'paid' as TabType, label: 'Paid', count: counts.paid, icon: CheckCircle },
   ];
+
+  const handleDeleteClick = (invoice: Invoice) => {
+    setDeleteModal({
+      isOpen: true,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoice_number
+    });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteModal.invoiceId && onDeleteInvoice) {
+      onDeleteInvoice(deleteModal.invoiceId);
+    }
+    setDeleteModal({
+      isOpen: false,
+      invoiceId: null,
+      invoiceNumber: ''
+    });
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({
+      isOpen: false,
+      invoiceId: null,
+      invoiceNumber: ''
+    });
+  };
 
   return (
     <div className="space-y-8">
@@ -106,7 +144,10 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
             </thead>
             <tbody>
               {filteredInvoices.map(invoice => {
-                const project = projects.find(p => p.id === invoice.project_id);
+                // Handle both string project_id and nested project object
+                const project = typeof invoice.project_id === 'string' 
+                  ? projects?.find(p => p.id === invoice.project_id)
+                  : invoice.project_id;
 
                 return (
                   <tr key={invoice.id} className="border-b border-white/20 dark:border-slate-600/20 hover:bg-white/20 dark:hover:bg-slate-700/20">
@@ -154,6 +195,18 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                             Edit
                           </button>
                         )}
+                        {onDeleteInvoice && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(invoice);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -163,6 +216,18 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
           </table>
         </div>
       </GlassCard>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteModal.isOpen}
+        title="Delete Invoice"
+        message={`Are you sure you want to delete invoice "${deleteModal.invoiceNumber}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        type="danger"
+      />
     </div>
   );
 };

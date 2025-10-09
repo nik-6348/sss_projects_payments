@@ -113,7 +113,12 @@ export interface InvoiceClient {
 
 export interface Invoice {
   _id: string;
-  project_id: string;
+  project_id: string | {
+    _id: string;
+    name: string;
+    client_name: string;
+    id: string;
+  };
   invoice_number: string;
   amount: number;
   status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';

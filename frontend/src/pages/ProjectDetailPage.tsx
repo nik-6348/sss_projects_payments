@@ -3,11 +3,10 @@ import {
   FolderOpen,
   Plus,
   Edit,
-  Trash2,
-  CreditCard
+  Trash2
 } from 'lucide-react';
 import type { Project, Invoice, Payment } from '../types';
-import { GlassCard, PrimaryButton, StatusChip } from '../components/ui';
+import { GlassCard, PrimaryButton, StatusChip, ConfirmationModal } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils';
 
 interface ProjectDetailPageProps {
@@ -16,8 +15,9 @@ interface ProjectDetailPageProps {
   payments: Payment[];
   onEditProject: (project: Project) => void;
   onAddInvoice: (projectId: string) => void;
-  onAddPayment: (invoice: Invoice) => void;
   onDeleteProject: (projectId: string) => void;
+  onEditInvoice?: (invoice: Invoice) => void;
+  onDeleteInvoice?: (invoiceId: string) => void;
 }
 
 export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
@@ -26,16 +26,63 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   payments,
   onEditProject,
   onAddInvoice,
-  onAddPayment,
-  onDeleteProject
+  onDeleteProject,
+  onEditInvoice,
+  onDeleteInvoice
 }) => {
   const [activeTab, setActiveTab] = React.useState<'details' | 'invoices'>('details');
+  const [deleteModal, setDeleteModal] = React.useState<{
+    isOpen: boolean;
+    invoiceId: string | null;
+    invoiceNumber: string;
+  }>({
+    isOpen: false,
+    invoiceId: null,
+    invoiceNumber: ''
+  });
 
-  const paidAmount = React.useMemo(() =>
-    payments.reduce((sum, p) => sum + p.amount, 0), [payments]
-  );
+  const paidAmount = React.useMemo(() => {
+    // Calculate from actual payments if available
+    const paymentAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+    
+    // If no payments but invoices are marked as paid, calculate from paid invoices
+    if (paymentAmount === 0) {
+      return invoices
+        .filter(i => i.status === 'paid')
+        .reduce((sum, i) => sum + i.amount, 0);
+    }
+    
+    return paymentAmount;
+  }, [payments, invoices]);
 
   const dueAmount = project.total_amount - paidAmount;
+
+  const handleDeleteClick = (invoice: Invoice) => {
+    setDeleteModal({
+      isOpen: true,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoice_number
+    });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteModal.invoiceId && onDeleteInvoice) {
+      onDeleteInvoice(deleteModal.invoiceId);
+    }
+    setDeleteModal({
+      isOpen: false,
+      invoiceId: null,
+      invoiceNumber: ''
+    });
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({
+      isOpen: false,
+      invoiceId: null,
+      invoiceNumber: ''
+    });
+  };
 
   const TabButton: React.FC<{
     tabName: 'details' | 'invoices';
@@ -149,7 +196,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                     <th className="px-6 py-3">Amount</th>
                     <th className="px-6 py-3">Due Date</th>
                     <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3">Action</th>
+                    <th className="px-6 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -167,16 +214,33 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                       <td className="px-6 py-4">
                         <StatusChip status={invoice.status} />
                       </td>
-                      <td className="px-6 py-4">
-                        {invoice.status !== 'paid' && (
-                          <button
-                            onClick={() => onAddPayment(invoice)}
-                            className="flex items-center gap-2 text-xs px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-md hover:bg-green-200 dark:hover:bg-green-800/50 transition"
-                          >
-                            <CreditCard className="h-4 w-4" />
-                            Record Payment
-                          </button>
-                        )}
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          {onEditInvoice && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditInvoice(invoice);
+                              }}
+                              className="flex items-center gap-1 px-3 py-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
+                            >
+                              <Edit className="h-4 w-4" />
+                              Edit
+                            </button>
+                          )}
+                          {onDeleteInvoice && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(invoice);
+                              }}
+                              className="flex items-center gap-1 px-3 py-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -186,6 +250,18 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           )}
         </div>
       </GlassCard>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteModal.isOpen}
+        title="Delete Invoice"
+        message={`Are you sure you want to delete invoice "${deleteModal.invoiceNumber}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        type="danger"
+      />
     </div>
   );
 };

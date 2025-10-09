@@ -18,7 +18,12 @@ export interface Project {
 
 export interface Invoice {
   id: string;
-  project_id: string;
+  project_id: string | {
+    _id: string;
+    name: string;
+    client_name: string;
+    id: string;
+  };
   invoice_number: string;
   amount: number;
   status: InvoiceStatus;

@@ -8,10 +8,12 @@ const InvoiceForm: React.FC<{
     defaultProjectId?: string;
     onSave: (data: InvoiceFormData) => void;
     onCancel?: () => void;
-}> = ({ invoice, projects, defaultProjectId, onSave }) => {
+}> = ({ invoice, projects, defaultProjectId, onSave, onCancel }) => {
     const [formData, setFormData] = React.useState<InvoiceFormData>(
         invoice ? {
-            project_id: invoice.project_id,
+            project_id: typeof invoice.project_id === 'string' 
+                ? invoice.project_id 
+                : invoice.project_id.id,
             amount: invoice.amount.toString(),
             status: invoice.status,
             issue_date: invoice.issue_date,
@@ -39,19 +41,18 @@ const InvoiceForm: React.FC<{
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {/* Invoice Details Section */}
             <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-600 pb-2">
-                    Invoice Details
-                </h3>
-
                 <FormSelect
                     label="Project"
                     name="project_id"
-                    value={formData.project_id as string}
+                    value={typeof formData.project_id === 'string' ? formData.project_id : formData.project_id.id}
                     onChange={handleChange}
                     required
                     options={[
                         { value: '', label: 'Select a Project' },
-                        ...projects.map(p => ({ value: p.id, label: p.name }))
+                        ...projects.map(p => ({ 
+                            value: p.id, 
+                            label: `${p.name} (${p.client_name})` 
+                        }))
                     ]}
                 />
 
@@ -97,7 +98,6 @@ const InvoiceForm: React.FC<{
                     ]}
                 />
             </div>
-
         </form>
     );
 };
