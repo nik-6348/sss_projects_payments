@@ -55,7 +55,7 @@ export interface FormData {
 }
 
 // Form data interfaces for better type safety
-export interface ProjectFormData extends Omit<Project, 'created_at' | 'user_id' | 'total_amount'> {
+export interface ProjectFormData extends Omit<Project, 'created_at' | 'user_id' | 'total_amount' | 'id'> {
   id?: string; // Optional for new projects
   total_amount: string;
 }

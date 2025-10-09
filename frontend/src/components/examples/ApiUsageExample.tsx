@@ -34,15 +34,15 @@ export const ApiUsageExample: React.FC = () => {
 
         // Update state based on responses
         if (projectsResponse.success && projectsResponse.data) {
-          setProjects(projectsResponse.data.projects);
+          setProjects(projectsResponse.data);
         }
 
         if (invoicesResponse.success && invoicesResponse.data) {
-          setInvoices(invoicesResponse.data.invoices);
+          setInvoices(invoicesResponse.data);
         }
 
         if (paymentsResponse.success && paymentsResponse.data) {
-          setPayments(paymentsResponse.data.payments);
+          setPayments(paymentsResponse.data);
         }
 
         setLoading({ projects: false, invoices: false, payments: false });
@@ -61,12 +61,11 @@ export const ApiUsageExample: React.FC = () => {
       const newProject = await apiClient.createProject({
         name: 'New Project',
         description: 'Project description',
-        client: { name: 'Client Name', email: 'client@example.com' },
-        status: 'planning',
-        priority: 'medium',
-        startDate: new Date().toISOString(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        budget: 10000
+        client_name: 'Client Name',
+        status: 'draft',
+        start_date: new Date().toISOString(),
+        end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        total_amount: 10000
       });
 
       if (newProject.success && newProject.data) {
@@ -131,11 +130,11 @@ export const ApiUsageExample: React.FC = () => {
                 <div>
                   <p className="font-medium">{project.name}</p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {project.client.name} - {project.status}
+                    {project.client_name} - {project.status}
                   </p>
                 </div>
                 <span className="text-sm text-slate-500">
-                  ${project.budget.toLocaleString()}
+                  ${project.total_amount.toLocaleString()}
                 </span>
               </div>
             ))}
@@ -157,14 +156,14 @@ export const ApiUsageExample: React.FC = () => {
             {invoices.map(invoice => (
               <div key={invoice._id} className="flex justify-between items-center p-2 border rounded">
                 <div>
-                  <p className="font-medium">Invoice #{invoice.invoiceNumber}</p>
+                  <p className="font-medium">Invoice #{invoice.invoice_number}</p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {invoice.project.name} - {invoice.status}
+                    Project ID: {invoice.project_id} - {invoice.status}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <span className="text-sm text-slate-500">
-                    ${invoice.total.toLocaleString()}
+                    ${invoice.amount.toLocaleString()}
                   </span>
                   <button
                     onClick={() => handleUpdateInvoiceStatus(invoice._id, 'paid')}
@@ -194,7 +193,7 @@ export const ApiUsageExample: React.FC = () => {
               <div key={payment._id} className="flex justify-between items-center p-2 border rounded">
                 <div>
                   <p className="font-medium">
-                    {payment.project_id.name}
+                    Project ID: {payment.project_id}
                   </p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
                     {payment.payment_method} - {new Date(payment.payment_date).toLocaleDateString()}
