@@ -8,13 +8,17 @@ const projectSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: [true, 'Project description is required'],
     trim: true
   },
   total_amount: {
     type: Number,
     required: [true, 'Total amount is required'],
     min: [0, 'Total amount cannot be negative']
+  },
+  currency: {
+    type: String,
+    enum: ['INR', 'USD'],
+    default: 'INR'
   },
   status: {
     type: String,
@@ -28,19 +32,19 @@ const projectSchema = new mongoose.Schema({
   end_date: {
     type: Date
   },
-  client_name: {
-    type: String,
-    required: [true, 'Client name is required'],
-    trim: true
-  },
-  notes: {
-    type: String,
-    trim: true
+  client_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Client',
+    required: [true, 'Client is required']
   },
   user_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: [true, 'User is required']
+  },
+  notes: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true,
@@ -49,6 +53,4 @@ const projectSchema = new mongoose.Schema({
 });
 
 
-const Project = mongoose.model('Project', projectSchema);
-
-module.exports = Project;
+module.exports = mongoose.models.Project || mongoose.model('Project', projectSchema);

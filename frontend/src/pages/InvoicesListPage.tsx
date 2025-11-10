@@ -1,16 +1,18 @@
 import React from 'react';
-import { FileText, Plus, Edit2, Eye, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { FileText, Plus, Edit2, Eye, CheckCircle, AlertCircle, Trash2, Download, MoreVertical } from 'lucide-react';
 import type { Invoice, Project } from '../types';
 import { GlassCard, PrimaryButton, StatusChip, ConfirmationModal } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils';
 
 interface InvoicesListPageProps {
   invoices: Invoice[];
-  projects?: Project[]; // Made optional since project data can be nested in invoice
+  projects?: Project[];
   onAddInvoice: () => void;
   onEditInvoice?: (invoice: Invoice) => void;
   onViewInvoice?: (invoiceId: string) => void;
   onDeleteInvoice?: (invoiceId: string) => void;
+  onViewPDF?: (invoiceId: string) => void;
+  onMarkAsPaid?: (invoice: Invoice) => void;
 }
 
 type TabType = 'all' | 'overdue' | 'paid';
@@ -21,7 +23,9 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
   onAddInvoice,
   onEditInvoice,
   onViewInvoice,
-  onDeleteInvoice
+  onDeleteInvoice,
+  onViewPDF,
+  onMarkAsPaid
 }) => {
   const [activeTab, setActiveTab] = React.useState<TabType>('all');
   const [deleteModal, setDeleteModal] = React.useState<{
@@ -33,6 +37,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
     invoiceId: null,
     invoiceNumber: ''
   });
+  const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
 
   // Filter invoices based on active tab
   const filteredInvoices = React.useMemo(() => {
@@ -129,7 +134,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
       </div>
 
       <GlassCard>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
               <tr>
@@ -150,7 +155,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                   : invoice.project_id;
 
                 return (
-                  <tr key={invoice.id} className="border-b border-white/20 dark:border-slate-600/20 hover:bg-white/20 dark:hover:bg-slate-700/20">
+                  <tr key={invoice.id} className="border-b border-white/20 dark:border-slate-600/20 hover:bg-white/20 dark:hover:bg-slate-700/20 relative">
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-100">
                       {invoice.invoice_number}
                     </td>
@@ -158,7 +163,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                       {project?.name || 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                      {formatCurrency(invoice.amount)}
+                      {formatCurrency(invoice.amount, invoice.currency)}
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       {formatDate(invoice.issue_date)}
@@ -170,42 +175,72 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                       <StatusChip status={invoice.status} />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center gap-2 justify-end">
-                        {onViewInvoice && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onViewInvoice(invoice.id);
-                            }}
-                            className="flex items-center gap-1 px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-                          >
-                            <Eye className="h-4 w-4" />
-                            View
-                          </button>
-                        )}
-                        {onEditInvoice && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditInvoice(invoice);
-                            }}
-                            className="flex items-center gap-1 px-3 py-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                            Edit
-                          </button>
-                        )}
-                        {onDeleteInvoice && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(invoice);
-                            }}
-                            className="flex items-center gap-1 px-3 py-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </button>
+                      <div className="relative inline-block">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdown(openDropdown === invoice.id ? null : invoice.id);
+                          }}
+                          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                        >
+                          <MoreVertical className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                        </button>
+                        
+                        {openDropdown === invoice.id && (
+                          <div className="fixed mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-600 z-50" style={{ transform: 'translateX(-100%)' }}>
+                            {onViewPDF && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onViewPDF(invoice.id);
+                                  setOpenDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                              >
+                                <Eye className="h-4 w-4" />
+                                View PDF
+                              </button>
+                            )}
+                            {invoice.status !== 'paid' && onMarkAsPaid && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onMarkAsPaid(invoice);
+                                  setOpenDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                Mark as Paid
+                              </button>
+                            )}
+                            {invoice.status !== 'paid' && onEditInvoice && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditInvoice(invoice);
+                                  setOpenDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                                Edit
+                              </button>
+                            )}
+                            {invoice.status !== 'paid' && onDeleteInvoice && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteClick(invoice);
+                                  setOpenDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>

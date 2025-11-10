@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import type { Client } from '../types';
 
 // API Response types
 export interface ApiResponse<T = any> {
@@ -257,7 +258,7 @@ export interface InvoiceStats {
 
 // API Client class
 class ApiClient {
-  private axiosInstance: AxiosInstance;
+  public axiosInstance: AxiosInstance;
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -329,6 +330,32 @@ class ApiClient {
 
 
 
+
+  // Client methods
+  async getClients(): Promise<ApiResponse<Client[]>> {
+    const response: AxiosResponse<ApiResponse<Client[]>> = await this.axiosInstance.get('/clients');
+    return response.data;
+  }
+
+  async getClient(id: string): Promise<ApiResponse<Client>> {
+    const response: AxiosResponse<ApiResponse<Client>> = await this.axiosInstance.get(`/clients/${id}`);
+    return response.data;
+  }
+
+  async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
+    const response: AxiosResponse<ApiResponse<Client>> = await this.axiosInstance.post('/clients', clientData);
+    return response.data;
+  }
+
+  async updateClient(id: string, clientData: Partial<Client>): Promise<ApiResponse<Client>> {
+    const response: AxiosResponse<ApiResponse<Client>> = await this.axiosInstance.put(`/clients/${id}`, clientData);
+    return response.data;
+  }
+
+  async deleteClient(id: string): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.delete(`/clients/${id}`);
+    return response.data;
+  }
 
   // Dashboard methods
   async getProjectStats(): Promise<ApiResponse<any>> {
@@ -453,8 +480,15 @@ class ApiClient {
     return response.data;
   }
 
-  async generateInvoicePDF(id: string): Promise<ApiResponse<Invoice>> {
-    const response: AxiosResponse<ApiResponse<Invoice>> = await this.axiosInstance.get(`/invoices/${id}/pdf`);
+  async downloadInvoicePDF(id: string): Promise<Blob> {
+    const response = await this.axiosInstance.get(`/invoices/${id}/pdf/download`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
+
+  async viewInvoicePDF(id: string): Promise<ApiResponse<{ pdf_base64: string }>> {
+    const response: AxiosResponse<ApiResponse<{ pdf_base64: string }>> = await this.axiosInstance.get(`/invoices/${id}/pdf/view`);
     return response.data;
   }
 

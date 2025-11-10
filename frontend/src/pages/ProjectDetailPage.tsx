@@ -119,19 +119,19 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         <GlassCard className="!p-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">Total Value</div>
           <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-            {formatCurrency(project.total_amount)}
+            {formatCurrency(project.total_amount, project.currency)}
           </div>
         </GlassCard>
         <GlassCard className="!p-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">Total Paid</div>
           <div className="text-2xl font-bold text-green-700 dark:text-green-400">
-            {formatCurrency(paidAmount)}
+            {formatCurrency(paidAmount, project.currency)}
           </div>
         </GlassCard>
         <GlassCard className="!p-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">Total Due</div>
           <div className="text-2xl font-bold text-red-700 dark:text-red-400">
-            {formatCurrency(dueAmount)}
+            {formatCurrency(dueAmount, project.currency)}
           </div>
         </GlassCard>
       </div>
@@ -206,7 +206,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         {invoice.invoice_number}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                        {formatCurrency(invoice.amount)}
+                        {formatCurrency(invoice.amount, invoice.currency)}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(invoice.due_date)}

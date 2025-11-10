@@ -1,6 +1,6 @@
 module.exports = {
     MONGO_URI: "mongodb+srv://sss_db:Singaji123@cluster0.ybuk2zo.mongodb.net/sss_project?retryWrites=true&w=majority",
-    PORT: 5010,
+    PORT: 5000,
     CLIENT_URL: "http://localhost:5173",
 
     // JWT_CONFIGS

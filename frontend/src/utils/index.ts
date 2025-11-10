@@ -1,8 +1,10 @@
 import type { Project, Payment, ProjectWithStats } from '../types';
 
 // Formatting utilities
-export const formatCurrency = (amount: number): string =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
+export const formatCurrency = (amount: number, currency: 'INR' | 'USD' = 'INR'): string => {
+  const symbol = currency === 'USD' ? '$' : '₹';
+  return `${symbol}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 export const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return 'N/A';

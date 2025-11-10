@@ -1,7 +1,7 @@
-const Project = require('../middleware/models/Project');
-const Invoice = require('../middleware/models/Invoice');
-const Payment = require('../middleware/models/Payment');
-const User = require('../middleware/models/User');
+const Project = require('../models/Project');
+const Invoice = require('../models/Invoice');
+const Payment = require('../models/Payment');
+const User = require('../models/User');
 
 // @desc    Get comprehensive dashboard statistics
 // @route   GET /api/dashboard/overview
@@ -113,13 +113,27 @@ const getDashboardOverview = async (req, res, next) => {
       .select('name status createdAt');
 
     const recentInvoices = await Invoice.find()
-      .populate('project_id', 'name client_name')
+      .populate({
+        path: 'project_id',
+        select: 'name user_id',
+        populate: {
+          path: 'client_id',
+          select: 'name'
+        }
+      })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('invoice_number amount status project_id createdAt');
 
     const recentPayments = await Payment.find()
-      .populate('project_id', 'name client_name')
+      .populate({
+        path: 'project_id',
+        select: 'name user_id',
+        populate: {
+          path: 'client_id',
+          select: 'name'
+        }
+      })
       .populate('invoice_id', 'invoice_number')
       .sort({ payment_date: -1 })
       .limit(5)
@@ -219,7 +233,14 @@ const getInvoiceDashboard = async (req, res, next) => {
       status: { $in: ['sent', 'overdue'] },
       due_date: { $lt: new Date() }
     })
-      .populate('project_id', 'name client_name')
+      .populate({
+        path: 'project_id',
+        select: 'name user_id',
+        populate: {
+          path: 'client_id',
+          select: 'name'
+        }
+      })
       .sort({ due_date: 1 })
       .limit(10);
 
@@ -251,7 +272,14 @@ const getPaymentDashboard = async (req, res, next) => {
     ]);
 
     const recentPayments = await Payment.find()
-      .populate('project_id', 'name client_name')
+      .populate({
+        path: 'project_id',
+        select: 'name user_id',
+        populate: {
+          path: 'client_id',
+          select: 'name'
+        }
+      })
       .populate('invoice_id', 'invoice_number')
       .sort({ payment_date: -1 })
       .limit(10);

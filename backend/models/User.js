@@ -38,9 +38,19 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  address: {
+    street: { type: String, trim: true },
+    city: { type: String, trim: true },
+    state: { type: String, trim: true },
+    zipCode: { type: String, trim: true },
+    country: { type: String, default: 'India', trim: true }
+  },
   isActive: {
     type: Boolean,
     default: true
+  },
+  lastLogin: {
+    type: Date
   }
 }, {
   timestamps: true,
@@ -83,6 +93,4 @@ userSchema.methods.toJSON = function() {
   return userObject;
 };
 
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);

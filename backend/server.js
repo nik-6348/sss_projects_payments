@@ -7,6 +7,8 @@ const invoiceRoutes = require('./routes/invoiceRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const authRoutes = require('./routes/authRoutes');
+const clientRoutes = require('./routes/clientRoutes');
+const invoicePDFRoutes = require('./routes/invoicePDFRoutes');
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const env = require('./config/env');
@@ -39,7 +41,7 @@ app.use(express.urlencoded({ extended: true }));
 connectDB();
 
 // Create test user if it doesn't exist (for development)
-const User = require('./middleware/models/User');
+const User = require('./models/User');
 const createTestUser = async () => {
   try {
     const existingUser = await User.findOne({ email: 'test@example.com' });
@@ -68,6 +70,8 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/invoices', invoicePDFRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {

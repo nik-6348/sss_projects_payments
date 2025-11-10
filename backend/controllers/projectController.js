@@ -1,4 +1,4 @@
-const Project = require('../middleware/models/Project');
+const Project = require('../models/Project');
 const { validationResult } = require('express-validator');
 
 // @desc    Get all projects
@@ -7,12 +7,20 @@ const { validationResult } = require('express-validator');
 const getProjects = async (req, res, next) => {
   try {
     const projects = await Project.find({ user_id: req.user.id })
+      .populate('client_id', 'name email phone')
       .sort({ createdAt: -1 });
+
+    // Transform data to include client_name for frontend compatibility
+    const transformedProjects = projects.map(project => ({
+      ...project.toObject(),
+      id: project._id,
+      client_name: project.client_id?.name || 'Unknown Client'
+    }));
 
     res.status(200).json({
       success: true,
-      count: projects.length,
-      data: projects
+      count: transformedProjects.length,
+      data: transformedProjects
     });
   } catch (error) {
     next(error);
@@ -24,7 +32,8 @@ const getProjects = async (req, res, next) => {
 // @access  Private
 const getProject = async (req, res, next) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const project = await Project.findById(req.params.id)
+      .populate('client_id', 'name email phone');
 
     if (!project) {
       return res.status(404).json({
@@ -41,9 +50,16 @@ const getProject = async (req, res, next) => {
       });
     }
 
+    // Transform data to include client_name for frontend compatibility
+    const transformedProject = {
+      ...project.toObject(),
+      id: project._id,
+      client_name: project.client_id?.name || 'Unknown Client'
+    };
+
     res.status(200).json({
       success: true,
-      data: project
+      data: transformedProject
     });
   } catch (error) {
     next(error);
@@ -70,11 +86,19 @@ const createProject = async (req, res, next) => {
     };
 
     const project = await Project.create(projectData);
+    await project.populate('client_id', 'name email phone');
+
+    // Transform data to include client_name for frontend compatibility
+    const transformedProject = {
+      ...project.toObject(),
+      id: project._id,
+      client_name: project.client_id?.name || 'Unknown Client'
+    };
 
     res.status(201).json({
       success: true,
       message: 'Project created successfully',
-      data: project
+      data: transformedProject
     });
   } catch (error) {
     next(error);
@@ -119,12 +143,19 @@ const updateProject = async (req, res, next) => {
         new: true,
         runValidators: true
       }
-    );
+    ).populate('client_id', 'name email phone');
+
+    // Transform data to include client_name for frontend compatibility
+    const transformedProject = {
+      ...project.toObject(),
+      id: project._id,
+      client_name: project.client_id?.name || 'Unknown Client'
+    };
 
     res.status(200).json({
       success: true,
       message: 'Project updated successfully',
-      data: project
+      data: transformedProject
     });
   } catch (error) {
     next(error);
@@ -217,12 +248,19 @@ const updateProjectStatus = async (req, res, next) => {
         new: true,
         runValidators: true
       }
-    );
+    ).populate('client_id', 'name email phone');
+
+    // Transform data to include client_name for frontend compatibility
+    const transformedProject = {
+      ...project.toObject(),
+      id: project._id,
+      client_name: project.client_id?.name || 'Unknown Client'
+    };
 
     res.status(200).json({
       success: true,
       message: 'Project status updated successfully',
-      data: project
+      data: transformedProject
     });
   } catch (error) {
     next(error);

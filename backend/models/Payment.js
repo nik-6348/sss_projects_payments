@@ -15,10 +15,23 @@ const paymentSchema = new mongoose.Schema({
     required: [true, 'Amount is required'],
     min: [0, 'Amount cannot be negative']
   },
+  currency: {
+    type: String,
+    enum: ['INR', 'USD'],
+    default: 'INR'
+  },
   payment_method: {
     type: String,
-    enum: ['bank_transfer', 'credit_card', 'upi', 'cash', 'other'],
-    default: 'bank_transfer'
+    enum: ['bank_account', 'other'],
+    default: 'bank_account'
+  },
+  bank_account_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BankDetails'
+  },
+  custom_payment_details: {
+    type: String,
+    trim: true
   },
   payment_date: {
     type: Date,
@@ -35,6 +48,4 @@ paymentSchema.index({ project_id: 1 });
 paymentSchema.index({ invoice_id: 1 });
 paymentSchema.index({ payment_date: -1 });
 
-const Payment = mongoose.model('Payment', paymentSchema);
-
-module.exports = Payment;
+module.exports = mongoose.models.Payment || mongoose.model('Payment', paymentSchema);

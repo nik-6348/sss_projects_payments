@@ -125,7 +125,7 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
                       {project.client_name}
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                      {formatCurrency(project.total_amount)}
+                      {formatCurrency(project.total_amount, project.currency)}
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       {formatDate(project.start_date)}

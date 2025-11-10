@@ -1,18 +1,26 @@
 import React from 'react';
 import type { Project, ProjectFormData } from '../../types';
 import { FormInput, FormSelect, FormTextarea } from './';
+import apiClient from '../../utils/api';
+
+interface Client {
+    _id: string;
+    name: string;
+}
 
 const ProjectForm: React.FC<{
     project?: Project | null;
     onSave: (data: ProjectFormData) => void;
     onCancel?: () => void;
 }> = ({ project, onSave }) => {
+    const [clients, setClients] = React.useState<Client[]>([]);
     const [formData, setFormData] = React.useState<ProjectFormData>(
         project ? {
             id: project.id,
             name: project.name,
-            client_name: project.client_name,
+            client_id: project.client_id,
             total_amount: project.total_amount.toString(),
+            currency: project.currency || 'INR',
             status: project.status,
             start_date: project.start_date,
             end_date: project.end_date || '',
@@ -20,8 +28,9 @@ const ProjectForm: React.FC<{
             notes: project.notes || ''
         } : {
             name: '',
-            client_name: '',
+            client_id: '',
             total_amount: '',
+            currency: 'INR',
             status: 'active',
             start_date: '',
             end_date: '',
@@ -30,6 +39,20 @@ const ProjectForm: React.FC<{
         }
     );
 
+    React.useEffect(() => {
+        const fetchClients = async () => {
+            try {
+                const response = await apiClient.getClients();
+                if (response.success && response.data) {
+                    setClients(response.data);
+                }
+            } catch (error) {
+                console.error('Error fetching clients:', apiClient.handleError(error));
+            }
+        };
+        fetchClients();
+    }, []);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -37,6 +60,7 @@ const ProjectForm: React.FC<{
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('Form Data:', formData);
         onSave(formData);
     };
 
@@ -48,30 +72,45 @@ const ProjectForm: React.FC<{
                     Basic Information
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormInput
-                        label="Project Name"
-                        name="name"
-                        value={formData.name as string}
-                        onChange={handleChange}
-                        required
-                    />
-                    <FormInput
-                        label="Client Name"
-                        name="client_name"
-                        value={formData.client_name as string}
-                        onChange={handleChange}
-                    />
-                </div>
-
                 <FormInput
-                    label="Total Amount (₹)"
-                    type="number"
-                    name="total_amount"
-                    value={formData.total_amount as string}
+                    label="Project Name"
+                    name="name"
+                    value={formData.name as string}
                     onChange={handleChange}
                     required
                 />
+                <FormSelect
+                    label="Client"
+                    name="client_id"
+                    value={formData.client_id as string}
+                    onChange={handleChange}
+                    options={[
+                        { value: '', label: 'Select Client' },
+                        ...clients.map(c => ({ value: c._id, label: c.name }))
+                    ]}
+                    required
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormSelect
+                        label="Currency"
+                        name="currency"
+                        value={formData.currency as string}
+                        onChange={handleChange}
+                        options={[
+                            { value: 'INR', label: 'INR (₹)' },
+                            { value: 'USD', label: 'USD ($)' }
+                        ]}
+                    />
+                    <FormInput
+                        label={`Total Amount (${formData.currency === 'USD' ? '$' : '₹'})`}
+                        type="number"
+                        name="total_amount"
+                        value={formData.total_amount as string}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormInput

@@ -5,7 +5,8 @@ import {
     FileText,
     LogOut,
     Sun,
-    Moon
+    Moon,
+    Users
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { AuthProvider, useAuth } from './utils/auth';
@@ -18,7 +19,8 @@ import {
 } from './components/ui';
 import {
     ProjectForm,
-    InvoiceForm
+    InvoiceForm,
+    PaymentForm
 } from './components/forms';
 import {
     DashboardPage,
@@ -27,6 +29,7 @@ import {
     ProjectDetailPage,
     LoginPage
 } from './pages';
+import ClientsListPage from './pages/ClientsListPage';
 
 
 
@@ -133,7 +136,8 @@ function AppContent() {
                         status: p.status as ProjectStatus,
                         start_date: p.start_date ? new Date(p.start_date).toISOString().split('T')[0] : '',
                         end_date: p.end_date ? new Date(p.end_date).toISOString().split('T')[0] : undefined,
-                        client_name: p.client_name,
+                        client_id: typeof p.client_id === 'object' ? p.client_id._id : p.client_id,
+                        client_name: typeof p.client_id === 'object' ? p.client_id.name : '',
                         notes: p.notes || '',
                         created_at: p.createdAt,
                         user_id: p.user_id
@@ -148,9 +152,18 @@ function AppContent() {
                         project_id: i.project_id,
                         invoice_number: i.invoice_number,
                         amount: i.amount,
+                        currency: i.currency,
                         status: i.status as InvoiceStatus,
                         issue_date: i.issue_date ? new Date(i.issue_date).toISOString().split('T')[0] : '',
-                        due_date: i.due_date ? new Date(i.due_date).toISOString().split('T')[0] : ''
+                        due_date: i.due_date ? new Date(i.due_date).toISOString().split('T')[0] : '',
+                        services: i.services || [],
+                        subtotal: i.subtotal,
+                        gst_percentage: i.gst_percentage,
+                        gst_amount: i.gst_amount,
+                        total_amount: i.total_amount,
+                        payment_method: i.payment_method,
+                        bank_account_id: i.bank_account_id,
+                        custom_payment_details: i.custom_payment_details
                     }));
                     setInvoices(transformedInvoices);
                 }
@@ -258,8 +271,10 @@ function AppContent() {
                 status: statusMapping[projectData.status || 'active'] || 'active',
                 start_date: projectData.start_date,
                 end_date: projectData.end_date || undefined,
-                client_name: projectData.client_name
+                client_id: projectData.client_id,
+                notes: projectData.notes
             };
+            console.log('Sending payload:', projectPayload);
 
             let response;
             if ('id' in projectData) {
@@ -275,7 +290,8 @@ function AppContent() {
                         status: response.data.status as ProjectStatus,
                         start_date: response.data.start_date ? new Date(response.data.start_date).toISOString().split('T')[0] : '',
                         end_date: response.data.end_date ? new Date(response.data.end_date).toISOString().split('T')[0] : undefined,
-                        client_name: response.data.client_name,
+                        client_id: typeof response.data.client_id === 'object' ? response.data.client_id._id : response.data.client_id,
+                        client_name: typeof response.data.client_id === 'object' ? response.data.client_id.name : '',
                         notes: response.data.notes || '',
                         created_at: response.data.createdAt,
                         user_id: response.data.user_id
@@ -297,7 +313,8 @@ function AppContent() {
                         status: response.data.status as ProjectStatus,
                         start_date: response.data.start_date ? new Date(response.data.start_date).toISOString().split('T')[0] : '',
                         end_date: response.data.end_date ? new Date(response.data.end_date).toISOString().split('T')[0] : undefined,
-                        client_name: response.data.client_name,
+                        client_id: typeof response.data.client_id === 'object' ? response.data.client_id._id : response.data.client_id,
+                        client_name: typeof response.data.client_id === 'object' ? response.data.client_id.name : '',
                         notes: response.data.notes || '',
                         created_at: response.data.createdAt,
                         user_id: response.data.user_id
@@ -369,7 +386,6 @@ function AppContent() {
                     setDataLoading(true);
                     const response = await apiClient.deleteInvoice(invoiceId);
                     if (response.success) {
-                        // Update local state
                         setInvoices(invoices.filter(i => i.id !== invoiceId));
                         toast.success('Invoice deleted successfully!');
                     } else {
@@ -387,6 +403,104 @@ function AppContent() {
         );
     };
 
+    const handleViewPDF = async (invoiceId: string) => {
+        try {
+            setDataLoading(true);
+            const response = await apiClient.viewInvoicePDF(invoiceId);
+            if (response.success && response.data?.pdf_base64) {
+                const invoice = invoices.find(i => i.id === invoiceId);
+                const pdfBase64 = response.data.pdf_base64;
+                
+                openModal(
+                    <div className="relative w-full h-[80vh]">
+                        <iframe 
+                            src={`data:application/pdf;base64,${pdfBase64}`}
+                            className="w-full h-full border-none"
+                            title="Invoice PDF"
+                        />
+                    </div>,
+                    `Invoice ${invoice?.invoice_number || invoiceId}`,
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = `data:application/pdf;base64,${pdfBase64}`;
+                                link.download = `invoice-${invoice?.invoice_number || invoiceId}.pdf`;
+                                link.click();
+                            }}
+                            className="px-4 sm:px-6 py-2 sm:py-3 bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto flex items-center gap-2"
+                        >
+                            📥 Download PDF
+                        </button>
+                        <button
+                            type="button"
+                            onClick={closeModal}
+                            className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto"
+                        >
+                            Close
+                        </button>
+                    </>
+                );
+            } else {
+                toast.error('PDF not available. Generating...');
+            }
+        } catch (err: any) {
+            toast.error(apiClient.handleError(err));
+        } finally {
+            setDataLoading(false);
+        }
+    };
+
+    const handleMarkAsPaid = async (invoice: Invoice) => {
+        openModal(
+            <PaymentForm
+                invoice={invoice}
+                onSave={async (paymentData) => {
+                    try {
+                        setDataLoading(true);
+                        const response = await apiClient.createPayment(paymentData as any);
+                        if (response.success) {
+                            // Update invoice status to paid
+                            const updateResponse = await apiClient.updateInvoice(invoice.id, { status: 'paid' } as any);
+                            if (updateResponse.success) {
+                                setInvoices(invoices.map(i => 
+                                    i.id === invoice.id ? { ...i, status: 'paid' as InvoiceStatus } : i
+                                ));
+                                toast.success('Payment recorded and invoice marked as paid!');
+                                closeModal();
+                            }
+                        }
+                    } catch (err: any) {
+                        toast.error(apiClient.handleError(err));
+                    } finally {
+                        setDataLoading(false);
+                    }
+                }}
+            />,
+            'Record Payment',
+            <>
+                <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        const form = document.querySelector('form') as HTMLFormElement;
+                        if (form) form.requestSubmit();
+                    }}
+                    className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto"
+                >
+                    Record Payment
+                </button>
+            </>
+        );
+    };
+
     const handleSaveInvoice = async (invoiceData: InvoiceFormData, invoiceId?: string) => {
         try {
             setDataLoading(true);
@@ -396,7 +510,15 @@ function AppContent() {
                 amount: parseFloat(String(invoiceData.amount)),
                 status: invoiceData.status || 'draft',
                 issue_date: new Date(invoiceData.issue_date).toISOString(),
-                due_date: new Date(invoiceData.due_date).toISOString()
+                due_date: new Date(invoiceData.due_date).toISOString(),
+                services: invoiceData.services || [],
+                subtotal: invoiceData.subtotal || 0,
+                gst_percentage: invoiceData.gst_percentage || 18,
+                gst_amount: invoiceData.gst_amount || 0,
+                total_amount: invoiceData.total_amount || parseFloat(String(invoiceData.amount)),
+                payment_method: invoiceData.payment_method || 'bank_account',
+                bank_account_id: invoiceData.bank_account_id,
+                custom_payment_details: invoiceData.custom_payment_details
             };
 
             let response;
@@ -409,9 +531,18 @@ function AppContent() {
                         project_id: response.data.project_id,
                         invoice_number: response.data.invoice_number,
                         amount: response.data.amount,
+                        currency: response.data.currency,
                         status: response.data.status as InvoiceStatus,
                         issue_date: response.data.issue_date ? new Date(response.data.issue_date).toISOString().split('T')[0] : '',
-                        due_date: response.data.due_date ? new Date(response.data.due_date).toISOString().split('T')[0] : ''
+                        due_date: response.data.due_date ? new Date(response.data.due_date).toISOString().split('T')[0] : '',
+                        services: response.data.services,
+                        subtotal: response.data.subtotal,
+                        gst_percentage: response.data.gst_percentage,
+                        gst_amount: response.data.gst_amount,
+                        total_amount: response.data.total_amount,
+                        payment_method: response.data.payment_method,
+                        bank_account_id: response.data.bank_account_id,
+                        custom_payment_details: response.data.custom_payment_details
                     };
                     setInvoices(invoices.map(i =>
                         i.id === invoiceId ? updatedInvoice : i
@@ -427,9 +558,18 @@ function AppContent() {
                         project_id: response.data.project_id,
                         invoice_number: response.data.invoice_number,
                         amount: response.data.amount,
+                        currency: response.data.currency,
                         status: response.data.status as InvoiceStatus,
                         issue_date: response.data.issue_date ? new Date(response.data.issue_date).toISOString().split('T')[0] : '',
-                        due_date: response.data.due_date ? new Date(response.data.due_date).toISOString().split('T')[0] : ''
+                        due_date: response.data.due_date ? new Date(response.data.due_date).toISOString().split('T')[0] : '',
+                        services: response.data.services,
+                        subtotal: response.data.subtotal,
+                        gst_percentage: response.data.gst_percentage,
+                        gst_amount: response.data.gst_amount,
+                        total_amount: response.data.total_amount,
+                        payment_method: response.data.payment_method,
+                        bank_account_id: response.data.bank_account_id,
+                        custom_payment_details: response.data.custom_payment_details
                     };
                     setInvoices([...invoices, newInvoice]);
                     toast.success('Invoice created successfully!');
@@ -595,8 +735,16 @@ function AppContent() {
                         onAddInvoice={() => openInvoiceForm()}
                         onEditInvoice={(invoice) => openInvoiceForm(invoice)}
                         onDeleteInvoice={handleDeleteInvoice}
+                        onViewPDF={handleViewPDF}
+                        onMarkAsPaid={handleMarkAsPaid}
                     />
                 );
+            case 'clients':
+                if (!isAuthenticated) {
+                    navigateTo('login');
+                    return null;
+                }
+                return <ClientsListPage />;
             case 'projectDetail':
                 if (!isAuthenticated) {
                     navigateTo('login');
@@ -688,6 +836,12 @@ function AppContent() {
                                     view="invoices"
                                     icon={<FileText className="h-6 w-6" />}
                                     label="Invoices"
+                                    isOpen={isSidebarOpen}
+                                />
+                                <SidebarItem
+                                    view="clients"
+                                    icon={<Users className="h-6 w-6" />}
+                                    label="Clients"
                                     isOpen={isSidebarOpen}
                                 />
                             </nav>

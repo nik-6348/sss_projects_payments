@@ -1,5 +1,5 @@
-const Invoice = require('../middleware/models/Invoice');
-const Project = require('../middleware/models/Project');
+const Invoice = require('../models/Invoice');
+const Project = require('../models/Project');
 const { validationResult } = require('express-validator');
 
 // @desc    Get all invoices
@@ -8,13 +8,32 @@ const { validationResult } = require('express-validator');
 const getInvoices = async (req, res, next) => {
   try {
     const invoices = await Invoice.find()
-      .populate('project_id', 'name client_name')
+      .populate({
+        path: 'project_id',
+        select: 'name user_id',
+        populate: {
+          path: 'client_id',
+          select: 'name'
+        }
+      })
       .sort({ createdAt: -1 });
+
+    // Transform data for frontend compatibility
+    const transformedInvoices = invoices.map(invoice => ({
+      ...invoice.toObject(),
+      id: invoice._id,
+      project_id: {
+        _id: invoice.project_id._id,
+        name: invoice.project_id.name,
+        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
+        id: invoice.project_id._id
+      }
+    }));
 
     res.status(200).json({
       success: true,
-      count: invoices.length,
-      data: invoices
+      count: transformedInvoices.length,
+      data: transformedInvoices
     });
   } catch (error) {
     next(error);
@@ -27,7 +46,14 @@ const getInvoices = async (req, res, next) => {
 const getInvoice = async (req, res, next) => {
   try {
     const invoice = await Invoice.findById(req.params.id)
-      .populate('project_id', 'name client_name');
+      .populate({
+        path: 'project_id',
+        select: 'name user_id',
+        populate: {
+          path: 'client_id',
+          select: 'name'
+        }
+      });
 
     if (!invoice) {
       return res.status(404).json({
@@ -36,9 +62,21 @@ const getInvoice = async (req, res, next) => {
       });
     }
 
+    // Transform data for frontend compatibility
+    const transformedInvoice = {
+      ...invoice.toObject(),
+      id: invoice._id,
+      project_id: {
+        _id: invoice.project_id._id,
+        name: invoice.project_id.name,
+        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
+        id: invoice.project_id._id
+      }
+    };
+
     res.status(200).json({
       success: true,
-      data: invoice
+      data: transformedInvoice
     });
   } catch (error) {
     next(error);
@@ -59,7 +97,6 @@ const createInvoice = async (req, res, next) => {
       });
     }
 
-    // Verify project exists
     const project = await Project.findById(req.body.project_id);
     if (!project) {
       return res.status(404).json({
@@ -68,14 +105,46 @@ const createInvoice = async (req, res, next) => {
       });
     }
 
-    const invoice = await Invoice.create(req.body);
+    const { services = [], gst_percentage = 18 } = req.body;
+    const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
+    const gst_amount = (subtotal * gst_percentage) / 100;
+    const total_amount = subtotal + gst_amount;
 
-    await invoice.populate('project_id', 'name client_name');
+    const invoice = await Invoice.create({
+      ...req.body,
+      services,
+      subtotal,
+      gst_percentage,
+      gst_amount,
+      total_amount,
+      amount: total_amount
+    });
+
+    await invoice.populate({
+      path: 'project_id',
+      select: 'name user_id',
+      populate: {
+        path: 'client_id',
+        select: 'name'
+      }
+    });
+
+    // Transform data for frontend compatibility
+    const transformedInvoice = {
+      ...invoice.toObject(),
+      id: invoice._id,
+      project_id: {
+        _id: invoice.project_id._id,
+        name: invoice.project_id.name,
+        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
+        id: invoice.project_id._id
+      }
+    };
 
     res.status(201).json({
       success: true,
       message: 'Invoice created successfully',
-      data: invoice
+      data: transformedInvoice
     });
   } catch (error) {
     next(error);
@@ -105,21 +174,57 @@ const updateInvoice = async (req, res, next) => {
       });
     }
 
+    // Handle services calculation if services are provided
+    let updateData = { ...req.body };
+    if (req.body.services) {
+      const { services = [], gst_percentage = 18 } = req.body;
+      const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
+      const gst_amount = (subtotal * gst_percentage) / 100;
+      const total_amount = subtotal + gst_amount;
+      
+      updateData = {
+        ...updateData,
+        services,
+        subtotal,
+        gst_percentage,
+        gst_amount,
+        total_amount,
+        amount: total_amount
+      };
+    }
+
     invoice = await Invoice.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       {
         new: true,
         runValidators: true
       }
-    );
+    ).populate({
+      path: 'project_id',
+      select: 'name user_id',
+      populate: {
+        path: 'client_id',
+        select: 'name'
+      }
+    });
 
-    await invoice.populate('project_id', 'name client_name');
+    // Transform data for frontend compatibility
+    const transformedInvoice = {
+      ...invoice.toObject(),
+      id: invoice._id,
+      project_id: {
+        _id: invoice.project_id._id,
+        name: invoice.project_id.name,
+        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
+        id: invoice.project_id._id
+      }
+    };
 
     res.status(200).json({
       success: true,
       message: 'Invoice updated successfully',
-      data: invoice
+      data: transformedInvoice
     });
   } catch (error) {
     next(error);
@@ -200,14 +305,31 @@ const updateInvoiceStatus = async (req, res, next) => {
         new: true,
         runValidators: true
       }
-    );
+    ).populate({
+      path: 'project_id',
+      select: 'name user_id',
+      populate: {
+        path: 'client_id',
+        select: 'name'
+      }
+    });
 
-    await invoice.populate('project_id', 'name client_name');
+    // Transform data for frontend compatibility
+    const transformedInvoice = {
+      ...invoice.toObject(),
+      id: invoice._id,
+      project_id: {
+        _id: invoice.project_id._id,
+        name: invoice.project_id.name,
+        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
+        id: invoice.project_id._id
+      }
+    };
 
     res.status(200).json({
       success: true,
       message: 'Invoice status updated successfully',
-      data: invoice
+      data: transformedInvoice
     });
   } catch (error) {
     next(error);
