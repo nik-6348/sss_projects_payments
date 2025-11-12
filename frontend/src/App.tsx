@@ -128,7 +128,7 @@ function AppContent() {
 
                 if (projectsResponse.success && projectsResponse.data) {
                     // Transform API data to match frontend types
-                    const transformedProjects = projectsResponse.data.map(p => ({
+                    const transformedProjects = projectsResponse.data.map((p: any) => ({
                         id: p._id,
                         name: p.name,
                         description: p.description,
@@ -136,18 +136,18 @@ function AppContent() {
                         status: p.status as ProjectStatus,
                         start_date: p.start_date ? new Date(p.start_date).toISOString().split('T')[0] : '',
                         end_date: p.end_date ? new Date(p.end_date).toISOString().split('T')[0] : undefined,
-                        client_id: typeof p.client_id === 'object' ? p.client_id._id : p.client_id,
-                        client_name: typeof p.client_id === 'object' ? p.client_id.name : '',
+                        client_id: typeof p.client_id === 'object' && p.client_id ? p.client_id._id : (p.client_id || ''),
+                        client_name: typeof p.client_id === 'object' && p.client_id ? p.client_id.name : '',
                         notes: p.notes || '',
                         created_at: p.createdAt,
                         user_id: p.user_id
-                    }));
+                    } as Project));
                     setProjects(transformedProjects);
                 }
 
                 if (invoicesResponse.success && invoicesResponse.data) {
                     // Transform API data to match frontend types
-                    const transformedInvoices = invoicesResponse.data.map(i => ({
+                    const transformedInvoices = invoicesResponse.data.map((i: any) => ({
                         id: i._id,
                         project_id: i.project_id,
                         invoice_number: i.invoice_number,
@@ -156,7 +156,7 @@ function AppContent() {
                         status: i.status as InvoiceStatus,
                         issue_date: i.issue_date ? new Date(i.issue_date).toISOString().split('T')[0] : '',
                         due_date: i.due_date ? new Date(i.due_date).toISOString().split('T')[0] : '',
-                        services: i.services || [],
+                        services: i.services,
                         subtotal: i.subtotal,
                         gst_percentage: i.gst_percentage,
                         gst_amount: i.gst_amount,
@@ -164,7 +164,7 @@ function AppContent() {
                         payment_method: i.payment_method,
                         bank_account_id: i.bank_account_id,
                         custom_payment_details: i.custom_payment_details
-                    }));
+                    } as Invoice));
                     setInvoices(transformedInvoices);
                 }
 
@@ -282,19 +282,20 @@ function AppContent() {
                 response = await apiClient.updateProject(projectData.id as string, projectPayload as any);
                 if (response.success && response.data) {
                     // Update local state
+                    const responseData = response.data as any;
                     const updatedProject: Project = {
-                        id: response.data._id,
-                        name: response.data.name,
-                        description: response.data.description,
-                        total_amount: response.data.total_amount,
-                        status: response.data.status as ProjectStatus,
-                        start_date: response.data.start_date ? new Date(response.data.start_date).toISOString().split('T')[0] : '',
-                        end_date: response.data.end_date ? new Date(response.data.end_date).toISOString().split('T')[0] : undefined,
-                        client_id: typeof response.data.client_id === 'object' ? response.data.client_id._id : response.data.client_id,
-                        client_name: typeof response.data.client_id === 'object' ? response.data.client_id.name : '',
-                        notes: response.data.notes || '',
-                        created_at: response.data.createdAt,
-                        user_id: response.data.user_id
+                        id: responseData._id,
+                        name: responseData.name,
+                        description: responseData.description,
+                        total_amount: responseData.total_amount,
+                        status: responseData.status as ProjectStatus,
+                        start_date: responseData.start_date ? new Date(responseData.start_date).toISOString().split('T')[0] : '',
+                        end_date: responseData.end_date ? new Date(responseData.end_date).toISOString().split('T')[0] : undefined,
+                        client_id: typeof responseData.client_id === 'object' && responseData.client_id ? responseData.client_id._id : (responseData.client_id || ''),
+                        client_name: typeof responseData.client_id === 'object' && responseData.client_id ? responseData.client_id.name : '',
+                        notes: responseData.notes || '',
+                        created_at: responseData.createdAt,
+                        user_id: responseData.user_id
                     };
                     setProjects(projects.map(p =>
                         p.id === projectData.id ? updatedProject : p
@@ -305,19 +306,20 @@ function AppContent() {
                 // Create new project
                 response = await apiClient.createProject(projectPayload as any);
                 if (response.success && response.data) {
+                    const responseData = response.data as any;
                     const newProject: Project = {
-                        id: response.data._id,
-                        name: response.data.name,
-                        description: response.data.description,
-                        total_amount: response.data.total_amount,
-                        status: response.data.status as ProjectStatus,
-                        start_date: response.data.start_date ? new Date(response.data.start_date).toISOString().split('T')[0] : '',
-                        end_date: response.data.end_date ? new Date(response.data.end_date).toISOString().split('T')[0] : undefined,
-                        client_id: typeof response.data.client_id === 'object' ? response.data.client_id._id : response.data.client_id,
-                        client_name: typeof response.data.client_id === 'object' ? response.data.client_id.name : '',
-                        notes: response.data.notes || '',
-                        created_at: response.data.createdAt,
-                        user_id: response.data.user_id
+                        id: responseData._id,
+                        name: responseData.name,
+                        description: responseData.description,
+                        total_amount: responseData.total_amount,
+                        status: responseData.status as ProjectStatus,
+                        start_date: responseData.start_date ? new Date(responseData.start_date).toISOString().split('T')[0] : '',
+                        end_date: responseData.end_date ? new Date(responseData.end_date).toISOString().split('T')[0] : undefined,
+                        client_id: typeof responseData.client_id === 'object' && responseData.client_id ? responseData.client_id._id : (responseData.client_id || ''),
+                        client_name: typeof responseData.client_id === 'object' && responseData.client_id ? responseData.client_id.name : '',
+                        notes: responseData.notes || '',
+                        created_at: responseData.createdAt,
+                        user_id: responseData.user_id
                     };
                     setProjects([...projects, newProject]);
                     toast.success('Project created successfully!');
@@ -526,23 +528,24 @@ function AppContent() {
                 // Update existing invoice
                 response = await apiClient.updateInvoice(invoiceId, invoicePayload as any);
                 if (response.success && response.data) {
+                    const responseData = response.data as any;
                     const updatedInvoice: Invoice = {
-                        id: response.data._id,
-                        project_id: response.data.project_id,
-                        invoice_number: response.data.invoice_number,
-                        amount: response.data.amount,
-                        currency: response.data.currency,
-                        status: response.data.status as InvoiceStatus,
-                        issue_date: response.data.issue_date ? new Date(response.data.issue_date).toISOString().split('T')[0] : '',
-                        due_date: response.data.due_date ? new Date(response.data.due_date).toISOString().split('T')[0] : '',
-                        services: response.data.services,
-                        subtotal: response.data.subtotal,
-                        gst_percentage: response.data.gst_percentage,
-                        gst_amount: response.data.gst_amount,
-                        total_amount: response.data.total_amount,
-                        payment_method: response.data.payment_method,
-                        bank_account_id: response.data.bank_account_id,
-                        custom_payment_details: response.data.custom_payment_details
+                        id: responseData._id,
+                        project_id: responseData.project_id,
+                        invoice_number: responseData.invoice_number,
+                        amount: responseData.amount,
+                        currency: responseData.currency,
+                        status: responseData.status as InvoiceStatus,
+                        issue_date: responseData.issue_date ? new Date(responseData.issue_date).toISOString().split('T')[0] : '',
+                        due_date: responseData.due_date ? new Date(responseData.due_date).toISOString().split('T')[0] : '',
+                        services: responseData.services,
+                        subtotal: responseData.subtotal,
+                        gst_percentage: responseData.gst_percentage,
+                        gst_amount: responseData.gst_amount,
+                        total_amount: responseData.total_amount,
+                        payment_method: responseData.payment_method,
+                        bank_account_id: responseData.bank_account_id,
+                        custom_payment_details: responseData.custom_payment_details
                     };
                     setInvoices(invoices.map(i =>
                         i.id === invoiceId ? updatedInvoice : i
@@ -553,23 +556,24 @@ function AppContent() {
                 // Create new invoice
                 response = await apiClient.createInvoice(invoicePayload as any);
                 if (response.success && response.data) {
+                    const responseData = response.data as any;
                     const newInvoice: Invoice = {
-                        id: response.data._id,
-                        project_id: response.data.project_id,
-                        invoice_number: response.data.invoice_number,
-                        amount: response.data.amount,
-                        currency: response.data.currency,
-                        status: response.data.status as InvoiceStatus,
-                        issue_date: response.data.issue_date ? new Date(response.data.issue_date).toISOString().split('T')[0] : '',
-                        due_date: response.data.due_date ? new Date(response.data.due_date).toISOString().split('T')[0] : '',
-                        services: response.data.services,
-                        subtotal: response.data.subtotal,
-                        gst_percentage: response.data.gst_percentage,
-                        gst_amount: response.data.gst_amount,
-                        total_amount: response.data.total_amount,
-                        payment_method: response.data.payment_method,
-                        bank_account_id: response.data.bank_account_id,
-                        custom_payment_details: response.data.custom_payment_details
+                        id: responseData._id,
+                        project_id: responseData.project_id,
+                        invoice_number: responseData.invoice_number,
+                        amount: responseData.amount,
+                        currency: responseData.currency,
+                        status: responseData.status as InvoiceStatus,
+                        issue_date: responseData.issue_date ? new Date(responseData.issue_date).toISOString().split('T')[0] : '',
+                        due_date: responseData.due_date ? new Date(responseData.due_date).toISOString().split('T')[0] : '',
+                        services: responseData.services,
+                        subtotal: responseData.subtotal,
+                        gst_percentage: responseData.gst_percentage,
+                        gst_amount: responseData.gst_amount,
+                        total_amount: responseData.total_amount,
+                        payment_method: responseData.payment_method,
+                        bank_account_id: responseData.bank_account_id,
+                        custom_payment_details: responseData.custom_payment_details
                     };
                     setInvoices([...invoices, newInvoice]);
                     toast.success('Invoice created successfully!');

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, Plus, Edit2, Eye, CheckCircle, AlertCircle, Trash2, Download, MoreVertical } from 'lucide-react';
+import { FileText, Plus, Edit2, Eye, CheckCircle, AlertCircle, Trash2, MoreVertical } from 'lucide-react';
 import type { Invoice, Project } from '../types';
 import { GlassCard, PrimaryButton, StatusChip, ConfirmationModal } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils';
@@ -9,7 +9,6 @@ interface InvoicesListPageProps {
   projects?: Project[];
   onAddInvoice: () => void;
   onEditInvoice?: (invoice: Invoice) => void;
-  onViewInvoice?: (invoiceId: string) => void;
   onDeleteInvoice?: (invoiceId: string) => void;
   onViewPDF?: (invoiceId: string) => void;
   onMarkAsPaid?: (invoice: Invoice) => void;
@@ -22,7 +21,6 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
   projects,
   onAddInvoice,
   onEditInvoice,
-  onViewInvoice,
   onDeleteInvoice,
   onViewPDF,
   onMarkAsPaid

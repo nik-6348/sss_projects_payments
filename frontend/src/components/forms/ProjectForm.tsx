@@ -46,7 +46,7 @@ const ProjectForm: React.FC<{
                 if (response.success && response.data) {
                     setClients(response.data);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error fetching clients:', apiClient.handleError(error));
             }
         };

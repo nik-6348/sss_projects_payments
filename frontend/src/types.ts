@@ -1,6 +1,6 @@
 export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'cancelled' | 'draft';
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
-export type PaymentMethod = 'bank_account' | 'other';
+export type PaymentMethod = 'bank_account' | 'other' | 'bank_transfer' | 'credit_card';
 
 export interface Client {
   _id: string;
@@ -39,6 +39,23 @@ export interface Project {
   user_id: string;
 }
 
+// API response type for projects
+export interface ProjectApiResponse {
+  _id: string;
+  name: string;
+  description: string;
+  total_amount: number;
+  currency?: 'INR' | 'USD';
+  status: ProjectStatus;
+  start_date: string;
+  end_date?: string;
+  client_id: string | { _id: string; name: string };
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  user_id: string;
+}
+
 export interface Invoice {
   _id?: string;
   id: string;
@@ -55,6 +72,35 @@ export interface Invoice {
   issue_date: string;
   due_date: string;
   payment_method?: PaymentMethod;
+  bank_account_id?: string;
+  custom_payment_details?: string;
+  services?: Array<{
+    description: string;
+    amount: number;
+  }>;
+  subtotal?: number;
+  gst_percentage?: number;
+  gst_amount?: number;
+  total_amount?: number;
+  pdf_base64?: string;
+  pdf_generated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// API response type for invoices
+export interface InvoiceApiResponse {
+  _id: string;
+  project_id: string;
+  invoice_number: string;
+  amount: number;
+  currency?: 'INR' | 'USD';
+  status: InvoiceStatus;
+  issue_date: string;
+  due_date: string;
+  payment_method?: PaymentMethod;
+  bank_account_id?: string;
+  custom_payment_details?: string;
   services?: Array<{
     description: string;
     amount: number;
