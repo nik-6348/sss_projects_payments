@@ -1,12 +1,11 @@
-const express = require('express');
-const {
+import express from "express";
+import {
   getDashboardOverview,
   getProjectDashboard,
   getInvoiceDashboard,
-  getPaymentDashboard
-} = require('../controllers/dashboardController');
-
-const { protect } = require('../middleware/auth');
+  getPaymentDashboard,
+} from "../controllers/dashboardController.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -14,9 +13,9 @@ const router = express.Router();
 router.use(protect);
 
 // Dashboard routes
-router.get('/overview', getDashboardOverview);
-router.get('/projects', getProjectDashboard);
-router.get('/invoices', getInvoiceDashboard);
-router.get('/payments', getPaymentDashboard);
+router.get("/overview", getDashboardOverview);
+router.get("/projects", getProjectDashboard);
+router.get("/invoices", getInvoiceDashboard);
+router.get("/payments", getPaymentDashboard);
 
-module.exports = router;
+export default router;

@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
-const env = require('../config/env');
+import jwt from "jsonwebtoken";
+import env from "../config/env.js";
 
 // Helper function to parse time duration strings (e.g., "1d", "30d", "24h")
 const parseDurationToMs = (durationStr) => {
@@ -12,25 +12,30 @@ const parseDurationToMs = (durationStr) => {
   const unit = match[2];
 
   switch (unit) {
-    case 'd': return value * 24 * 60 * 60 * 1000; // days to milliseconds
-    case 'h': return value * 60 * 60 * 1000; // hours to milliseconds
-    case 'm': return value * 60 * 1000; // minutes to milliseconds
-    case 's': return value * 1000; // seconds to milliseconds
-    default: return 30 * 24 * 60 * 60 * 1000; // Default fallback
+    case "d":
+      return value * 24 * 60 * 60 * 1000; // days to milliseconds
+    case "h":
+      return value * 60 * 60 * 1000; // hours to milliseconds
+    case "m":
+      return value * 60 * 1000; // minutes to milliseconds
+    case "s":
+      return value * 1000; // seconds to milliseconds
+    default:
+      return 30 * 24 * 60 * 60 * 1000; // Default fallback
   }
 };
 
 // Generate JWT token
 const generateToken = (payload) => {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN || '30d'
+    expiresIn: env.JWT_EXPIRES_IN || "30d",
   });
 };
 
 // Generate refresh token
 const generateRefreshToken = (payload) => {
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRE || '7d'
+    expiresIn: env.JWT_REFRESH_EXPIRE || "7d",
   });
 };
 
@@ -45,21 +50,19 @@ const verifyRefreshToken = (token) => {
 };
 
 // Generate token response
-const generateTokenResponse = (user, statusCode, res, message = 'Success') => {
+const generateTokenResponse = (user, statusCode, res, message = "Success") => {
   const token = generateToken(user.getJWTPayload());
 
   const options = {
-    expires: new Date(
-      Date.now() + parseDurationToMs(env.JWT_COOKIE_EXPIRE)
-    ),
+    expires: new Date(Date.now() + parseDurationToMs(env.JWT_COOKIE_EXPIRE)),
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'strict'
+    secure: env.NODE_ENV === "production",
+    sameSite: "strict",
   };
 
   res
     .status(statusCode)
-    .cookie('token', token, options)
+    .cookie("token", token, options)
     .json({
       success: true,
       message,
@@ -69,15 +72,15 @@ const generateTokenResponse = (user, statusCode, res, message = 'Success') => {
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar
-      }
+        avatar: user.avatar,
+      },
     });
 };
 
-module.exports = {
+export {
   generateToken,
   generateRefreshToken,
   verifyToken,
   verifyRefreshToken,
-  generateTokenResponse
+  generateTokenResponse,
 };

@@ -1,5 +1,5 @@
-const User = require('../models/User');
-const { validationResult } = require('express-validator');
+import User from "../models/User.js";
+import { validationResult } from "express-validator";
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -20,38 +20,38 @@ const getUsers = async (req, res, next) => {
 
     // Filter by active status
     if (req.query.isActive !== undefined) {
-      query.isActive = req.query.isActive === 'true';
+      query.isActive = req.query.isActive === "true";
     }
 
     // Search by name or email
     if (req.query.search) {
       query.$or = [
-        { name: { $regex: req.query.search, $options: 'i' } },
-        { email: { $regex: req.query.search, $options: 'i' } }
+        { name: { $regex: req.query.search, $options: "i" } },
+        { email: { $regex: req.query.search, $options: "i" } },
       ];
     }
 
     const total = await User.countDocuments(query);
     const users = await User.find(query)
-      .select('-password')
+      .select("-password")
       .sort({ createdAt: -1 })
       .skip(startIndex)
       .limit(limit)
-      .populate('createdBy', 'name email');
+      .populate("createdBy", "name email");
 
     const pagination = {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       totalUsers: total,
       hasNext: page * limit < total,
-      hasPrev: page > 1
+      hasPrev: page > 1,
     };
 
     res.status(200).json({
       success: true,
       count: users.length,
       pagination,
-      data: users
+      data: users,
     });
   } catch (error) {
     next(error);
@@ -63,27 +63,30 @@ const getUsers = async (req, res, next) => {
 // @access  Private/Admin or Owner
 const getUser = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id).select("-password");
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
     // Check if user can access this resource
-    if (req.user.role !== 'admin' && req.user.role !== 'manager' &&
-        req.user._id.toString() !== req.params.id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.role !== "manager" &&
+      req.user._id.toString() !== req.params.id
+    ) {
       return res.status(403).json({
         success: false,
-        error: 'Not authorized to access this user'
+        error: "Not authorized to access this user",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: user
+      data: user,
     });
   } catch (error) {
     next(error);
@@ -99,8 +102,8 @@ const createUser = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -111,7 +114,7 @@ const createUser = async (req, res, next) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        error: 'User already exists with this email'
+        error: "User already exists with this email",
       });
     }
 
@@ -119,16 +122,16 @@ const createUser = async (req, res, next) => {
       name,
       email,
       password,
-      role: role || 'user',
+      role: role || "user",
       phone,
       avatar,
-      createdBy: req.user._id
+      createdBy: req.user._id,
     });
 
     res.status(201).json({
       success: true,
-      message: 'User created successfully',
-      data: user
+      message: "User created successfully",
+      data: user,
     });
   } catch (error) {
     next(error);
@@ -144,8 +147,8 @@ const updateUser = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -154,24 +157,27 @@ const updateUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
     // Check if user can update this resource
-    if (req.user.role !== 'admin' && req.user.role !== 'manager' &&
-        req.user._id.toString() !== req.params.id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.role !== "manager" &&
+      req.user._id.toString() !== req.params.id
+    ) {
       return res.status(403).json({
         success: false,
-        error: 'Not authorized to update this user'
+        error: "Not authorized to update this user",
       });
     }
 
     // Don't allow role changes for non-admin users
-    if (req.user.role !== 'admin' && req.body.role) {
+    if (req.user.role !== "admin" && req.body.role) {
       return res.status(403).json({
         success: false,
-        error: 'Not authorized to change user role'
+        error: "Not authorized to change user role",
       });
     }
 
@@ -179,10 +185,10 @@ const updateUser = async (req, res, next) => {
       name: req.body.name,
       phone: req.body.phone,
       avatar: req.body.avatar,
-      updatedBy: req.user._id
+      updatedBy: req.user._id,
     };
 
-    if (req.user.role === 'admin') {
+    if (req.user.role === "admin") {
       fieldsToUpdate.role = req.body.role;
       fieldsToUpdate.isActive = req.body.isActive;
     }
@@ -191,19 +197,15 @@ const updateUser = async (req, res, next) => {
       fieldsToUpdate.address = req.body.address;
     }
 
-    user = await User.findByIdAndUpdate(
-      req.params.id,
-      fieldsToUpdate,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+    user = await User.findByIdAndUpdate(req.params.id, fieldsToUpdate, {
+      new: true,
+      runValidators: true,
+    });
 
     res.status(200).json({
       success: true,
-      message: 'User updated successfully',
-      data: user
+      message: "User updated successfully",
+      data: user,
     });
   } catch (error) {
     next(error);
@@ -220,7 +222,7 @@ const deleteUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -228,7 +230,7 @@ const deleteUser = async (req, res, next) => {
     if (req.user._id.toString() === req.params.id) {
       return res.status(400).json({
         success: false,
-        error: 'Cannot delete your own account'
+        error: "Cannot delete your own account",
       });
     }
 
@@ -236,7 +238,7 @@ const deleteUser = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'User deleted successfully'
+      message: "User deleted successfully",
     });
   } catch (error) {
     next(error);
@@ -253,7 +255,7 @@ const deactivateUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -261,7 +263,7 @@ const deactivateUser = async (req, res, next) => {
     if (req.user._id.toString() === req.params.id) {
       return res.status(400).json({
         success: false,
-        error: 'Cannot deactivate your own account'
+        error: "Cannot deactivate your own account",
       });
     }
 
@@ -270,8 +272,8 @@ const deactivateUser = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'User deactivated successfully',
-      data: user
+      message: "User deactivated successfully",
+      data: user,
     });
   } catch (error) {
     next(error);
@@ -288,7 +290,7 @@ const activateUser = async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -297,20 +299,20 @@ const activateUser = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'User activated successfully',
-      data: user
+      message: "User activated successfully",
+      data: user,
     });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
+export {
   getUsers,
   getUser,
   createUser,
   updateUser,
   deleteUser,
   deactivateUser,
-  activateUser
+  activateUser,
 };

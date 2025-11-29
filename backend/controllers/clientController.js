@@ -1,6 +1,6 @@
-const Client = require('../models/Client');
+import Client from "../models/Client.js";
 
-exports.createClient = async (req, res) => {
+export const createClient = async (req, res) => {
   try {
     const client = await Client.create(req.body);
     res.status(201).json({ success: true, data: client });
@@ -9,7 +9,7 @@ exports.createClient = async (req, res) => {
   }
 };
 
-exports.getClients = async (req, res) => {
+export const getClients = async (req, res) => {
   try {
     const clients = await Client.find();
     res.status(200).json({ success: true, data: clients });
@@ -18,11 +18,13 @@ exports.getClients = async (req, res) => {
   }
 };
 
-exports.getClient = async (req, res) => {
+export const getClient = async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);
     if (!client) {
-      return res.status(404).json({ success: false, error: 'Client not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Client not found" });
     }
     res.status(200).json({ success: true, data: client });
   } catch (error) {
@@ -30,11 +32,16 @@ exports.getClient = async (req, res) => {
   }
 };
 
-exports.updateClient = async (req, res) => {
+export const updateClient = async (req, res) => {
   try {
-    const client = await Client.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const client = await Client.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
     if (!client) {
-      return res.status(404).json({ success: false, error: 'Client not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Client not found" });
     }
     res.status(200).json({ success: true, data: client });
   } catch (error) {
@@ -42,11 +49,13 @@ exports.updateClient = async (req, res) => {
   }
 };
 
-exports.deleteClient = async (req, res) => {
+export const deleteClient = async (req, res) => {
   try {
     const client = await Client.findByIdAndDelete(req.params.id);
     if (!client) {
-      return res.status(404).json({ success: false, error: 'Client not found' });
+      return res
+        .status(404)
+        .json({ success: false, error: "Client not found" });
     }
     res.status(200).json({ success: true, data: {} });
   } catch (error) {

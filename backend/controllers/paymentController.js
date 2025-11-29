@@ -1,8 +1,8 @@
-const Payment = require('../models/Payment');
-const Invoice = require('../models/Invoice');
-const Project = require('../models/Project');
-const BankDetails = require('../models/BankDetails');
-const { validationResult } = require('express-validator');
+import Payment from "../models/Payment.js";
+import Invoice from "../models/Invoice.js";
+import Project from "../models/Project.js";
+import BankDetails from "../models/BankDetails.js";
+import { validationResult } from "express-validator";
 
 // @desc    Get all payments
 // @route   GET /api/payments
@@ -45,22 +45,22 @@ const getPayments = async (req, res, next) => {
     const total = await Payment.countDocuments(query);
     const payments = await Payment.find(query)
       .populate({
-        path: 'project_id',
-        select: 'name user_id',
+        path: "project_id",
+        select: "name user_id",
         populate: {
-          path: 'client_id',
-          select: 'name'
-        }
+          path: "client_id",
+          select: "name",
+        },
       })
-      .populate('invoice_id', 'invoice_number amount')
+      .populate("invoice_id", "invoice_number amount")
       .sort({ payment_date: -1 })
       .skip(startIndex)
       .limit(limit);
 
     // Transform data for frontend compatibility
-    const transformedPayments = payments.map(payment => ({
+    const transformedPayments = payments.map((payment) => ({
       ...payment.toObject(),
-      id: payment._id
+      id: payment._id,
     }));
 
     const pagination = {
@@ -68,14 +68,14 @@ const getPayments = async (req, res, next) => {
       totalPages: Math.ceil(total / limit),
       totalPayments: total,
       hasNext: page * limit < total,
-      hasPrev: page > 1
+      hasPrev: page > 1,
     };
 
     res.status(200).json({
       success: true,
       count: transformedPayments.length,
       pagination,
-      data: transformedPayments
+      data: transformedPayments,
     });
   } catch (error) {
     next(error);
@@ -89,31 +89,31 @@ const getPayment = async (req, res, next) => {
   try {
     const payment = await Payment.findById(req.params.id)
       .populate({
-        path: 'project_id',
-        select: 'name user_id',
+        path: "project_id",
+        select: "name user_id",
         populate: {
-          path: 'client_id',
-          select: 'name'
-        }
+          path: "client_id",
+          select: "name",
+        },
       })
-      .populate('invoice_id', 'invoice_number amount');
+      .populate("invoice_id", "invoice_number amount");
 
     if (!payment) {
       return res.status(404).json({
         success: false,
-        error: 'Payment not found'
+        error: "Payment not found",
       });
     }
 
     // Transform data for frontend compatibility
     const transformedPayment = {
       ...payment.toObject(),
-      id: payment._id
+      id: payment._id,
     };
 
     res.status(200).json({
       success: true,
-      data: transformedPayment
+      data: transformedPayment,
     });
   } catch (error) {
     next(error);
@@ -129,19 +129,20 @@ const createPayment = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
-    const { invoice_id, project_id, amount, payment_method, payment_date } = req.body;
+    const { invoice_id, project_id, amount, payment_method, payment_date } =
+      req.body;
 
     // Verify project exists
     const project = await Project.findById(project_id);
     if (!project) {
       return res.status(404).json({
         success: false,
-        error: 'Project not found'
+        error: "Project not found",
       });
     }
 
@@ -151,7 +152,7 @@ const createPayment = async (req, res, next) => {
       if (!invoice) {
         return res.status(404).json({
           success: false,
-          error: 'Invoice not found'
+          error: "Invoice not found",
         });
       }
     }
@@ -161,29 +162,29 @@ const createPayment = async (req, res, next) => {
       project_id,
       amount,
       payment_method,
-      payment_date
+      payment_date,
     });
 
     await payment.populate({
-      path: 'project_id',
-      select: 'name user_id',
+      path: "project_id",
+      select: "name user_id",
       populate: {
-        path: 'client_id',
-        select: 'name'
-      }
+        path: "client_id",
+        select: "name",
+      },
     });
-    await payment.populate('invoice_id', 'invoice_number amount');
+    await payment.populate("invoice_id", "invoice_number amount");
 
     // Transform data for frontend compatibility
     const transformedPayment = {
       ...payment.toObject(),
-      id: payment._id
+      id: payment._id,
     };
 
     res.status(201).json({
       success: true,
-      message: 'Payment recorded successfully',
-      data: transformedPayment
+      message: "Payment recorded successfully",
+      data: transformedPayment,
     });
   } catch (error) {
     next(error);
@@ -199,8 +200,8 @@ const updatePayment = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -209,39 +210,35 @@ const updatePayment = async (req, res, next) => {
     if (!payment) {
       return res.status(404).json({
         success: false,
-        error: 'Payment not found'
+        error: "Payment not found",
       });
     }
 
-    payment = await Payment.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+    payment = await Payment.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
 
     await payment.populate({
-      path: 'project_id',
-      select: 'name user_id',
+      path: "project_id",
+      select: "name user_id",
       populate: {
-        path: 'client_id',
-        select: 'name'
-      }
+        path: "client_id",
+        select: "name",
+      },
     });
-    await payment.populate('invoice_id', 'invoice_number amount');
+    await payment.populate("invoice_id", "invoice_number amount");
 
     // Transform data for frontend compatibility
     const transformedPayment = {
       ...payment.toObject(),
-      id: payment._id
+      id: payment._id,
     };
 
     res.status(200).json({
       success: true,
-      message: 'Payment updated successfully',
-      data: transformedPayment
+      message: "Payment updated successfully",
+      data: transformedPayment,
     });
   } catch (error) {
     next(error);
@@ -258,7 +255,7 @@ const deletePayment = async (req, res, next) => {
     if (!payment) {
       return res.status(404).json({
         success: false,
-        error: 'Payment not found'
+        error: "Payment not found",
       });
     }
 
@@ -266,7 +263,7 @@ const deletePayment = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Payment deleted successfully'
+      message: "Payment deleted successfully",
     });
   } catch (error) {
     next(error);
@@ -281,7 +278,7 @@ const getDashboardStats = async (req, res, next) => {
     const totalPayments = await Payment.countDocuments();
 
     const totalAmount = await Payment.aggregate([
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
     const thisMonth = new Date();
@@ -290,12 +287,18 @@ const getDashboardStats = async (req, res, next) => {
 
     const monthlyAmount = await Payment.aggregate([
       { $match: { payment_date: { $gte: thisMonth } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
     const paymentMethods = await Payment.aggregate([
-      { $group: { _id: '$payment_method', count: { $sum: 1 }, total: { $sum: '$amount' } } },
-      { $sort: { total: -1 } }
+      {
+        $group: {
+          _id: "$payment_method",
+          count: { $sum: 1 },
+          total: { $sum: "$amount" },
+        },
+      },
+      { $sort: { total: -1 } },
     ]);
 
     res.status(200).json({
@@ -304,8 +307,8 @@ const getDashboardStats = async (req, res, next) => {
         totalPayments,
         totalAmount: totalAmount[0]?.total || 0,
         monthlyAmount: monthlyAmount[0]?.total || 0,
-        paymentMethods
-      }
+        paymentMethods,
+      },
     });
   } catch (error) {
     next(error);
@@ -318,25 +321,25 @@ const getDashboardStats = async (req, res, next) => {
 const getBankAccounts = async (req, res, next) => {
   try {
     const bankAccounts = await BankDetails.find()
-      .select('accountHolderName accountNumber ifscCode bankName accountType')
+      .select("accountHolderName accountNumber ifscCode bankName accountType")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       count: bankAccounts.length,
-      data: bankAccounts
+      data: bankAccounts,
     });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
+export {
   getPayments,
   getPayment,
   createPayment,
   updatePayment,
   deletePayment,
   getDashboardStats,
-  getBankAccounts
+  getBankAccounts,
 };

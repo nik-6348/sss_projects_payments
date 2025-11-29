@@ -1,5 +1,5 @@
-const Project = require('../models/Project');
-const { validationResult } = require('express-validator');
+import Project from "../models/Project.js";
+import { validationResult } from "express-validator";
 
 // @desc    Get all projects
 // @route   GET /api/projects
@@ -7,20 +7,20 @@ const { validationResult } = require('express-validator');
 const getProjects = async (req, res, next) => {
   try {
     const projects = await Project.find({ user_id: req.user.id })
-      .populate('client_id', 'name email phone')
+      .populate("client_id", "name email phone")
       .sort({ createdAt: -1 });
 
     // Transform data to include client_name for frontend compatibility
-    const transformedProjects = projects.map(project => ({
+    const transformedProjects = projects.map((project) => ({
       ...project.toObject(),
       id: project._id,
-      client_name: project.client_id?.name || 'Unknown Client'
+      client_name: project.client_id?.name || "Unknown Client",
     }));
 
     res.status(200).json({
       success: true,
       count: transformedProjects.length,
-      data: transformedProjects
+      data: transformedProjects,
     });
   } catch (error) {
     next(error);
@@ -32,13 +32,15 @@ const getProjects = async (req, res, next) => {
 // @access  Private
 const getProject = async (req, res, next) => {
   try {
-    const project = await Project.findById(req.params.id)
-      .populate('client_id', 'name email phone');
+    const project = await Project.findById(req.params.id).populate(
+      "client_id",
+      "name email phone"
+    );
 
     if (!project) {
       return res.status(404).json({
         success: false,
-        error: 'Project not found'
+        error: "Project not found",
       });
     }
 
@@ -46,7 +48,7 @@ const getProject = async (req, res, next) => {
     if (project.user_id.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        error: 'Not authorized to access this project'
+        error: "Not authorized to access this project",
       });
     }
 
@@ -54,12 +56,12 @@ const getProject = async (req, res, next) => {
     const transformedProject = {
       ...project.toObject(),
       id: project._id,
-      client_name: project.client_id?.name || 'Unknown Client'
+      client_name: project.client_id?.name || "Unknown Client",
     };
 
     res.status(200).json({
       success: true,
-      data: transformedProject
+      data: transformedProject,
     });
   } catch (error) {
     next(error);
@@ -75,30 +77,30 @@ const createProject = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
     const projectData = {
       ...req.body,
-      user_id: req.user.id
+      user_id: req.user.id,
     };
 
     const project = await Project.create(projectData);
-    await project.populate('client_id', 'name email phone');
+    await project.populate("client_id", "name email phone");
 
     // Transform data to include client_name for frontend compatibility
     const transformedProject = {
       ...project.toObject(),
       id: project._id,
-      client_name: project.client_id?.name || 'Unknown Client'
+      client_name: project.client_id?.name || "Unknown Client",
     };
 
     res.status(201).json({
       success: true,
-      message: 'Project created successfully',
-      data: transformedProject
+      message: "Project created successfully",
+      data: transformedProject,
     });
   } catch (error) {
     next(error);
@@ -114,8 +116,8 @@ const updateProject = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -124,7 +126,7 @@ const updateProject = async (req, res, next) => {
     if (!project) {
       return res.status(404).json({
         success: false,
-        error: 'Project not found'
+        error: "Project not found",
       });
     }
 
@@ -132,30 +134,26 @@ const updateProject = async (req, res, next) => {
     if (project.user_id.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        error: 'Not authorized to update this project'
+        error: "Not authorized to update this project",
       });
     }
 
-    project = await Project.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    ).populate('client_id', 'name email phone');
+    project = await Project.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    }).populate("client_id", "name email phone");
 
     // Transform data to include client_name for frontend compatibility
     const transformedProject = {
       ...project.toObject(),
       id: project._id,
-      client_name: project.client_id?.name || 'Unknown Client'
+      client_name: project.client_id?.name || "Unknown Client",
     };
 
     res.status(200).json({
       success: true,
-      message: 'Project updated successfully',
-      data: transformedProject
+      message: "Project updated successfully",
+      data: transformedProject,
     });
   } catch (error) {
     next(error);
@@ -172,7 +170,7 @@ const deleteProject = async (req, res, next) => {
     if (!project) {
       return res.status(404).json({
         success: false,
-        error: 'Project not found'
+        error: "Project not found",
       });
     }
 
@@ -180,7 +178,7 @@ const deleteProject = async (req, res, next) => {
     if (project.user_id.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        error: 'Not authorized to delete this project'
+        error: "Not authorized to delete this project",
       });
     }
 
@@ -188,7 +186,7 @@ const deleteProject = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Project deleted successfully'
+      message: "Project deleted successfully",
     });
   } catch (error) {
     next(error);
@@ -204,8 +202,8 @@ const updateProjectStatus = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -215,7 +213,7 @@ const updateProjectStatus = async (req, res, next) => {
     if (!project) {
       return res.status(404).json({
         success: false,
-        error: 'Project not found'
+        error: "Project not found",
       });
     }
 
@@ -223,16 +221,22 @@ const updateProjectStatus = async (req, res, next) => {
     if (project.user_id.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        error: 'Not authorized to update this project'
+        error: "Not authorized to update this project",
       });
     }
 
     // Validate status
-    const validStatuses = ['active', 'on_hold', 'completed', 'cancelled', 'draft'];
+    const validStatuses = [
+      "active",
+      "on_hold",
+      "completed",
+      "cancelled",
+      "draft",
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid status'
+        error: "Invalid status",
       });
     }
 
@@ -241,26 +245,22 @@ const updateProjectStatus = async (req, res, next) => {
       updateData.progress = progress;
     }
 
-    project = await Project.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      {
-        new: true,
-        runValidators: true
-      }
-    ).populate('client_id', 'name email phone');
+    project = await Project.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate("client_id", "name email phone");
 
     // Transform data to include client_name for frontend compatibility
     const transformedProject = {
       ...project.toObject(),
       id: project._id,
-      client_name: project.client_id?.name || 'Unknown Client'
+      client_name: project.client_id?.name || "Unknown Client",
     };
 
     res.status(200).json({
       success: true,
-      message: 'Project status updated successfully',
-      data: transformedProject
+      message: "Project status updated successfully",
+      data: transformedProject,
     });
   } catch (error) {
     next(error);
@@ -272,18 +272,20 @@ const updateProjectStatus = async (req, res, next) => {
 // @access  Private
 const getDashboardStats = async (req, res, next) => {
   try {
-    const totalProjects = await Project.countDocuments({ user_id: req.user.id });
+    const totalProjects = await Project.countDocuments({
+      user_id: req.user.id,
+    });
     const activeProjects = await Project.countDocuments({
       user_id: req.user.id,
-      status: 'active'
+      status: "active",
     });
     const completedProjects = await Project.countDocuments({
       user_id: req.user.id,
-      status: 'completed'
+      status: "completed",
     });
     const totalAmount = await Project.aggregate([
       { $match: { user_id: req.user.id } },
-      { $group: { _id: null, total: { $sum: '$total_amount' } } }
+      { $group: { _id: null, total: { $sum: "$total_amount" } } },
     ]);
 
     res.status(200).json({
@@ -292,20 +294,20 @@ const getDashboardStats = async (req, res, next) => {
         totalProjects,
         activeProjects,
         completedProjects,
-        totalAmount: totalAmount[0]?.total || 0
-      }
+        totalAmount: totalAmount[0]?.total || 0,
+      },
     });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
+export {
   getProjects,
   getProject,
   createProject,
   updateProject,
   deleteProject,
   updateProjectStatus,
-  getDashboardStats
+  getDashboardStats,
 };

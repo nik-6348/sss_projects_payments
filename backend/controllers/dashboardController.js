@@ -1,7 +1,7 @@
-const Project = require('../models/Project');
-const Invoice = require('../models/Invoice');
-const Payment = require('../models/Payment');
-const User = require('../models/User');
+import Project from "../models/Project.js";
+import Invoice from "../models/Invoice.js";
+import Payment from "../models/Payment.js";
+import User from "../models/User.js";
 
 // @desc    Get comprehensive dashboard statistics
 // @route   GET /api/dashboard/overview
@@ -9,52 +9,54 @@ const User = require('../models/User');
 const getDashboardOverview = async (req, res, next) => {
   try {
     // Project statistics
-    const totalProjects = await Project.countDocuments({ user_id: req.user.id });
+    const totalProjects = await Project.countDocuments({
+      user_id: req.user.id,
+    });
     const activeProjects = await Project.countDocuments({
       user_id: req.user.id,
-      status: 'active'
+      status: "active",
     });
     const completedProjects = await Project.countDocuments({
       user_id: req.user.id,
-      status: 'completed'
+      status: "completed",
     });
 
     const projectStatusStats = await Project.aggregate([
       { $match: { user_id: req.user.id } },
-      { $group: { _id: '$status', count: { $sum: 1 } } }
+      { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
 
     const totalProjectValue = await Project.aggregate([
       { $match: { user_id: req.user.id } },
-      { $group: { _id: null, total: { $sum: '$total_amount' } } }
+      { $group: { _id: null, total: { $sum: "$total_amount" } } },
     ]);
 
     // Invoice statistics
     const totalInvoices = await Invoice.countDocuments();
-    const paidInvoices = await Invoice.countDocuments({ status: 'paid' });
-    const pendingInvoices = await Invoice.countDocuments({ status: 'sent' });
+    const paidInvoices = await Invoice.countDocuments({ status: "paid" });
+    const pendingInvoices = await Invoice.countDocuments({ status: "sent" });
     const overdueInvoices = await Invoice.countDocuments({
-      status: { $in: ['sent', 'overdue'] },
-      due_date: { $lt: new Date() }
+      status: { $in: ["sent", "overdue"] },
+      due_date: { $lt: new Date() },
     });
 
     const invoiceStatusStats = await Invoice.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } }
+      { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
 
     const totalInvoiceAmount = await Invoice.aggregate([
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
     const paidInvoiceAmount = await Invoice.aggregate([
-      { $match: { status: 'paid' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $match: { status: "paid" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
     // Payment statistics
     const totalPayments = await Payment.countDocuments();
     const totalPaymentAmount = await Payment.aggregate([
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
     // Monthly trends (last 6 months)
@@ -66,14 +68,14 @@ const getDashboardOverview = async (req, res, next) => {
       {
         $group: {
           _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
           },
           count: { $sum: 1 },
-          totalValue: { $sum: '$total_amount' }
-        }
+          totalValue: { $sum: "$total_amount" },
+        },
       },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]);
 
     const monthlyInvoiceTrends = await Invoice.aggregate([
@@ -81,14 +83,14 @@ const getDashboardOverview = async (req, res, next) => {
       {
         $group: {
           _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
           },
           count: { $sum: 1 },
-          totalAmount: { $sum: '$amount' }
-        }
+          totalAmount: { $sum: "$amount" },
+        },
       },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]);
 
     const monthlyPaymentTrends = await Payment.aggregate([
@@ -96,48 +98,48 @@ const getDashboardOverview = async (req, res, next) => {
       {
         $group: {
           _id: {
-            year: { $year: '$payment_date' },
-            month: { $month: '$payment_date' }
+            year: { $year: "$payment_date" },
+            month: { $month: "$payment_date" },
           },
           count: { $sum: 1 },
-          totalAmount: { $sum: '$amount' }
-        }
+          totalAmount: { $sum: "$amount" },
+        },
       },
-      { $sort: { '_id.year': 1, '_id.month': 1 } }
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]);
 
     // Recent activities
     const recentProjects = await Project.find({ user_id: req.user.id })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('name status createdAt');
+      .select("name status createdAt");
 
     const recentInvoices = await Invoice.find()
       .populate({
-        path: 'project_id',
-        select: 'name user_id',
+        path: "project_id",
+        select: "name user_id",
         populate: {
-          path: 'client_id',
-          select: 'name'
-        }
+          path: "client_id",
+          select: "name",
+        },
       })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('invoice_number amount status project_id createdAt');
+      .select("invoice_number amount status project_id createdAt");
 
     const recentPayments = await Payment.find()
       .populate({
-        path: 'project_id',
-        select: 'name user_id',
+        path: "project_id",
+        select: "name user_id",
         populate: {
-          path: 'client_id',
-          select: 'name'
-        }
+          path: "client_id",
+          select: "name",
+        },
       })
-      .populate('invoice_id', 'invoice_number')
+      .populate("invoice_id", "invoice_number")
       .sort({ payment_date: -1 })
       .limit(5)
-      .select('amount payment_method payment_date project_id invoice_id');
+      .select("amount payment_method payment_date project_id invoice_id");
 
     res.status(200).json({
       success: true,
@@ -147,7 +149,7 @@ const getDashboardOverview = async (req, res, next) => {
           active: activeProjects,
           completed: completedProjects,
           statusBreakdown: projectStatusStats,
-          totalValue: totalProjectValue[0]?.total || 0
+          totalValue: totalProjectValue[0]?.total || 0,
         },
         invoices: {
           total: totalInvoices,
@@ -156,23 +158,23 @@ const getDashboardOverview = async (req, res, next) => {
           overdue: overdueInvoices,
           statusBreakdown: invoiceStatusStats,
           totalAmount: totalInvoiceAmount[0]?.total || 0,
-          paidAmount: paidInvoiceAmount[0]?.total || 0
+          paidAmount: paidInvoiceAmount[0]?.total || 0,
         },
         payments: {
           total: totalPayments,
-          totalAmount: totalPaymentAmount[0]?.total || 0
+          totalAmount: totalPaymentAmount[0]?.total || 0,
         },
         trends: {
           projects: monthlyProjectTrends,
           invoices: monthlyInvoiceTrends,
-          payments: monthlyPaymentTrends
+          payments: monthlyPaymentTrends,
         },
         recentActivities: {
           projects: recentProjects,
           invoices: recentInvoices,
-          payments: recentPayments
-        }
-      }
+          payments: recentPayments,
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -188,25 +190,25 @@ const getProjectDashboard = async (req, res, next) => {
       { $match: { user_id: req.user.id } },
       {
         $group: {
-          _id: '$status',
+          _id: "$status",
           count: { $sum: 1 },
-          totalBudget: { $sum: '$total_amount' },
-          avgBudget: { $avg: '$total_amount' }
-        }
-      }
+          totalBudget: { $sum: "$total_amount" },
+          avgBudget: { $avg: "$total_amount" },
+        },
+      },
     ]);
 
     const projectTimeline = await Project.find({ user_id: req.user.id })
       .sort({ createdAt: -1 })
       .limit(10)
-      .select('name status total_amount createdAt client_name');
+      .select("name status total_amount createdAt client_name");
 
     res.status(200).json({
       success: true,
       data: {
         statistics: projectStats,
-        timeline: projectTimeline
-      }
+        timeline: projectTimeline,
+      },
     });
   } catch (error) {
     next(error);
@@ -221,25 +223,25 @@ const getInvoiceDashboard = async (req, res, next) => {
     const invoiceStats = await Invoice.aggregate([
       {
         $group: {
-          _id: '$status',
+          _id: "$status",
           count: { $sum: 1 },
-          totalAmount: { $sum: '$amount' },
-          avgAmount: { $avg: '$amount' }
-        }
-      }
+          totalAmount: { $sum: "$amount" },
+          avgAmount: { $avg: "$amount" },
+        },
+      },
     ]);
 
     const overdueInvoices = await Invoice.find({
-      status: { $in: ['sent', 'overdue'] },
-      due_date: { $lt: new Date() }
+      status: { $in: ["sent", "overdue"] },
+      due_date: { $lt: new Date() },
     })
       .populate({
-        path: 'project_id',
-        select: 'name user_id',
+        path: "project_id",
+        select: "name user_id",
         populate: {
-          path: 'client_id',
-          select: 'name'
-        }
+          path: "client_id",
+          select: "name",
+        },
       })
       .sort({ due_date: 1 })
       .limit(10);
@@ -248,8 +250,8 @@ const getInvoiceDashboard = async (req, res, next) => {
       success: true,
       data: {
         statistics: invoiceStats,
-        overdue: overdueInvoices
-      }
+        overdue: overdueInvoices,
+      },
     });
   } catch (error) {
     next(error);
@@ -264,23 +266,23 @@ const getPaymentDashboard = async (req, res, next) => {
     const paymentMethodStats = await Payment.aggregate([
       {
         $group: {
-          _id: '$payment_method',
+          _id: "$payment_method",
           count: { $sum: 1 },
-          totalAmount: { $sum: '$amount' }
-        }
-      }
+          totalAmount: { $sum: "$amount" },
+        },
+      },
     ]);
 
     const recentPayments = await Payment.find()
       .populate({
-        path: 'project_id',
-        select: 'name user_id',
+        path: "project_id",
+        select: "name user_id",
         populate: {
-          path: 'client_id',
-          select: 'name'
-        }
+          path: "client_id",
+          select: "name",
+        },
       })
-      .populate('invoice_id', 'invoice_number')
+      .populate("invoice_id", "invoice_number")
       .sort({ payment_date: -1 })
       .limit(10);
 
@@ -288,17 +290,17 @@ const getPaymentDashboard = async (req, res, next) => {
       success: true,
       data: {
         paymentMethods: paymentMethodStats,
-        recent: recentPayments
-      }
+        recent: recentPayments,
+      },
     });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
+export {
   getDashboardOverview,
   getProjectDashboard,
   getInvoiceDashboard,
-  getPaymentDashboard
+  getPaymentDashboard,
 };

@@ -1,22 +1,20 @@
-const express = require('express');
-
-const {
+import express from "express";
+import {
   getPayments,
   getPayment,
   createPayment,
   updatePayment,
   deletePayment,
   getDashboardStats,
-  getBankAccounts
-} = require('../controllers/paymentController');
-
-const { protect } = require('../middleware/auth');
-const {
+  getBankAccounts,
+} from "../controllers/paymentController.js";
+import { protect } from "../middleware/auth.js";
+import {
   createPaymentValidation,
   updatePaymentValidation,
   mongoIdValidation,
-  paginationValidation
-} = require('../middleware/validation');
+  paginationValidation,
+} from "../middleware/validation.js";
 
 const router = express.Router();
 
@@ -24,16 +22,16 @@ const router = express.Router();
 router.use(protect);
 
 // Bank accounts route - must be before /:id route
-router.get('/bank-accounts', getBankAccounts);
+router.get("/bank-accounts", getBankAccounts);
 
 // Dashboard stats route
-router.get('/dashboard/stats', getDashboardStats);
+router.get("/dashboard/stats", getDashboardStats);
 
 // Payment CRUD routes
-router.get('/', paginationValidation, getPayments);
-router.get('/:id', mongoIdValidation, getPayment);
-router.post('/', createPaymentValidation, createPayment);
-router.put('/:id', updatePaymentValidation, updatePayment);
-router.delete('/:id', mongoIdValidation, deletePayment);
+router.get("/", paginationValidation, getPayments);
+router.get("/:id", mongoIdValidation, getPayment);
+router.post("/", createPaymentValidation, createPayment);
+router.put("/:id", updatePaymentValidation, updatePayment);
+router.delete("/:id", mongoIdValidation, deletePayment);
 
-module.exports = router;
+export default router;

@@ -1,6 +1,6 @@
-const Invoice = require('../models/Invoice');
-const Project = require('../models/Project');
-const { validationResult } = require('express-validator');
+import Invoice from "../models/Invoice.js";
+import Project from "../models/Project.js";
+import { validationResult } from "express-validator";
 
 // @desc    Get all invoices
 // @route   GET /api/invoices
@@ -9,31 +9,31 @@ const getInvoices = async (req, res, next) => {
   try {
     const invoices = await Invoice.find()
       .populate({
-        path: 'project_id',
-        select: 'name user_id',
+        path: "project_id",
+        select: "name user_id",
         populate: {
-          path: 'client_id',
-          select: 'name'
-        }
+          path: "client_id",
+          select: "name",
+        },
       })
       .sort({ createdAt: -1 });
 
     // Transform data for frontend compatibility
-    const transformedInvoices = invoices.map(invoice => ({
+    const transformedInvoices = invoices.map((invoice) => ({
       ...invoice.toObject(),
       id: invoice._id,
       project_id: {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
-        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
-        id: invoice.project_id._id
-      }
+        client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        id: invoice.project_id._id,
+      },
     }));
 
     res.status(200).json({
       success: true,
       count: transformedInvoices.length,
-      data: transformedInvoices
+      data: transformedInvoices,
     });
   } catch (error) {
     next(error);
@@ -45,20 +45,19 @@ const getInvoices = async (req, res, next) => {
 // @access  Private
 const getInvoice = async (req, res, next) => {
   try {
-    const invoice = await Invoice.findById(req.params.id)
-      .populate({
-        path: 'project_id',
-        select: 'name user_id',
-        populate: {
-          path: 'client_id',
-          select: 'name'
-        }
-      });
+    const invoice = await Invoice.findById(req.params.id).populate({
+      path: "project_id",
+      select: "name user_id",
+      populate: {
+        path: "client_id",
+        select: "name",
+      },
+    });
 
     if (!invoice) {
       return res.status(404).json({
         success: false,
-        error: 'Invoice not found'
+        error: "Invoice not found",
       });
     }
 
@@ -69,14 +68,14 @@ const getInvoice = async (req, res, next) => {
       project_id: {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
-        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
-        id: invoice.project_id._id
-      }
+        client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        id: invoice.project_id._id,
+      },
     };
 
     res.status(200).json({
       success: true,
-      data: transformedInvoice
+      data: transformedInvoice,
     });
   } catch (error) {
     next(error);
@@ -92,8 +91,8 @@ const createInvoice = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -101,7 +100,7 @@ const createInvoice = async (req, res, next) => {
     if (!project) {
       return res.status(404).json({
         success: false,
-        error: 'Project not found'
+        error: "Project not found",
       });
     }
 
@@ -117,16 +116,16 @@ const createInvoice = async (req, res, next) => {
       gst_percentage,
       gst_amount,
       total_amount,
-      amount: total_amount
+      amount: total_amount,
     });
 
     await invoice.populate({
-      path: 'project_id',
-      select: 'name user_id',
+      path: "project_id",
+      select: "name user_id",
       populate: {
-        path: 'client_id',
-        select: 'name'
-      }
+        path: "client_id",
+        select: "name",
+      },
     });
 
     // Transform data for frontend compatibility
@@ -136,15 +135,15 @@ const createInvoice = async (req, res, next) => {
       project_id: {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
-        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
-        id: invoice.project_id._id
-      }
+        client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        id: invoice.project_id._id,
+      },
     };
 
     res.status(201).json({
       success: true,
-      message: 'Invoice created successfully',
-      data: transformedInvoice
+      message: "Invoice created successfully",
+      data: transformedInvoice,
     });
   } catch (error) {
     next(error);
@@ -160,8 +159,8 @@ const updateInvoice = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -170,7 +169,7 @@ const updateInvoice = async (req, res, next) => {
     if (!invoice) {
       return res.status(404).json({
         success: false,
-        error: 'Invoice not found'
+        error: "Invoice not found",
       });
     }
 
@@ -181,7 +180,7 @@ const updateInvoice = async (req, res, next) => {
       const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
       const gst_amount = (subtotal * gst_percentage) / 100;
       const total_amount = subtotal + gst_amount;
-      
+
       updateData = {
         ...updateData,
         services,
@@ -189,24 +188,20 @@ const updateInvoice = async (req, res, next) => {
         gst_percentage,
         gst_amount,
         total_amount,
-        amount: total_amount
+        amount: total_amount,
       };
     }
 
-    invoice = await Invoice.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      {
-        new: true,
-        runValidators: true
-      }
-    ).populate({
-      path: 'project_id',
-      select: 'name user_id',
+    invoice = await Invoice.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate({
+      path: "project_id",
+      select: "name user_id",
       populate: {
-        path: 'client_id',
-        select: 'name'
-      }
+        path: "client_id",
+        select: "name",
+      },
     });
 
     // Transform data for frontend compatibility
@@ -216,15 +211,15 @@ const updateInvoice = async (req, res, next) => {
       project_id: {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
-        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
-        id: invoice.project_id._id
-      }
+        client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        id: invoice.project_id._id,
+      },
     };
 
     res.status(200).json({
       success: true,
-      message: 'Invoice updated successfully',
-      data: transformedInvoice
+      message: "Invoice updated successfully",
+      data: transformedInvoice,
     });
   } catch (error) {
     next(error);
@@ -241,7 +236,7 @@ const deleteInvoice = async (req, res, next) => {
     if (!invoice) {
       return res.status(404).json({
         success: false,
-        error: 'Invoice not found'
+        error: "Invoice not found",
       });
     }
 
@@ -249,7 +244,7 @@ const deleteInvoice = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Invoice deleted successfully'
+      message: "Invoice deleted successfully",
     });
   } catch (error) {
     next(error);
@@ -265,8 +260,8 @@ const updateInvoiceStatus = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -276,42 +271,38 @@ const updateInvoiceStatus = async (req, res, next) => {
     if (!invoice) {
       return res.status(404).json({
         success: false,
-        error: 'Invoice not found'
+        error: "Invoice not found",
       });
     }
 
     // Validate status
-    const validStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
+    const validStatuses = ["draft", "sent", "paid", "overdue", "cancelled"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid status'
+        error: "Invalid status",
       });
     }
 
     const updateData = { status };
 
     // If marking as paid, add paid date
-    if (status === 'paid' && paidDate) {
+    if (status === "paid" && paidDate) {
       updateData.paid_date = paidDate;
-    } else if (status !== 'paid') {
+    } else if (status !== "paid") {
       updateData.paid_date = undefined;
     }
 
-    invoice = await Invoice.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      {
-        new: true,
-        runValidators: true
-      }
-    ).populate({
-      path: 'project_id',
-      select: 'name user_id',
+    invoice = await Invoice.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    }).populate({
+      path: "project_id",
+      select: "name user_id",
       populate: {
-        path: 'client_id',
-        select: 'name'
-      }
+        path: "client_id",
+        select: "name",
+      },
     });
 
     // Transform data for frontend compatibility
@@ -321,15 +312,15 @@ const updateInvoiceStatus = async (req, res, next) => {
       project_id: {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
-        client_name: invoice.project_id.client_id?.name || 'Unknown Client',
-        id: invoice.project_id._id
-      }
+        client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        id: invoice.project_id._id,
+      },
     };
 
     res.status(200).json({
       success: true,
-      message: 'Invoice status updated successfully',
-      data: transformedInvoice
+      message: "Invoice status updated successfully",
+      data: transformedInvoice,
     });
   } catch (error) {
     next(error);
@@ -341,13 +332,15 @@ const updateInvoiceStatus = async (req, res, next) => {
 // @access  Private
 const generateInvoicePDF = async (req, res, next) => {
   try {
-    const invoice = await Invoice.findById(req.params.id)
-      .populate('project_id', 'name client_name');
+    const invoice = await Invoice.findById(req.params.id).populate(
+      "project_id",
+      "name client_name"
+    );
 
     if (!invoice) {
       return res.status(404).json({
         success: false,
-        error: 'Invoice not found'
+        error: "Invoice not found",
       });
     }
 
@@ -360,13 +353,13 @@ const generateInvoicePDF = async (req, res, next) => {
       amount: invoice.amount,
       issueDate: invoice.issue_date,
       dueDate: invoice.due_date,
-      status: invoice.status
+      status: invoice.status,
     };
 
     res.status(200).json({
       success: true,
-      message: 'Invoice PDF data generated',
-      data: pdfData
+      message: "Invoice PDF data generated",
+      data: pdfData,
     });
   } catch (error) {
     next(error);
@@ -379,20 +372,20 @@ const generateInvoicePDF = async (req, res, next) => {
 const getDashboardStats = async (req, res, next) => {
   try {
     const totalInvoices = await Invoice.countDocuments();
-    const paidInvoices = await Invoice.countDocuments({ status: 'paid' });
-    const pendingInvoices = await Invoice.countDocuments({ status: 'sent' });
+    const paidInvoices = await Invoice.countDocuments({ status: "paid" });
+    const pendingInvoices = await Invoice.countDocuments({ status: "sent" });
     const overdueInvoices = await Invoice.countDocuments({
-      status: { $in: ['sent', 'overdue'] },
-      due_date: { $lt: new Date() }
+      status: { $in: ["sent", "overdue"] },
+      due_date: { $lt: new Date() },
     });
 
     const totalAmount = await Invoice.aggregate([
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
     const paidAmount = await Invoice.aggregate([
-      { $match: { status: 'paid' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $match: { status: "paid" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
     res.status(200).json({
@@ -403,15 +396,15 @@ const getDashboardStats = async (req, res, next) => {
         pendingInvoices,
         overdueInvoices,
         totalAmount: totalAmount[0]?.total || 0,
-        paidAmount: paidAmount[0]?.total || 0
-      }
+        paidAmount: paidAmount[0]?.total || 0,
+      },
     });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
+export {
   getInvoices,
   getInvoice,
   createInvoice,
@@ -419,5 +412,5 @@ module.exports = {
   deleteInvoice,
   updateInvoiceStatus,
   generateInvoicePDF,
-  getDashboardStats
+  getDashboardStats,
 };

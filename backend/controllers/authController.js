@@ -1,6 +1,6 @@
-const User = require('../models/User');
-const { generateTokenResponse } = require('../utils/jwtUtils');
-const { validationResult } = require('express-validator');
+import User from "../models/User.js";
+import { generateTokenResponse } from "../utils/jwtUtils.js";
+import { validationResult } from "express-validator";
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -11,8 +11,8 @@ const register = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -23,7 +23,7 @@ const register = async (req, res, next) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        error: 'User already exists with this email'
+        error: "User already exists with this email",
       });
     }
 
@@ -32,10 +32,10 @@ const register = async (req, res, next) => {
       name,
       email,
       password,
-      role: role || 'user'
+      role: role || "user",
     });
 
-    generateTokenResponse(user, 201, res, 'User registered successfully');
+    generateTokenResponse(user, 201, res, "User registered successfully");
   } catch (error) {
     next(error);
   }
@@ -50,20 +50,20 @@ const login = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
     const { email, password } = req.body;
 
     // Check for user and include password
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: "Invalid credentials",
       });
     }
 
@@ -78,9 +78,9 @@ const login = async (req, res, next) => {
     // }
 
     // Get user without password
-    const userData = await User.findById(user._id).select('-password');
+    const userData = await User.findById(user._id).select("-password");
 
-    generateTokenResponse(userData, 200, res, 'Login successful');
+    generateTokenResponse(userData, 200, res, "Login successful");
   } catch (error) {
     next(error);
   }
@@ -91,11 +91,11 @@ const login = async (req, res, next) => {
 // @access  Private
 const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select("-password");
 
     res.status(200).json({
       success: true,
-      data: user
+      data: user,
     });
   } catch (error) {
     next(error);
@@ -111,8 +111,8 @@ const updateProfile = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        error: 'Validation failed',
-        details: errors.array()
+        error: "Validation failed",
+        details: errors.array(),
       });
     }
 
@@ -123,23 +123,18 @@ const updateProfile = async (req, res, next) => {
       { name, phone, avatar },
       {
         new: true,
-        runValidators: true
+        runValidators: true,
       }
-    ).select('-password');
+    ).select("-password");
 
     res.status(200).json({
       success: true,
-      message: 'Profile updated successfully',
-      data: user
+      message: "Profile updated successfully",
+      data: user,
     });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
-  register,
-  login,
-  getProfile,
-  updateProfile
-};
+export { register, login, getProfile, updateProfile };

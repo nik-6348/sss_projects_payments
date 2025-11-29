@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const env = require('../config/env');
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import env from "../config/env.js";
 
 // Protect routes - require authentication
 const protect = async (req, res, next) => {
@@ -9,27 +9,27 @@ const protect = async (req, res, next) => {
   // Check for token in headers
   if (
     req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
+    req.headers.authorization.startsWith("Bearer")
   ) {
     try {
       // Get token from header
-      token = req.headers.authorization.split(' ')[1];
+      token = req.headers.authorization.split(" ")[1];
 
       // Verify token
       const decoded = jwt.verify(token, env.JWT_SECRET);
 
       // Get user from the token
-      req.user = await User.findById(decoded.id).select('-password');
+      req.user = await User.findById(decoded.id).select("-password");
 
       if (!req.user) {
         return res.status(401).json({
-          error: 'Not authorized, user not found'
+          error: "Not authorized, user not found",
         });
       }
 
       if (!req.user.isActive) {
         return res.status(401).json({
-          error: 'Not authorized, account deactivated'
+          error: "Not authorized, account deactivated",
         });
       }
 
@@ -37,14 +37,14 @@ const protect = async (req, res, next) => {
     } catch (error) {
       console.error(error);
       return res.status(401).json({
-        error: 'Not authorized, token failed'
+        error: "Not authorized, token failed",
       });
     }
   }
 
   if (!token) {
     return res.status(401).json({
-      error: 'Not authorized, no token'
+      error: "Not authorized, no token",
     });
   }
 };
@@ -54,13 +54,13 @@ const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
-        error: 'Not authorized, please login first'
+        error: "Not authorized, please login first",
       });
     }
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
-        error: `User role ${req.user.role} is not authorized to access this route`
+        error: `User role ${req.user.role} is not authorized to access this route`,
       });
     }
 
@@ -74,13 +74,13 @@ const optionalAuth = async (req, res, next) => {
 
   if (
     req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
+    req.headers.authorization.startsWith("Bearer")
   ) {
     try {
-      token = req.headers.authorization.split(' ')[1];
+      token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(token, env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select('-password');
-    } catch (error) { 
+      req.user = await User.findById(decoded.id).select("-password");
+    } catch (error) {
       // Token is invalid, but we don't fail the request
       req.user = null;
     }
@@ -90,31 +90,32 @@ const optionalAuth = async (req, res, next) => {
 };
 
 // Check if user owns the resource or is admin/manager
-const resourceOwnerOrAdmin = (resourceUserIdField = 'user') => {
+const resourceOwnerOrAdmin = (resourceUserIdField = "user") => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
-        error: 'Not authorized, please login first'
+        error: "Not authorized, please login first",
       });
     }
 
     // Admin and managers can access any resource
-    if (req.user.role === 'admin' || req.user.role === 'manager') {
+    if (req.user.role === "admin" || req.user.role === "manager") {
       return next();
     }
 
     // Check if user owns the resource
-    const resourceUserId = req.body[resourceUserIdField] || req.params[resourceUserIdField];
+    const resourceUserId =
+      req.body[resourceUserIdField] || req.params[resourceUserIdField];
 
     if (!resourceUserId) {
       return res.status(400).json({
-        error: 'Resource user ID not found'
+        error: "Resource user ID not found",
       });
     }
 
     if (req.user._id.toString() !== resourceUserId.toString()) {
       return res.status(403).json({
-        error: 'Not authorized to access this resource'
+        error: "Not authorized to access this resource",
       });
     }
 
@@ -122,9 +123,4 @@ const resourceOwnerOrAdmin = (resourceUserIdField = 'user') => {
   };
 };
 
-module.exports = {
-  protect,
-  authorize,
-  optionalAuth,
-  resourceOwnerOrAdmin
-};
+export { protect, authorize, optionalAuth, resourceOwnerOrAdmin };

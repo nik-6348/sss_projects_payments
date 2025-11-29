@@ -4,7 +4,7 @@ const companyDetails = {
   contact: "9876543210",
   email: "pranjal@ssism.org",
   gstNumber: "23ABMCS3140D1ZP",
-  LUTNumber: "AD230224010109S"
+  LUTNumber: "AD230224010109S",
 };
 
-module.exports = companyDetails;
+export default companyDetails;
