@@ -7,7 +7,35 @@ import { validationResult } from "express-validator";
 // @access  Private
 const getInvoices = async (req, res, next) => {
   try {
-    const invoices = await Invoice.find()
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const startIndex = (page - 1) * limit;
+    const { search, status, startDate, endDate } = req.query;
+
+    const query = { isDeleted: false };
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (startDate && endDate) {
+      query.issue_date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+
+    if (search) {
+      query.$or = [
+        { invoice_number: { $regex: search, $options: "i" } },
+        // We can't easily search by client name here because it's in a populated field
+        // But we can search by project name if we populate first or use aggregate
+      ];
+    }
+
+    const total = await Invoice.countDocuments(query);
+
+    const invoices = await Invoice.find(query)
       .populate({
         path: "project_id",
         select: "name user_id",
@@ -16,7 +44,9 @@ const getInvoices = async (req, res, next) => {
           select: "name",
         },
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(startIndex)
+      .limit(limit);
 
     // Transform data for frontend compatibility
     const transformedInvoices = invoices.map((invoice) => ({
@@ -33,6 +63,12 @@ const getInvoices = async (req, res, next) => {
     res.status(200).json({
       success: true,
       count: transformedInvoices.length,
+      total,
+      pagination: {
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
       data: transformedInvoices,
     });
   } catch (error) {
@@ -240,7 +276,9 @@ const deleteInvoice = async (req, res, next) => {
       });
     }
 
-    await Invoice.findByIdAndDelete(req.params.id);
+    // Soft delete
+    invoice.isDeleted = true;
+    await invoice.save();
 
     res.status(200).json({
       success: true,
@@ -404,6 +442,70 @@ const getDashboardStats = async (req, res, next) => {
   }
 };
 
+// @desc    Get deleted invoices
+// @route   GET /api/invoices/deleted
+// @access  Private
+const getDeletedInvoices = async (req, res, next) => {
+  try {
+    const invoices = await Invoice.find({ isDeleted: true })
+      .populate({
+        path: "project_id",
+        select: "name user_id",
+        populate: {
+          path: "client_id",
+          select: "name",
+        },
+      })
+      .sort({ updatedAt: -1 });
+
+    // Transform data for frontend compatibility
+    const transformedInvoices = invoices.map((invoice) => ({
+      ...invoice.toObject(),
+      id: invoice._id,
+      project_id: {
+        _id: invoice.project_id._id,
+        name: invoice.project_id.name,
+        client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        id: invoice.project_id._id,
+      },
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: transformedInvoices.length,
+      data: transformedInvoices,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Restore deleted invoice
+// @route   PUT /api/invoices/:id/restore
+// @access  Private
+const restoreInvoice = async (req, res, next) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        error: "Invoice not found",
+      });
+    }
+
+    invoice.isDeleted = false;
+    await invoice.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Invoice restored successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export {
   getInvoices,
   getInvoice,
@@ -413,4 +515,6 @@ export {
   updateInvoiceStatus,
   generateInvoicePDF,
   getDashboardStats,
+  getDeletedInvoices,
+  restoreInvoice,
 };

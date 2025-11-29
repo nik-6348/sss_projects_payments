@@ -43,6 +43,22 @@ const projectSchema = new mongoose.Schema(
       ref: "User",
       required: [true, "User is required"],
     },
+    team_members: [
+      {
+        user_id: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        role: {
+          type: String,
+          trim: true,
+        },
+        weekly_hours: {
+          type: Number,
+          default: 0,
+        },
+      },
+    ],
     notes: {
       type: String,
       trim: true,

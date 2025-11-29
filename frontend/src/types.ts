@@ -1,6 +1,15 @@
-export type ProjectStatus = 'active' | 'on_hold' | 'completed' | 'cancelled' | 'draft';
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
-export type PaymentMethod = 'bank_account' | 'other' | 'bank_transfer' | 'credit_card';
+export type ProjectStatus =
+  | "active"
+  | "on_hold"
+  | "completed"
+  | "cancelled"
+  | "draft";
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
+export type PaymentMethod =
+  | "bank_account"
+  | "other"
+  | "bank_transfer"
+  | "credit_card";
 
 export interface Client {
   _id: string;
@@ -20,13 +29,27 @@ export interface Client {
   updatedAt?: string;
 }
 
+export interface TeamMember {
+  user_id:
+    | string
+    | {
+        _id: string;
+        name: string;
+        email: string;
+        role: string;
+        avatar?: string;
+      };
+  role: string;
+  weekly_hours: number;
+}
+
 export interface Project {
   _id?: string;
   id: string;
   name: string;
   description: string;
   total_amount: number;
-  currency?: 'INR' | 'USD';
+  currency?: "INR" | "USD";
   status: ProjectStatus;
   start_date: string;
   end_date?: string;
@@ -37,6 +60,7 @@ export interface Project {
   updatedAt?: string;
   created_at?: string;
   user_id: string;
+  team_members?: TeamMember[];
 }
 
 // API response type for projects
@@ -45,7 +69,7 @@ export interface ProjectApiResponse {
   name: string;
   description: string;
   total_amount: number;
-  currency?: 'INR' | 'USD';
+  currency?: "INR" | "USD";
   status: ProjectStatus;
   start_date: string;
   end_date?: string;
@@ -59,15 +83,17 @@ export interface ProjectApiResponse {
 export interface Invoice {
   _id?: string;
   id: string;
-  project_id: string | {
-    _id: string;
-    name: string;
-    client_name: string;
-    id: string;
-  };
+  project_id:
+    | string
+    | {
+        _id: string;
+        name: string;
+        client_name: string;
+        id: string;
+      };
   invoice_number: string;
   amount: number;
-  currency?: 'INR' | 'USD';
+  currency?: "INR" | "USD";
   status: InvoiceStatus;
   issue_date: string;
   due_date: string;
@@ -94,7 +120,7 @@ export interface InvoiceApiResponse {
   project_id: string;
   invoice_number: string;
   amount: number;
-  currency?: 'INR' | 'USD';
+  currency?: "INR" | "USD";
   status: InvoiceStatus;
   issue_date: string;
   due_date: string;
@@ -121,7 +147,7 @@ export interface Payment {
   invoice_id?: string;
   project_id: string;
   amount: number;
-  currency?: 'INR' | 'USD';
+  currency?: "INR" | "USD";
   payment_method: PaymentMethod;
   bank_account_id?: string;
   custom_payment_details?: string;
@@ -144,18 +170,23 @@ export interface DashboardStats {
   totalDue: number;
   overdueInvoices: number;
 }
-
 export interface FormData {
   [key: string]: string | number;
 }
 
 // Form data interfaces for better type safety
-export interface ProjectFormData extends Omit<Project, 'created_at' | 'user_id' | 'total_amount' | 'id' | 'client_name'> {
+export interface ProjectFormData
+  extends Omit<
+    Project,
+    "created_at" | "user_id" | "total_amount" | "id" | "client_name"
+  > {
   id?: string;
   total_amount: string;
+  team_members?: TeamMember[];
 }
 
-export interface InvoiceFormData extends Omit<Invoice, 'id' | 'invoice_number' | 'amount'> {
+export interface InvoiceFormData
+  extends Omit<Invoice, "id" | "invoice_number" | "amount"> {
   amount: string;
   payment_method?: PaymentMethod;
   bank_account_id?: string;
@@ -170,7 +201,7 @@ export interface InvoiceFormData extends Omit<Invoice, 'id' | 'invoice_number' |
   total_amount?: number;
 }
 
-export interface PaymentFormData extends Omit<Payment, 'id'> {
+export interface PaymentFormData extends Omit<Payment, "id"> {
   amount: number;
   bank_account_id?: string;
   custom_payment_details?: string;

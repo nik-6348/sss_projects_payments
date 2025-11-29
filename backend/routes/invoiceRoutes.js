@@ -8,6 +8,8 @@ import {
   updateInvoiceStatus,
   generateInvoicePDF,
   getDashboardStats,
+  getDeletedInvoices,
+  restoreInvoice,
 } from "../controllers/invoiceController.js";
 import { protect } from "../middleware/auth.js";
 import {
@@ -38,5 +40,9 @@ router.get("/:id/pdf", mongoIdValidation, generateInvoicePDF);
 
 // Dashboard stats route
 router.get("/dashboard/stats", getDashboardStats);
+
+// Deleted invoices routes
+router.get("/deleted/all", getDeletedInvoices);
+router.put("/:id/restore", mongoIdValidation, restoreInvoice);
 
 export default router;

@@ -33,8 +33,20 @@ const invoiceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "sent", "paid", "overdue", "cancelled"],
+      enum: ["draft", "sent", "paid", "partial", "overdue", "cancelled"],
       default: "draft",
+    },
+    paid_amount: {
+      type: Number,
+      default: 0,
+      min: [0, "Paid amount cannot be negative"],
+    },
+    balance_due: {
+      type: Number,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
     issue_date: {
       type: Date,

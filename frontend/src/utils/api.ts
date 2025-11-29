@@ -1,6 +1,6 @@
-import axios from 'axios';
-import type { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
-import type { Client } from '../types';
+import axios from "axios";
+import type { AxiosInstance, AxiosResponse, AxiosError } from "axios";
+import type { Client } from "../types";
 
 // API Response types
 export interface ApiResponse<T = any> {
@@ -26,7 +26,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'user';
+  role: "admin" | "manager" | "user";
   avatar?: string;
   phone?: string;
   address?: {
@@ -51,7 +51,7 @@ export interface RegisterData {
   name: string;
   email: string;
   password: string;
-  role?: 'admin' | 'manager' | 'user';
+  role?: "admin" | "manager" | "user";
 }
 
 // Project types
@@ -79,7 +79,7 @@ export interface Project {
   name: string;
   description: string;
   total_amount: number;
-  status: 'active' | 'on_hold' | 'completed' | 'cancelled' | 'draft';
+  status: "active" | "on_hold" | "completed" | "cancelled" | "draft";
   start_date: string;
   end_date?: string;
   client_name: string;
@@ -114,15 +114,17 @@ export interface InvoiceClient {
 
 export interface Invoice {
   _id: string;
-  project_id: string | {
-    _id: string;
-    name: string;
-    client_name: string;
-    id: string;
-  };
+  project_id:
+    | string
+    | {
+        _id: string;
+        name: string;
+        client_name: string;
+        id: string;
+      };
   invoice_number: string;
   amount: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
   issue_date: string;
   due_date: string;
   createdAt: string;
@@ -135,8 +137,22 @@ export interface Payment {
   invoice_id?: string;
   project_id: string;
   amount: number;
-  payment_method: 'bank_transfer' | 'credit_card' | 'upi' | 'cash' | 'other';
+  payment_method: "bank_transfer" | "credit_card" | "upi" | "cash" | "other";
   payment_date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Bank Account types
+export interface BankAccount {
+  _id: string;
+  accountHolderName: string;
+  accountNumber: string;
+  ifscCode: string;
+  bankName: string;
+  accountType?: string;
+  swiftCode?: string;
+  isDefault?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -265,7 +281,7 @@ class ApiClient {
       baseURL: import.meta.env.VITE_API_URL,
       timeout: 10000,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
@@ -276,7 +292,7 @@ class ApiClient {
     // Request interceptor to add auth token
     this.axiosInstance.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem("token");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -293,9 +309,9 @@ class ApiClient {
       (error: AxiosError) => {
         if (error.response?.status === 401) {
           // Token expired or invalid
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
         }
         return Promise.reject(error);
       }
@@ -303,88 +319,135 @@ class ApiClient {
   }
 
   // Authentication methods
-  async register(userData: RegisterData): Promise<ApiResponse<{ token: string; user: User }>> {
-    const response: AxiosResponse<ApiResponse<{ token: string; user: User }>> = await this.axiosInstance.post('/auth/register', userData);
+  async register(
+    userData: RegisterData
+  ): Promise<ApiResponse<{ token: string; user: User }>> {
+    const response: AxiosResponse<ApiResponse<{ token: string; user: User }>> =
+      await this.axiosInstance.post("/auth/register", userData);
     return response.data;
   }
 
-  async login(credentials: LoginCredentials): Promise<ApiResponse<{ token: string; user: User }>> {
-    const response: AxiosResponse<ApiResponse<{ token: string; user: User }>> = await this.axiosInstance.post('/auth/login', credentials);
+  async login(
+    credentials: LoginCredentials
+  ): Promise<ApiResponse<{ token: string; user: User }>> {
+    const response: AxiosResponse<ApiResponse<{ token: string; user: User }>> =
+      await this.axiosInstance.post("/auth/login", credentials);
     return response.data;
   }
 
   async logout(): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.post('/auth/logout');
+    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.post(
+      "/auth/logout"
+    );
     return response.data;
   }
 
-  async getProfile(): Promise<ApiResponse<User>> {
-    const response: AxiosResponse<ApiResponse<User>> = await this.axiosInstance.get('/auth/profile');
+  async updateProfile(userData: any): Promise<ApiResponse<User>> {
+    const response: AxiosResponse<ApiResponse<User>> =
+      await this.axiosInstance.put("/auth/profile", userData);
     return response.data;
   }
 
-  async updateProfile(profileData: Partial<User>): Promise<ApiResponse<User>> {
-    const response: AxiosResponse<ApiResponse<User>> = await this.axiosInstance.put('/auth/profile', profileData);
+  async getTeamMembers(): Promise<ApiResponse<User[]>> {
+    const response: AxiosResponse<ApiResponse<User[]>> =
+      await this.axiosInstance.get("/team");
     return response.data;
   }
 
+  async createTeamMember(userData: any): Promise<ApiResponse<User>> {
+    const response: AxiosResponse<ApiResponse<User>> =
+      await this.axiosInstance.post("/team", userData);
+    return response.data;
+  }
 
+  async deleteTeamMember(id: string): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> =
+      await this.axiosInstance.delete(`/team/${id}`);
+    return response.data;
+  }
 
+  async getSettings(): Promise<ApiResponse<any>> {
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.axiosInstance.get("/settings");
+    return response.data;
+  }
+
+  async updateSettings(settingsData: any): Promise<ApiResponse<any>> {
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.axiosInstance.put("/settings", settingsData);
+    return response.data;
+  }
 
   // Client methods
   async getClients(): Promise<ApiResponse<Client[]>> {
-    const response: AxiosResponse<ApiResponse<Client[]>> = await this.axiosInstance.get('/clients');
+    const response: AxiosResponse<ApiResponse<Client[]>> =
+      await this.axiosInstance.get("/clients");
     return response.data;
   }
 
   async getClient(id: string): Promise<ApiResponse<Client>> {
-    const response: AxiosResponse<ApiResponse<Client>> = await this.axiosInstance.get(`/clients/${id}`);
+    const response: AxiosResponse<ApiResponse<Client>> =
+      await this.axiosInstance.get(`/clients/${id}`);
     return response.data;
   }
 
-  async createClient(clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    const response: AxiosResponse<ApiResponse<Client>> = await this.axiosInstance.post('/clients', clientData);
+  async createClient(
+    clientData: Partial<Client>
+  ): Promise<ApiResponse<Client>> {
+    const response: AxiosResponse<ApiResponse<Client>> =
+      await this.axiosInstance.post("/clients", clientData);
     return response.data;
   }
 
-  async updateClient(id: string, clientData: Partial<Client>): Promise<ApiResponse<Client>> {
-    const response: AxiosResponse<ApiResponse<Client>> = await this.axiosInstance.put(`/clients/${id}`, clientData);
+  async updateClient(
+    id: string,
+    clientData: Partial<Client>
+  ): Promise<ApiResponse<Client>> {
+    const response: AxiosResponse<ApiResponse<Client>> =
+      await this.axiosInstance.put(`/clients/${id}`, clientData);
     return response.data;
   }
 
   async deleteClient(id: string): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.delete(`/clients/${id}`);
+    const response: AxiosResponse<ApiResponse> =
+      await this.axiosInstance.delete(`/clients/${id}`);
     return response.data;
   }
 
   // Dashboard methods
   async getProjectStats(): Promise<ApiResponse<any>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.axiosInstance.get('/projects/dashboard/stats');
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.axiosInstance.get("/projects/dashboard/stats");
     return response.data;
   }
 
   async getInvoiceStats(): Promise<ApiResponse<any>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.axiosInstance.get('/invoices/dashboard/stats');
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.axiosInstance.get("/invoices/dashboard/stats");
     return response.data;
   }
 
   async getDashboardOverview(): Promise<ApiResponse<DashboardOverview>> {
-    const response: AxiosResponse<ApiResponse<DashboardOverview>> = await this.axiosInstance.get('/dashboard/overview');
+    const response: AxiosResponse<ApiResponse<DashboardOverview>> =
+      await this.axiosInstance.get("/dashboard/overview");
     return response.data;
   }
 
   async getProjectDashboard(): Promise<ApiResponse<any>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.axiosInstance.get('/dashboard/projects');
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.axiosInstance.get("/dashboard/projects");
     return response.data;
   }
 
   async getInvoiceDashboard(): Promise<ApiResponse<any>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.axiosInstance.get('/dashboard/invoices');
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.axiosInstance.get("/dashboard/invoices");
     return response.data;
   }
 
   async getPaymentDashboard(): Promise<ApiResponse<any>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.axiosInstance.get('/dashboard/payments');
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.axiosInstance.get("/dashboard/payments");
     return response.data;
   }
 
@@ -399,45 +462,66 @@ class ApiClient {
     startDate?: string;
     endDate?: string;
   }): Promise<ApiResponse<Project[]>> {
-    const response: AxiosResponse<ApiResponse<Project[]>> = await this.axiosInstance.get('/projects', { params });
+    const response: AxiosResponse<ApiResponse<Project[]>> =
+      await this.axiosInstance.get("/projects", { params });
     return response.data;
   }
 
   async getProject(id: string): Promise<ApiResponse<Project>> {
-    const response: AxiosResponse<ApiResponse<Project>> = await this.axiosInstance.get(`/projects/${id}`);
+    const response: AxiosResponse<ApiResponse<Project>> =
+      await this.axiosInstance.get(`/projects/${id}`);
     return response.data;
   }
 
-  async createProject(projectData: Partial<Project>): Promise<ApiResponse<Project>> {
-    const response: AxiosResponse<ApiResponse<Project>> = await this.axiosInstance.post('/projects', projectData);
+  async createProject(
+    projectData: Partial<Project>
+  ): Promise<ApiResponse<Project>> {
+    const response: AxiosResponse<ApiResponse<Project>> =
+      await this.axiosInstance.post("/projects", projectData);
     return response.data;
   }
 
-  async updateProject(id: string, projectData: Partial<Project>): Promise<ApiResponse<Project>> {
-    const response: AxiosResponse<ApiResponse<Project>> = await this.axiosInstance.put(`/projects/${id}`, projectData);
+  async updateProject(
+    id: string,
+    projectData: Partial<Project>
+  ): Promise<ApiResponse<Project>> {
+    const response: AxiosResponse<ApiResponse<Project>> =
+      await this.axiosInstance.put(`/projects/${id}`, projectData);
     return response.data;
   }
 
   async deleteProject(id: string): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.delete(`/projects/${id}`);
+    const response: AxiosResponse<ApiResponse> =
+      await this.axiosInstance.delete(`/projects/${id}`);
     return response.data;
   }
 
-  async updateProjectStatus(id: string, statusData: { status: string; progress?: number }): Promise<ApiResponse<Project>> {
-    const response: AxiosResponse<ApiResponse<Project>> = await this.axiosInstance.put(`/projects/${id}/status`, statusData);
+  async updateProjectStatus(
+    id: string,
+    statusData: { status: string; progress?: number }
+  ): Promise<ApiResponse<Project>> {
+    const response: AxiosResponse<ApiResponse<Project>> =
+      await this.axiosInstance.put(`/projects/${id}/status`, statusData);
     return response.data;
   }
 
-  async addTeamMember(id: string, memberData: { user: string; role: string; hourlyRate?: number }): Promise<ApiResponse<Project>> {
-    const response: AxiosResponse<ApiResponse<Project>> = await this.axiosInstance.post(`/projects/${id}/team`, memberData);
+  async addTeamMember(
+    id: string,
+    memberData: { user: string; role: string; hourlyRate?: number }
+  ): Promise<ApiResponse<Project>> {
+    const response: AxiosResponse<ApiResponse<Project>> =
+      await this.axiosInstance.post(`/projects/${id}/team`, memberData);
     return response.data;
   }
 
-  async removeTeamMember(id: string, userId: string): Promise<ApiResponse<Project>> {
-    const response: AxiosResponse<ApiResponse<Project>> = await this.axiosInstance.delete(`/projects/${id}/team/${userId}`);
+  async removeTeamMember(
+    id: string,
+    userId: string
+  ): Promise<ApiResponse<Project>> {
+    const response: AxiosResponse<ApiResponse<Project>> =
+      await this.axiosInstance.delete(`/projects/${id}/team/${userId}`);
     return response.data;
   }
-
 
   // Invoice methods
   async getInvoices(params?: {
@@ -451,44 +535,64 @@ class ApiClient {
     dueDateFrom?: string;
     dueDateTo?: string;
   }): Promise<ApiResponse<Invoice[]>> {
-    const response: AxiosResponse<ApiResponse<Invoice[]>> = await this.axiosInstance.get('/invoices', { params });
+    const response: AxiosResponse<ApiResponse<Invoice[]>> =
+      await this.axiosInstance.get("/invoices", { params });
     return response.data;
   }
 
   async getInvoice(id: string): Promise<ApiResponse<Invoice>> {
-    const response: AxiosResponse<ApiResponse<Invoice>> = await this.axiosInstance.get(`/invoices/${id}`);
+    const response: AxiosResponse<ApiResponse<Invoice>> =
+      await this.axiosInstance.get(`/invoices/${id}`);
     return response.data;
   }
 
-  async createInvoice(invoiceData: Partial<Invoice>): Promise<ApiResponse<Invoice>> {
-    const response: AxiosResponse<ApiResponse<Invoice>> = await this.axiosInstance.post('/invoices', invoiceData);
+  async createInvoice(
+    invoiceData: Partial<Invoice>
+  ): Promise<ApiResponse<Invoice>> {
+    const response: AxiosResponse<ApiResponse<Invoice>> =
+      await this.axiosInstance.post("/invoices", invoiceData);
     return response.data;
   }
 
-  async updateInvoice(id: string, invoiceData: Partial<Invoice>): Promise<ApiResponse<Invoice>> {
-    const response: AxiosResponse<ApiResponse<Invoice>> = await this.axiosInstance.put(`/invoices/${id}`, invoiceData);
+  async updateInvoice(
+    id: string,
+    invoiceData: Partial<Invoice>
+  ): Promise<ApiResponse<Invoice>> {
+    const response: AxiosResponse<ApiResponse<Invoice>> =
+      await this.axiosInstance.put(`/invoices/${id}`, invoiceData);
     return response.data;
   }
 
   async deleteInvoice(id: string): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.delete(`/invoices/${id}`);
+    const response: AxiosResponse<ApiResponse> =
+      await this.axiosInstance.delete(`/invoices/${id}`);
     return response.data;
   }
 
-  async updateInvoiceStatus(id: string, statusData: { status: string; paidDate?: string }): Promise<ApiResponse<Invoice>> {
-    const response: AxiosResponse<ApiResponse<Invoice>> = await this.axiosInstance.put(`/invoices/${id}/status`, statusData);
+  async updateInvoiceStatus(
+    id: string,
+    statusData: { status: string; paidDate?: string }
+  ): Promise<ApiResponse<Invoice>> {
+    const response: AxiosResponse<ApiResponse<Invoice>> =
+      await this.axiosInstance.put(`/invoices/${id}/status`, statusData);
     return response.data;
   }
 
   async downloadInvoicePDF(id: string): Promise<Blob> {
-    const response = await this.axiosInstance.get(`/invoices/${id}/pdf/download`, {
-      responseType: 'blob'
-    });
+    const response = await this.axiosInstance.get(
+      `/invoices/${id}/pdf/download`,
+      {
+        responseType: "blob",
+      }
+    );
     return response.data;
   }
 
-  async viewInvoicePDF(id: string): Promise<ApiResponse<{ pdf_base64: string }>> {
-    const response: AxiosResponse<ApiResponse<{ pdf_base64: string }>> = await this.axiosInstance.get(`/invoices/${id}/pdf/view`);
+  async viewInvoicePDF(
+    id: string
+  ): Promise<ApiResponse<{ pdf_base64: string }>> {
+    const response: AxiosResponse<ApiResponse<{ pdf_base64: string }>> =
+      await this.axiosInstance.get(`/invoices/${id}/pdf/view`);
     return response.data;
   }
 
@@ -502,53 +606,108 @@ class ApiClient {
     startDate?: string;
     endDate?: string;
   }): Promise<ApiResponse<Payment[]>> {
-    const response: AxiosResponse<ApiResponse<Payment[]>> = await this.axiosInstance.get('/payments', { params });
+    const response: AxiosResponse<ApiResponse<Payment[]>> =
+      await this.axiosInstance.get("/payments", { params });
     return response.data;
   }
 
   async getPayment(id: string): Promise<ApiResponse<Payment>> {
-    const response: AxiosResponse<ApiResponse<Payment>> = await this.axiosInstance.get(`/payments/${id}`);
+    const response: AxiosResponse<ApiResponse<Payment>> =
+      await this.axiosInstance.get(`/payments/${id}`);
     return response.data;
   }
 
-  async createPayment(paymentData: Partial<Payment>): Promise<ApiResponse<Payment>> {
-    const response: AxiosResponse<ApiResponse<Payment>> = await this.axiosInstance.post('/payments', paymentData);
+  async createPayment(
+    paymentData: Partial<Payment>
+  ): Promise<ApiResponse<Payment>> {
+    const response: AxiosResponse<ApiResponse<Payment>> =
+      await this.axiosInstance.post("/payments", paymentData);
     return response.data;
   }
 
-  async updatePayment(id: string, paymentData: Partial<Payment>): Promise<ApiResponse<Payment>> {
-    const response: AxiosResponse<ApiResponse<Payment>> = await this.axiosInstance.put(`/payments/${id}`, paymentData);
+  async updatePayment(
+    id: string,
+    paymentData: Partial<Payment>
+  ): Promise<ApiResponse<Payment>> {
+    const response: AxiosResponse<ApiResponse<Payment>> =
+      await this.axiosInstance.put(`/payments/${id}`, paymentData);
     return response.data;
   }
 
   async deletePayment(id: string): Promise<ApiResponse> {
-    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.delete(`/payments/${id}`);
+    const response: AxiosResponse<ApiResponse> =
+      await this.axiosInstance.delete(`/payments/${id}`);
     return response.data;
   }
 
   async getPaymentStats(): Promise<ApiResponse<any>> {
-    const response: AxiosResponse<ApiResponse<any>> = await this.axiosInstance.get('/payments/dashboard/stats');
+    const response: AxiosResponse<ApiResponse<any>> =
+      await this.axiosInstance.get("/payments/dashboard/stats");
+    return response.data;
+  }
+
+  // Bank Account methods
+  async getBankAccounts(): Promise<ApiResponse<BankAccount[]>> {
+    const response: AxiosResponse<ApiResponse<BankAccount[]>> =
+      await this.axiosInstance.get("/bank-accounts");
+    return response.data;
+  }
+
+  async getBankAccount(id: string): Promise<ApiResponse<BankAccount>> {
+    const response: AxiosResponse<ApiResponse<BankAccount>> =
+      await this.axiosInstance.get(`/bank-accounts/${id}`);
+    return response.data;
+  }
+
+  async createBankAccount(
+    bankData: Partial<BankAccount>
+  ): Promise<ApiResponse<BankAccount>> {
+    const response: AxiosResponse<ApiResponse<BankAccount>> =
+      await this.axiosInstance.post("/bank-accounts", bankData);
+    return response.data;
+  }
+
+  async updateBankAccount(
+    id: string,
+    bankData: Partial<BankAccount>
+  ): Promise<ApiResponse<BankAccount>> {
+    const response: AxiosResponse<ApiResponse<BankAccount>> =
+      await this.axiosInstance.put(`/bank-accounts/${id}`, bankData);
+    return response.data;
+  }
+
+  async deleteBankAccount(id: string): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> =
+      await this.axiosInstance.delete(`/bank-accounts/${id}`);
     return response.data;
   }
 
   // Utility method to handle API errors
   handleError(error: AxiosError): string {
-    if (error.response?.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
-      return (error.response.data as any).error || 'An error occurred';
-    } else if (error.response?.data && typeof error.response.data === 'object' && 'message' in error.response.data) {
-      return (error.response.data as any).message || 'An error occurred';
+    if (
+      error.response?.data &&
+      typeof error.response.data === "object" &&
+      "error" in error.response.data
+    ) {
+      return (error.response.data as any).error || "An error occurred";
+    } else if (
+      error.response?.data &&
+      typeof error.response.data === "object" &&
+      "message" in error.response.data
+    ) {
+      return (error.response.data as any).message || "An error occurred";
     } else if (error.response?.status === 401) {
-      return 'Unauthorized. Please login again.';
+      return "Unauthorized. Please login again.";
     } else if (error.response?.status === 403) {
-      return 'Access denied. You do not have permission to perform this action.';
+      return "Access denied. You do not have permission to perform this action.";
     } else if (error.response?.status === 404) {
-      return 'The requested resource was not found.';
+      return "The requested resource was not found.";
     } else if (error.response?.status === 500) {
-      return 'Server error. Please try again later.';
-    } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-      return 'Network error. Please check your connection.';
+      return "Server error. Please try again later.";
+    } else if (error.code === "NETWORK_ERROR" || !error.response) {
+      return "Network error. Please check your connection.";
     }
-    return error.message || 'An error occurred';
+    return error.message || "An error occurred";
   }
 }
 

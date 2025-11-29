@@ -23,7 +23,15 @@ const paymentSchema = new mongoose.Schema(
     },
     payment_method: {
       type: String,
-      enum: ["bank_account", "other"],
+      enum: [
+        "bank_account",
+        "cash",
+        "upi",
+        "cheque",
+        "contract",
+        "outsource",
+        "other",
+      ],
       default: "bank_account",
     },
     bank_account_id: {

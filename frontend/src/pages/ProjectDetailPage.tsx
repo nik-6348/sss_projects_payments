@@ -1,13 +1,13 @@
-import React from 'react';
+import React from "react";
+import { FolderOpen, Plus, Edit, Trash2, Download } from "lucide-react";
+import type { Project, Invoice, Payment } from "../types";
 import {
-  FolderOpen,
-  Plus,
-  Edit,
-  Trash2
-} from 'lucide-react';
-import type { Project, Invoice, Payment } from '../types';
-import { GlassCard, PrimaryButton, StatusChip, ConfirmationModal } from '../components/ui';
-import { formatCurrency, formatDate } from '../utils';
+  GlassCard,
+  PrimaryButton,
+  StatusChip,
+  ConfirmationModal,
+} from "../components/ui";
+import { formatCurrency, formatDate } from "../utils";
 
 interface ProjectDetailPageProps {
   project: Project;
@@ -18,6 +18,7 @@ interface ProjectDetailPageProps {
   onDeleteProject: (projectId: string) => void;
   onEditInvoice?: (invoice: Invoice) => void;
   onDeleteInvoice?: (invoiceId: string) => void;
+  onDownloadInvoice?: (invoice: Invoice) => void;
 }
 
 export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
@@ -28,9 +29,12 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   onAddInvoice,
   onDeleteProject,
   onEditInvoice,
-  onDeleteInvoice
+  onDeleteInvoice,
+  onDownloadInvoice,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<'details' | 'invoices'>('details');
+  const [activeTab, setActiveTab] = React.useState<"details" | "invoices">(
+    "details"
+  );
   const [deleteModal, setDeleteModal] = React.useState<{
     isOpen: boolean;
     invoiceId: string | null;
@@ -38,20 +42,20 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   }>({
     isOpen: false,
     invoiceId: null,
-    invoiceNumber: ''
+    invoiceNumber: "",
   });
 
   const paidAmount = React.useMemo(() => {
     // Calculate from actual payments if available
     const paymentAmount = payments.reduce((sum, p) => sum + p.amount, 0);
-    
+
     // If no payments but invoices are marked as paid, calculate from paid invoices
     if (paymentAmount === 0) {
       return invoices
-        .filter(i => i.status === 'paid')
+        .filter((i) => i.status === "paid")
         .reduce((sum, i) => sum + i.amount, 0);
     }
-    
+
     return paymentAmount;
   }, [payments, invoices]);
 
@@ -61,7 +65,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     setDeleteModal({
       isOpen: true,
       invoiceId: invoice.id,
-      invoiceNumber: invoice.invoice_number
+      invoiceNumber: invoice.invoice_number,
     });
   };
 
@@ -72,7 +76,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     setDeleteModal({
       isOpen: false,
       invoiceId: null,
-      invoiceNumber: ''
+      invoiceNumber: "",
     });
   };
 
@@ -80,20 +84,20 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     setDeleteModal({
       isOpen: false,
       invoiceId: null,
-      invoiceNumber: ''
+      invoiceNumber: "",
     });
   };
 
   const TabButton: React.FC<{
-    tabName: 'details' | 'invoices';
+    tabName: "details" | "invoices";
     label: string;
   }> = ({ tabName, label }) => (
     <button
       onClick={() => setActiveTab(tabName)}
       className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
         activeTab === tabName
-          ? 'bg-white/60 dark:bg-slate-700/60 text-slate-800 dark:text-slate-100 shadow'
-          : 'text-slate-600 dark:text-slate-300 hover:bg-white/30 dark:hover:bg-slate-600/30'
+          ? "bg-white/60 dark:bg-slate-700/60 text-slate-800 dark:text-slate-100 shadow"
+          : "text-slate-600 dark:text-slate-300 hover:bg-white/30 dark:hover:bg-slate-600/30"
       }`}
     >
       {label}
@@ -107,8 +111,12 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         <div className="flex items-center gap-3">
           <FolderOpen className="h-8 w-8 text-slate-600 dark:text-slate-300" />
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{project.name}</h1>
-            <p className="text-slate-600 dark:text-slate-300">{project.client_name}</p>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+              {project.name}
+            </h1>
+            <p className="text-slate-600 dark:text-slate-300">
+              {project.client_name}
+            </p>
           </div>
         </div>
         <StatusChip status={project.status} />
@@ -117,19 +125,25 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <GlassCard className="!p-4">
-          <div className="text-slate-500 dark:text-slate-400 text-sm">Total Value</div>
+          <div className="text-slate-500 dark:text-slate-400 text-sm">
+            Total Value
+          </div>
           <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
             {formatCurrency(project.total_amount, project.currency)}
           </div>
         </GlassCard>
         <GlassCard className="!p-4">
-          <div className="text-slate-500 dark:text-slate-400 text-sm">Total Paid</div>
+          <div className="text-slate-500 dark:text-slate-400 text-sm">
+            Total Paid
+          </div>
           <div className="text-2xl font-bold text-green-700 dark:text-green-400">
             {formatCurrency(paidAmount, project.currency)}
           </div>
         </GlassCard>
         <GlassCard className="!p-4">
-          <div className="text-slate-500 dark:text-slate-400 text-sm">Total Due</div>
+          <div className="text-slate-500 dark:text-slate-400 text-sm">
+            Total Due
+          </div>
           <div className="text-2xl font-bold text-red-700 dark:text-red-400">
             {formatCurrency(dueAmount, project.currency)}
           </div>
@@ -143,7 +157,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             <TabButton tabName="details" label="Details" />
             <TabButton tabName="invoices" label="Invoices" />
           </div>
-          {activeTab === 'invoices' && (
+          {activeTab === "invoices" && (
             <PrimaryButton onClick={() => onAddInvoice(project.id)}>
               <Plus className="h-4 w-4" />
               Add Invoice
@@ -152,23 +166,68 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         </div>
 
         <div className="min-h-[200px]">
-          {activeTab === 'details' && (
+          {activeTab === "details" && (
             <div className="space-y-4 text-slate-700 dark:text-slate-200">
               <div>
-                <strong className="text-slate-800 dark:text-slate-100">Description:</strong>{' '}
-                {project.description || 'N/A'}
+                <strong className="text-slate-800 dark:text-slate-100">
+                  Description:
+                </strong>{" "}
+                {project.description || "N/A"}
               </div>
               <div>
-                <strong className="text-slate-800 dark:text-slate-100">Start Date:</strong>{' '}
+                <strong className="text-slate-800 dark:text-slate-100">
+                  Start Date:
+                </strong>{" "}
                 {formatDate(project.start_date)}
               </div>
               <div>
-                <strong className="text-slate-800 dark:text-slate-100">End Date:</strong>{' '}
+                <strong className="text-slate-800 dark:text-slate-100">
+                  End Date:
+                </strong>{" "}
                 {formatDate(project.end_date)}
               </div>
               <div>
-                <strong className="text-slate-800 dark:text-slate-100">Notes:</strong>{' '}
-                {project.notes || 'N/A'}
+                <strong className="text-slate-800 dark:text-slate-100">
+                  Notes:
+                </strong>{" "}
+                {project.notes || "N/A"}
+              </div>
+
+              {/* Team Members */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">
+                  Team Members
+                </h3>
+                {project.team_members && project.team_members.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {project.team_members.map((member, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-3 p-3 bg-white/50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600"
+                      >
+                        <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold">
+                          {typeof member.user_id === "object"
+                            ? member.user_id.name.charAt(0)
+                            : "U"}
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-800 dark:text-slate-100">
+                            {typeof member.user_id === "object"
+                              ? member.user_id.name
+                              : "Unknown User"}
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {member.role} • {member.weekly_hours}h/week
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-500 dark:text-slate-400 italic">
+                    No team members assigned.
+                  </p>
+                )}
               </div>
 
               <div className="pt-4 flex gap-4">
@@ -187,7 +246,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             </div>
           )}
 
-          {activeTab === 'invoices' && (
+          {activeTab === "invoices" && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
@@ -200,8 +259,11 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map(invoice => (
-                    <tr key={invoice.id} className="border-b border-white/20 dark:border-slate-600/20">
+                  {invoices.map((invoice) => (
+                    <tr
+                      key={invoice.id}
+                      className="border-b border-white/20 dark:border-slate-600/20"
+                    >
                       <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-100">
                         {invoice.invoice_number}
                       </td>
@@ -216,6 +278,18 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center gap-2 justify-end">
+                          {onDownloadInvoice && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDownloadInvoice(invoice);
+                              }}
+                              className="flex items-center gap-1 px-3 py-1 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 transition-colors"
+                            >
+                              <Download className="h-4 w-4" />
+                              PDF
+                            </button>
+                          )}
                           {onEditInvoice && (
                             <button
                               onClick={(e) => {

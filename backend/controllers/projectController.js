@@ -8,6 +8,7 @@ const getProjects = async (req, res, next) => {
   try {
     const projects = await Project.find({ user_id: req.user.id })
       .populate("client_id", "name email phone")
+      .populate("team_members.user_id", "name email role avatar")
       .sort({ createdAt: -1 });
 
     // Transform data to include client_name for frontend compatibility
@@ -32,10 +33,9 @@ const getProjects = async (req, res, next) => {
 // @access  Private
 const getProject = async (req, res, next) => {
   try {
-    const project = await Project.findById(req.params.id).populate(
-      "client_id",
-      "name email phone"
-    );
+    const project = await Project.findById(req.params.id)
+      .populate("client_id", "name email phone")
+      .populate("team_members.user_id", "name email role avatar");
 
     if (!project) {
       return res.status(404).json({
@@ -89,6 +89,7 @@ const createProject = async (req, res, next) => {
 
     const project = await Project.create(projectData);
     await project.populate("client_id", "name email phone");
+    await project.populate("team_members.user_id", "name email role avatar");
 
     // Transform data to include client_name for frontend compatibility
     const transformedProject = {
@@ -141,7 +142,9 @@ const updateProject = async (req, res, next) => {
     project = await Project.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
-    }).populate("client_id", "name email phone");
+    })
+      .populate("client_id", "name email phone")
+      .populate("team_members.user_id", "name email role avatar");
 
     // Transform data to include client_name for frontend compatibility
     const transformedProject = {
@@ -248,7 +251,9 @@ const updateProjectStatus = async (req, res, next) => {
     project = await Project.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
-    }).populate("client_id", "name email phone");
+    })
+      .populate("client_id", "name email phone")
+      .populate("team_members.user_id", "name email role avatar");
 
     // Transform data to include client_name for frontend compatibility
     const transformedProject = {

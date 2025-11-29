@@ -165,6 +165,31 @@ const createPayment = async (req, res, next) => {
       payment_date,
     });
 
+    // Update invoice status and amounts
+    if (invoice_id) {
+      const invoice = await Invoice.findById(invoice_id);
+      if (invoice) {
+        const newPaidAmount = (invoice.paid_amount || 0) + Number(amount);
+        const newBalanceDue = invoice.total_amount - newPaidAmount;
+
+        let newStatus = invoice.status;
+        if (newBalanceDue <= 0) {
+          newStatus = "paid";
+        } else if (newBalanceDue < invoice.total_amount) {
+          newStatus = "partial";
+        }
+
+        invoice.paid_amount = newPaidAmount;
+        invoice.balance_due = newBalanceDue;
+        invoice.status = newStatus;
+        if (newStatus === "paid") {
+          invoice.paid_date = payment_date;
+        }
+
+        await invoice.save();
+      }
+    }
+
     await payment.populate({
       path: "project_id",
       select: "name user_id",

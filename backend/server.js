@@ -9,6 +9,9 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import invoicePDFRoutes from "./routes/invoicePDFRoutes.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
+import bankDetailsRoutes from "./routes/bankDetailsRoutes.js";
+import teamRoutes from "./routes/teamRoutes.js";
 import connectDB from "./config/database.js";
 import errorHandler from "./middleware/errorHandler.js";
 import env from "./config/env.js";
@@ -74,6 +77,9 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/invoices", invoicePDFRoutes);
+app.use("/api/settings", settingsRoutes);
+app.use("/api/bank-accounts", bankDetailsRoutes);
+app.use("/api/team", teamRoutes);
 
 // Health check endpoint
 app.get("/", (req, res) => {
