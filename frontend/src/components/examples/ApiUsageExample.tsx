@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import apiClient from '../../utils/api';
-import type { Project, Invoice, Payment } from '../../utils/api';
+import React, { useEffect, useState } from "react";
+import apiClient from "../../utils/api";
+import type { Project, Invoice, Payment } from "../../utils/api";
 
 /**
  * Example component demonstrating various API usage patterns
@@ -15,7 +15,7 @@ export const ApiUsageExample: React.FC = () => {
   const [loading, setLoading] = useState({
     projects: true,
     invoices: true,
-    payments: true
+    payments: true,
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -26,11 +26,12 @@ export const ApiUsageExample: React.FC = () => {
         setError(null);
 
         // Fetch multiple data types concurrently
-        const [projectsResponse, invoicesResponse, paymentsResponse] = await Promise.all([
-          apiClient.getProjects({ page: 1, limit: 5, status: 'active' }),
-          apiClient.getInvoices({ page: 1, limit: 5, status: 'pending' }),
-          apiClient.getPayments({ page: 1, limit: 5 })
-        ]);
+        const [projectsResponse, invoicesResponse, paymentsResponse] =
+          await Promise.all([
+            apiClient.getProjects({ page: 1, limit: 5, status: "active" }),
+            apiClient.getInvoices({ page: 1, limit: 5, status: "pending" }),
+            apiClient.getPayments({ page: 1, limit: 5 }),
+          ]);
 
         // Update state based on responses
         if (projectsResponse.success && projectsResponse.data) {
@@ -59,35 +60,43 @@ export const ApiUsageExample: React.FC = () => {
   const handleCreateProject = async () => {
     try {
       const newProject = await apiClient.createProject({
-        name: 'New Project',
-        description: 'Project description',
-        client_name: 'Client Name',
-        status: 'draft',
+        name: "New Project",
+        description: "Project description",
+        client_name: "Client Name",
+        status: "draft",
         start_date: new Date().toISOString(),
         end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        total_amount: 10000
+        total_amount: 10000,
       });
 
       if (newProject.success && newProject.data) {
-        setProjects(prev => [newProject.data!, ...prev]);
+        setProjects((prev) => [newProject.data!, ...prev]);
       }
     } catch (error: any) {
-      console.error('Failed to create project:', apiClient.handleError(error));
+      console.error("Failed to create project:", apiClient.handleError(error));
     }
   };
 
   // Handle invoice status update
-  const handleUpdateInvoiceStatus = async (invoiceId: string, status: string) => {
+  const handleUpdateInvoiceStatus = async (
+    invoiceId: string,
+    status: string
+  ) => {
     try {
-      const updatedInvoice = await apiClient.updateInvoiceStatus(invoiceId, { status });
+      const updatedInvoice = await apiClient.updateInvoiceStatus(
+        invoiceId,
+        status
+      );
 
       if (updatedInvoice.success && updatedInvoice.data) {
-        setInvoices(prev =>
-          prev.map(inv => inv._id === invoiceId ? updatedInvoice.data! : inv)
+        setInvoices((prev) =>
+          prev.map((inv) =>
+            inv._id === invoiceId ? updatedInvoice.data! : inv
+          )
         );
       }
     } catch (error: any) {
-      console.error('Failed to update invoice:', apiClient.handleError(error));
+      console.error("Failed to update invoice:", apiClient.handleError(error));
     }
   };
 
@@ -119,14 +128,20 @@ export const ApiUsageExample: React.FC = () => {
         <h3 className="text-lg font-semibold mb-3">Projects</h3>
         {loading.projects ? (
           <div className="animate-pulse space-y-2">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-4 bg-slate-200 dark:bg-slate-700 rounded"></div>
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-4 bg-slate-200 dark:bg-slate-700 rounded"
+              ></div>
             ))}
           </div>
         ) : (
           <div className="space-y-2">
-            {projects.map(project => (
-              <div key={project._id} className="flex justify-between items-center p-2 border rounded">
+            {projects.map((project) => (
+              <div
+                key={project._id}
+                className="flex justify-between items-center p-2 border rounded"
+              >
                 <div>
                   <p className="font-medium">{project.name}</p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -147,18 +162,30 @@ export const ApiUsageExample: React.FC = () => {
         <h3 className="text-lg font-semibold mb-3">Invoices</h3>
         {loading.invoices ? (
           <div className="animate-pulse space-y-2">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-4 bg-slate-200 dark:bg-slate-700 rounded"></div>
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-4 bg-slate-200 dark:bg-slate-700 rounded"
+              ></div>
             ))}
           </div>
         ) : (
           <div className="space-y-2">
-            {invoices.map(invoice => (
-              <div key={invoice._id} className="flex justify-between items-center p-2 border rounded">
+            {invoices.map((invoice) => (
+              <div
+                key={invoice._id}
+                className="flex justify-between items-center p-2 border rounded"
+              >
                 <div>
-                  <p className="font-medium">Invoice #{invoice.invoice_number}</p>
+                  <p className="font-medium">
+                    Invoice #{invoice.invoice_number}
+                  </p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Project ID: {typeof invoice.project_id === 'string' ? invoice.project_id : invoice.project_id.id} - {invoice.status}
+                    Project ID:{" "}
+                    {typeof invoice.project_id === "string"
+                      ? invoice.project_id
+                      : invoice.project_id.id}{" "}
+                    - {invoice.status}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -166,7 +193,9 @@ export const ApiUsageExample: React.FC = () => {
                     ${invoice.amount.toLocaleString()}
                   </span>
                   <button
-                    onClick={() => handleUpdateInvoiceStatus(invoice._id, 'paid')}
+                    onClick={() =>
+                      handleUpdateInvoiceStatus(invoice._id, "paid")
+                    }
                     className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded"
                   >
                     Mark Paid
@@ -183,20 +212,27 @@ export const ApiUsageExample: React.FC = () => {
         <h3 className="text-lg font-semibold mb-3">Recent Payments</h3>
         {loading.payments ? (
           <div className="animate-pulse space-y-2">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-4 bg-slate-200 dark:bg-slate-700 rounded"></div>
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-4 bg-slate-200 dark:bg-slate-700 rounded"
+              ></div>
             ))}
           </div>
         ) : (
           <div className="space-y-2">
-            {payments.map(payment => (
-              <div key={payment._id} className="flex justify-between items-center p-2 border rounded">
+            {payments.map((payment) => (
+              <div
+                key={payment._id}
+                className="flex justify-between items-center p-2 border rounded"
+              >
                 <div>
                   <p className="font-medium">
                     Project ID: {payment.project_id}
                   </p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {payment.payment_method} - {new Date(payment.payment_date).toLocaleDateString()}
+                    {payment.payment_method} -{" "}
+                    {new Date(payment.payment_date).toLocaleDateString()}
                   </p>
                 </div>
                 <span className="text-sm font-semibold text-green-600">
@@ -210,5 +246,3 @@ export const ApiUsageExample: React.FC = () => {
     </div>
   );
 };
-
-
