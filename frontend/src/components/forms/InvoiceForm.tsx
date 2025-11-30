@@ -43,6 +43,9 @@ const InvoiceForm: React.FC<{
       ? invoice.services
       : [{ description: "", amount: 0 }]
   );
+  const [includeGst, setIncludeGst] = React.useState(
+    invoice?.include_gst !== undefined ? invoice.include_gst : true
+  );
   const [gstPercentage, setGstPercentage] = React.useState(
     invoice?.gst_percentage || 18
   );
@@ -51,13 +54,17 @@ const InvoiceForm: React.FC<{
   const [customPaymentDetails, setCustomPaymentDetails] =
     React.useState<string>(invoice?.custom_payment_details || "");
 
-  // Fetch bank accounts and set initial values
+  // Fetch bank accounts and settings
   React.useEffect(() => {
-    const fetchBankAccounts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await apiClient.getBankAccounts();
-        if (response.success) {
-          const accounts = response.data || [];
+        const [bankResponse, settingsResponse] = await Promise.all([
+          apiClient.getBankAccounts(),
+          apiClient.getSettings(),
+        ]);
+
+        if (bankResponse.success) {
+          const accounts = bankResponse.data || [];
           setBankAccounts(accounts);
           // Set selected bank account after fetching
           if (invoice?.bank_account_id) {
@@ -72,11 +79,20 @@ const InvoiceForm: React.FC<{
             setSelectedBankAccount(accounts[0]._id);
           }
         }
+
+        if (settingsResponse.success && !invoice) {
+          // Only set defaults for new invoices
+          const settings = settingsResponse.data;
+          if (settings.gst_settings) {
+            setGstPercentage(settings.gst_settings.default_percentage || 18);
+            setIncludeGst(settings.gst_settings.enable_gst !== false);
+          }
+        }
       } catch (error) {
-        console.error("Failed to fetch bank accounts:", error);
+        console.error("Failed to fetch data:", error);
       }
     };
-    fetchBankAccounts();
+    fetchData();
   }, [invoice]);
 
   const handleChange = (
@@ -86,26 +102,37 @@ const InvoiceForm: React.FC<{
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = React.useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
-    const gstAmount = (subtotal * gstPercentage) / 100;
+    const gstAmount = includeGst ? (subtotal * gstPercentage) / 100 : 0;
     const totalAmount = subtotal + gstAmount;
-    onSave({
-      ...formData,
-      amount: totalAmount.toString(),
-      services,
-      subtotal,
-      gst_percentage: gstPercentage,
-      gst_amount: gstAmount,
-      total_amount: totalAmount,
-      bank_account_id:
-        formData.payment_method === "bank_account"
-          ? selectedBankAccount
-          : undefined,
-      custom_payment_details:
-        formData.payment_method === "other" ? customPaymentDetails : undefined,
-    });
+
+    try {
+      await onSave({
+        ...formData,
+        amount: totalAmount.toString(),
+        services,
+        subtotal,
+        gst_percentage: gstPercentage,
+        gst_amount: gstAmount,
+        include_gst: includeGst,
+        total_amount: totalAmount,
+        bank_account_id:
+          formData.payment_method === "bank_account"
+            ? selectedBankAccount
+            : undefined,
+        custom_payment_details:
+          formData.payment_method === "other"
+            ? customPaymentDetails
+            : undefined,
+      });
+    } catch (err: any) {
+      setError(apiClient.handleError(err));
+    }
   };
 
   const addService = () => {
@@ -127,13 +154,18 @@ const InvoiceForm: React.FC<{
   };
 
   const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
-  const gstAmount = (subtotal * gstPercentage) / 100;
+  const gstAmount = includeGst ? (subtotal * gstPercentage) / 100 : 0;
   const totalAmount = subtotal + gstAmount;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
       {/* Invoice Details Section */}
       <div className="space-y-4">
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
         <FormSelect
           label="Project"
           name="project_id"
@@ -215,13 +247,29 @@ const InvoiceForm: React.FC<{
               { value: "USD", label: "USD ($)" },
             ]}
           />
-          <FormInput
-            label="GST %"
-            type="number"
-            name="gst_percentage"
-            value={gstPercentage}
-            onChange={(e) => setGstPercentage(Number(e.target.value))}
-          />
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                type="checkbox"
+                id="includeGst"
+                checked={includeGst}
+                onChange={(e) => setIncludeGst(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+              />
+              <label
+                htmlFor="includeGst"
+                className="text-sm font-medium text-gray-900 dark:text-gray-300"
+              >
+                Include GST
+              </label>
+            </div>
+            {includeGst && (
+              <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                GST applied at {gstPercentage}%
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="bg-slate-100 dark:bg-slate-700 p-4 rounded-lg space-y-2">
@@ -232,13 +280,15 @@ const InvoiceForm: React.FC<{
               {subtotal.toFixed(2)}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span>GST ({gstPercentage}%):</span>
-            <span>
-              {formData.currency === "USD" ? "$" : "₹"}
-              {gstAmount.toFixed(2)}
-            </span>
-          </div>
+          {includeGst && (
+            <div className="flex justify-between">
+              <span>GST ({gstPercentage}%):</span>
+              <span>
+                {formData.currency === "USD" ? "$" : "₹"}
+                {gstAmount.toFixed(2)}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-lg">
             <span>Total:</span>
             <span>
@@ -266,20 +316,6 @@ const InvoiceForm: React.FC<{
             required
           />
         </div>
-
-        <FormSelect
-          label="Status"
-          name="status"
-          value={formData.status as string}
-          onChange={handleChange}
-          options={[
-            { value: "draft", label: "Draft" },
-            { value: "sent", label: "Sent" },
-            { value: "paid", label: "Paid" },
-            { value: "overdue", label: "Overdue" },
-            { value: "cancelled", label: "Cancelled" },
-          ]}
-        />
 
         <FormSelect
           label="Payment Method"

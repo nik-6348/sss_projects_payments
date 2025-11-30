@@ -23,7 +23,10 @@ import type {
 } from "./types";
 import apiClient from "./utils/api";
 import { Modal, ConfirmationModal, Toast } from "./components/ui";
-import { ProjectForm, InvoiceForm, PaymentForm } from "./components/forms";
+import { ProjectForm, InvoiceForm } from "./components/forms";
+import PDFViewerModal from "./components/modals/PDFViewerModal";
+import { RemarkModal } from "./components/modals/RemarkModal";
+import PaymentModal from "./components/modals/PaymentModal";
 import {
   DashboardPage,
   ProjectsListPage,
@@ -40,13 +43,44 @@ function AppContent() {
   const [currentView, setCurrentView] = React.useState<{
     view: string;
     id?: string;
-  }>({
-    view: "dashboard",
+    params?: any;
+  }>(() => {
+    const saved = localStorage.getItem("currentView");
+    return saved ? JSON.parse(saved) : { view: "dashboard" };
   });
+
+  // Save currentView to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem("currentView", JSON.stringify(currentView));
+  }, [currentView]);
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
+  const [projectInvoices, setProjectInvoices] = React.useState<Invoice[]>([]);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [dataLoading, setDataLoading] = React.useState(false);
+
+  // Invoice Pagination & Filters
+  const [invoicePagination, setInvoicePagination] = React.useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+  });
+  const [invoiceFilters, setInvoiceFilters] = React.useState({
+    search: "",
+    status: "",
+  });
+
+  // Project Pagination & Filters
+  const [projectPagination, setProjectPagination] = React.useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+  });
+  const [projectFilters, setProjectFilters] = React.useState({
+    search: "",
+    status: "",
+  });
+
   const [modal, setModal] = React.useState<{
     isOpen: boolean;
     content: React.ReactNode;
@@ -71,6 +105,26 @@ function AppContent() {
     onConfirm: () => {},
     type: "danger",
   });
+  const [pdfViewer, setPdfViewer] = React.useState<{
+    isOpen: boolean;
+    pdfBase64: string | null;
+    title: string;
+    fileName: string;
+    invoiceId?: string;
+  }>({
+    isOpen: false,
+    pdfBase64: null,
+    title: "",
+    fileName: "",
+  });
+  const [paymentModal, setPaymentModal] = React.useState<{
+    isOpen: boolean;
+    invoice: Invoice | null;
+  }>({
+    isOpen: false,
+    invoice: null,
+  });
+  const [isRegeneratingPDF, setIsRegeneratingPDF] = React.useState(false);
   const [isSidebarOpen, _] = React.useState(false);
 
   // Initialize dark mode from localStorage
@@ -114,7 +168,119 @@ function AppContent() {
     };
   }, [isDarkMode]);
 
-  // Fetch data from API when authenticated
+  // Fetch Projects with Pagination & Filters
+  const fetchProjects = React.useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      const response = await apiClient.getProjects({
+        page: projectPagination.currentPage,
+        limit: 10,
+        search: projectFilters.search,
+        status: projectFilters.status,
+      });
+
+      if (response.success && response.data) {
+        const transformedProjects = response.data.map(
+          (p: any) =>
+            ({
+              id: p._id,
+              name: p.name,
+              description: p.description,
+              total_amount: p.total_amount,
+              status: p.status as ProjectStatus,
+              start_date: p.start_date
+                ? new Date(p.start_date).toISOString().split("T")[0]
+                : "",
+              end_date: p.end_date
+                ? new Date(p.end_date).toISOString().split("T")[0]
+                : undefined,
+              client_id:
+                typeof p.client_id === "object" && p.client_id
+                  ? p.client_id._id
+                  : p.client_id || "",
+              client_name:
+                typeof p.client_id === "object" && p.client_id
+                  ? p.client_id.name
+                  : "",
+              notes: p.notes || "",
+              created_at: p.createdAt,
+              user_id: p.user_id,
+              team_members: p.team_members,
+            } as Project)
+        );
+        setProjects(transformedProjects);
+
+        if (response.pagination) {
+          setProjectPagination((prev) => ({
+            ...prev,
+            totalPages: response.pagination!.totalPages,
+            totalItems: response.pagination!.totalItems,
+          }));
+        }
+      }
+    } catch (err: any) {
+      console.error("Error fetching projects:", err);
+      toast.error("Failed to fetch projects");
+    }
+  }, [isAuthenticated, projectPagination.currentPage, projectFilters]);
+
+  // Fetch Invoices with Pagination & Filters
+  const fetchInvoices = React.useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      // Don't set global loading here to avoid full screen spinner on filter change
+      // setDataLoading(true);
+
+      const response = await apiClient.getInvoices({
+        page: invoicePagination.currentPage,
+        limit: 10,
+        search: invoiceFilters.search,
+        status: invoiceFilters.status,
+      });
+
+      if (response.success && response.data) {
+        const transformedInvoices = response.data.map(
+          (i: any) =>
+            ({
+              id: i._id,
+              project_id: i.project_id,
+              invoice_number: i.invoice_number,
+              amount: i.amount,
+              currency: i.currency,
+              status: i.status as InvoiceStatus,
+              issue_date: i.issue_date
+                ? new Date(i.issue_date).toISOString().split("T")[0]
+                : "",
+              due_date: i.due_date
+                ? new Date(i.due_date).toISOString().split("T")[0]
+                : "",
+              services: i.services,
+              subtotal: i.subtotal,
+              gst_percentage: i.gst_percentage,
+              gst_amount: i.gst_amount,
+              total_amount: i.total_amount,
+              payment_method: i.payment_method,
+              bank_account_id: i.bank_account_id,
+              custom_payment_details: i.custom_payment_details,
+            } as Invoice)
+        );
+        setInvoices(transformedInvoices);
+
+        if (response.pagination) {
+          setInvoicePagination((prev) => ({
+            ...prev,
+            totalPages: response.pagination!.totalPages,
+            totalItems: response.pagination!.totalItems,
+          }));
+        }
+      }
+    } catch (err: any) {
+      console.error("Error fetching invoices:", err);
+      toast.error("Failed to fetch invoices");
+    }
+  }, [isAuthenticated, invoicePagination.currentPage, invoiceFilters]);
+
+  // Initial Data Fetch
   React.useEffect(() => {
     const fetchData = async () => {
       if (!isAuthenticated) return;
@@ -122,49 +288,101 @@ function AppContent() {
       try {
         setDataLoading(true);
 
-        // Fetch projects, invoices, and payments from API
-        const [projectsResponse, invoicesResponse, paymentsResponse] =
-          await Promise.all([
-            apiClient.getProjects(),
-            apiClient.getInvoices(),
-            apiClient.getPayments(),
-          ]);
+        // Fetch payments (projects and invoices are fetched separately via their hooks)
+        const paymentsResponse = await apiClient.getPayments();
 
-        if (projectsResponse.success && projectsResponse.data) {
+        if (paymentsResponse.success && paymentsResponse.data) {
           // Transform API data to match frontend types
-          const transformedProjects = projectsResponse.data.map(
-            (p: any) =>
-              ({
-                id: p._id,
-                name: p.name,
-                description: p.description,
-                total_amount: p.total_amount,
-                status: p.status as ProjectStatus,
-                start_date: p.start_date
-                  ? new Date(p.start_date).toISOString().split("T")[0]
-                  : "",
-                end_date: p.end_date
-                  ? new Date(p.end_date).toISOString().split("T")[0]
-                  : undefined,
-                client_id:
-                  typeof p.client_id === "object" && p.client_id
-                    ? p.client_id._id
-                    : p.client_id || "",
-                client_name:
-                  typeof p.client_id === "object" && p.client_id
-                    ? p.client_id.name
-                    : "",
-                notes: p.notes || "",
-                created_at: p.createdAt,
-                user_id: p.user_id,
-                team_members: p.team_members,
-              } as Project)
-          );
-          setProjects(transformedProjects);
+          const transformedPayments = paymentsResponse.data.map((p) => ({
+            id: p._id,
+            invoice_id: p.invoice_id,
+            project_id: p.project_id,
+            amount: p.amount,
+            payment_method: p.payment_method as PaymentMethod,
+            payment_date: p.payment_date
+              ? new Date(p.payment_date).toISOString().split("T")[0]
+              : "",
+          }));
+          setPayments(transformedPayments);
+        }
+
+        // Fetch initial projects and invoices
+        await Promise.all([fetchProjects(), fetchInvoices()]);
+      } catch (err: any) {
+        const errorMessage = apiClient.handleError(err);
+        toast.error(errorMessage);
+        console.error("Error fetching data:", err);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated]); // Only run on mount/auth change
+
+  // Re-fetch projects when pagination or filters change
+  React.useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  // Re-fetch invoices when pagination or filters change
+  React.useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  // Fetch single project details when viewing project detail
+  const fetchProjectDetails = React.useCallback(async () => {
+    if (currentView.view === "projectDetail" && currentView.id) {
+      try {
+        setDataLoading(true);
+        const [projectResponse, invoicesResponse] = await Promise.all([
+          apiClient.getProject(currentView.id),
+          apiClient.getInvoices({ project: currentView.id, limit: 100 }),
+        ]);
+
+        if (projectResponse.success && projectResponse.data) {
+          const p = projectResponse.data as any;
+          const transformedProject: Project = {
+            id: p._id,
+            name: p.name,
+            description: p.description,
+            total_amount: p.total_amount,
+            status: p.status as ProjectStatus,
+            start_date: p.start_date
+              ? new Date(p.start_date).toISOString().split("T")[0]
+              : "",
+            end_date: p.end_date
+              ? new Date(p.end_date).toISOString().split("T")[0]
+              : undefined,
+            client_id:
+              typeof p.client_id === "object" && p.client_id
+                ? p.client_id._id
+                : p.client_id || "",
+            client_name:
+              typeof p.client_id === "object" && p.client_id
+                ? p.client_id.name
+                : "",
+            notes: p.notes || "",
+            created_at: p.createdAt,
+            user_id: p.user_id,
+            team_members: p.team_members,
+          };
+
+          setProjects((prevProjects) => {
+            const exists = prevProjects.find(
+              (proj) => proj.id === transformedProject.id
+            );
+            if (exists) {
+              return prevProjects.map((proj) =>
+                proj.id === transformedProject.id ? transformedProject : proj
+              );
+            } else {
+              return [...prevProjects, transformedProject];
+            }
+          });
         }
 
         if (invoicesResponse.success && invoicesResponse.data) {
-          // Transform API data to match frontend types
           const transformedInvoices = invoicesResponse.data.map(
             (i: any) =>
               ({
@@ -190,93 +408,19 @@ function AppContent() {
                 custom_payment_details: i.custom_payment_details,
               } as Invoice)
           );
-          setInvoices(transformedInvoices);
-        }
-
-        if (paymentsResponse.success && paymentsResponse.data) {
-          // Transform API data to match frontend types
-          const transformedPayments = paymentsResponse.data.map((p) => ({
-            id: p._id,
-            invoice_id: p.invoice_id,
-            project_id: p.project_id,
-            amount: p.amount,
-            payment_method: p.payment_method as PaymentMethod,
-            payment_date: p.payment_date
-              ? new Date(p.payment_date).toISOString().split("T")[0]
-              : "",
-          }));
-          setPayments(transformedPayments);
+          setProjectInvoices(transformedInvoices);
         }
       } catch (err: any) {
-        const errorMessage = apiClient.handleError(err);
-        toast.error(errorMessage);
-        console.error("Error fetching data:", err);
+        console.error("Error fetching project details:", err);
       } finally {
         setDataLoading(false);
       }
-    };
-
-    fetchData();
-  }, [isAuthenticated]);
-
-  // Fetch single project details when viewing project detail
-  React.useEffect(() => {
-    const fetchProjectDetails = async () => {
-      if (currentView.view === "projectDetail" && currentView.id) {
-        try {
-          setDataLoading(true);
-          const response = await apiClient.getProject(currentView.id);
-          if (response.success && response.data) {
-            const p = response.data as any;
-            const transformedProject: Project = {
-              id: p._id,
-              name: p.name,
-              description: p.description,
-              total_amount: p.total_amount,
-              status: p.status as ProjectStatus,
-              start_date: p.start_date
-                ? new Date(p.start_date).toISOString().split("T")[0]
-                : "",
-              end_date: p.end_date
-                ? new Date(p.end_date).toISOString().split("T")[0]
-                : undefined,
-              client_id:
-                typeof p.client_id === "object" && p.client_id
-                  ? p.client_id._id
-                  : p.client_id || "",
-              client_name:
-                typeof p.client_id === "object" && p.client_id
-                  ? p.client_id.name
-                  : "",
-              notes: p.notes || "",
-              created_at: p.createdAt,
-              user_id: p.user_id,
-              team_members: p.team_members,
-            };
-
-            setProjects((prevProjects) => {
-              const exists = prevProjects.find(
-                (proj) => proj.id === transformedProject.id
-              );
-              if (exists) {
-                return prevProjects.map((proj) =>
-                  proj.id === transformedProject.id ? transformedProject : proj
-                );
-              } else {
-                return [...prevProjects, transformedProject];
-              }
-            });
-          }
-        } catch (err: any) {
-          console.error("Error fetching project details:", err);
-        } finally {
-          setDataLoading(false);
-        }
-      }
-    };
-
-    fetchProjectDetails();
+    }
   }, [currentView]);
+
+  React.useEffect(() => {
+    fetchProjectDetails();
+  }, [fetchProjectDetails]);
 
   const navigateTo = (view: string, id?: string) => {
     setCurrentView({ view, id: id || undefined });
@@ -502,31 +646,166 @@ function AppContent() {
     );
   };
 
+  // ... (inside AppContent)
+
+  const [remarkModal, setRemarkModal] = React.useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+    required?: boolean;
+    onConfirm: (remark: string) => void;
+    type?: "danger" | "warning" | "info";
+  }>({
+    isOpen: false,
+    title: "",
+    onConfirm: () => {},
+  });
+
   const handleDeleteInvoice = async (invoiceId: string) => {
     const invoice = invoices.find((i) => i.id === invoiceId);
-    showConfirmation(
-      "Delete Invoice",
-      `Are you sure you want to delete invoice "${invoice?.invoice_number}"? This action cannot be undone.`,
-      async () => {
-        try {
-          setDataLoading(true);
-          const response = await apiClient.deleteInvoice(invoiceId);
-          if (response.success) {
-            setInvoices(invoices.filter((i) => i.id !== invoiceId));
-            toast.success("Invoice deleted successfully!");
-          } else {
-            toast.error(response.error || "Failed to delete invoice");
+    if (!invoice) return;
+
+    if (invoice.status === "draft") {
+      showConfirmation(
+        "Delete Invoice",
+        `Are you sure you want to delete invoice "${invoice.invoice_number}"? This action cannot be undone.`,
+        async () => {
+          try {
+            setDataLoading(true);
+            const response = await apiClient.deleteInvoice(invoiceId);
+            if (response.success) {
+              setInvoices(invoices.filter((i) => i.id !== invoiceId));
+              setProjectInvoices(
+                projectInvoices.filter((i) => i.id !== invoiceId)
+              );
+              toast.success("Invoice deleted successfully!");
+            } else {
+              toast.error(response.error || "Failed to delete invoice");
+            }
+          } catch (err: any) {
+            const errorMessage = apiClient.handleError(err);
+            toast.error(errorMessage);
+          } finally {
+            setDataLoading(false);
+            closeConfirmation();
           }
-        } catch (err: any) {
-          const errorMessage = apiClient.handleError(err);
-          toast.error(errorMessage);
-          console.error("Error deleting invoice:", err);
-        } finally {
-          setDataLoading(false);
         }
-        closeConfirmation();
+      );
+    } else {
+      // Sent/Paid invoices - Require remark
+      setRemarkModal({
+        isOpen: true,
+        title: "Delete Invoice",
+        message: `Please provide a reason for deleting invoice "${invoice.invoice_number}". This will perform a soft delete.`,
+        required: true,
+        type: "danger",
+        onConfirm: async (remark) => {
+          try {
+            setDataLoading(true);
+            const response = await apiClient.deleteInvoice(invoiceId, remark);
+            if (response.success) {
+              // Refresh invoices to get the updated list (excluding deleted if filtered)
+              // Or just remove it from local state if we are hiding deleted
+              setInvoices(invoices.filter((i) => i.id !== invoiceId));
+              setProjectInvoices(
+                projectInvoices.filter((i) => i.id !== invoiceId)
+              );
+              toast.success("Invoice deleted successfully!");
+            } else {
+              toast.error(response.error || "Failed to delete invoice");
+            }
+          } catch (err: any) {
+            const errorMessage = apiClient.handleError(err);
+            toast.error(errorMessage);
+          } finally {
+            setDataLoading(false);
+            setRemarkModal((prev) => ({ ...prev, isOpen: false }));
+          }
+        },
+      });
+    }
+  };
+
+  const handleUpdateInvoiceStatus = async (
+    invoice: Invoice,
+    newStatus: string
+  ) => {
+    const updateStatus = async (remark?: string) => {
+      try {
+        setDataLoading(true);
+        const response = await apiClient.updateInvoiceStatus(
+          invoice.id,
+          newStatus,
+          remark
+        );
+        if (response.success) {
+          // Update local state
+          const updatedInvoice = {
+            ...invoice,
+            status: newStatus as InvoiceStatus,
+          };
+          setInvoices(
+            invoices.map((i) => (i.id === invoice.id ? updatedInvoice : i))
+          );
+          setProjectInvoices(
+            projectInvoices.map((i) =>
+              i.id === invoice.id ? updatedInvoice : i
+            )
+          );
+          toast.success(`Invoice marked as ${newStatus}`);
+        } else {
+          toast.error(response.error || "Failed to update status");
+        }
+      } catch (err: any) {
+        toast.error(apiClient.handleError(err));
+      } finally {
+        setDataLoading(false);
+        setRemarkModal((prev) => ({ ...prev, isOpen: false }));
       }
-    );
+    };
+
+    if (newStatus === "paid") {
+      setPaymentModal({
+        isOpen: true,
+        invoice,
+      });
+    } else if (["cancelled", "overdue"].includes(newStatus)) {
+      setRemarkModal({
+        isOpen: true,
+        title: `Mark as ${
+          newStatus.charAt(0).toUpperCase() + newStatus.slice(1)
+        }`,
+        message: "Add an optional remark for this status change.",
+        required: false,
+        type: "info",
+        onConfirm: (remark) => updateStatus(remark),
+      });
+    } else {
+      updateStatus();
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    fetchInvoices();
+    fetchProjects(); // Update project stats
+    // Also update payments list if we have it
+    const fetchPayments = async () => {
+      const response = await apiClient.getPayments();
+      if (response.success && response.data) {
+        const transformedPayments = response.data.map((p) => ({
+          id: p._id,
+          invoice_id: p.invoice_id,
+          project_id: p.project_id,
+          amount: p.amount,
+          payment_method: p.payment_method as PaymentMethod,
+          payment_date: p.payment_date
+            ? new Date(p.payment_date).toISOString().split("T")[0]
+            : "",
+        }));
+        setPayments(transformedPayments);
+      }
+    };
+    fetchPayments();
   };
 
   const handleViewPDF = async (invoiceId: string) => {
@@ -535,41 +814,13 @@ function AppContent() {
       const response = await apiClient.viewInvoicePDF(invoiceId);
       if (response.success && response.data?.pdf_base64) {
         const invoice = invoices.find((i) => i.id === invoiceId);
-        const pdfBase64 = response.data.pdf_base64;
-
-        openModal(
-          <div className="relative w-full h-[80vh]">
-            <iframe
-              src={`data:application/pdf;base64,${pdfBase64}`}
-              className="w-full h-full border-none"
-              title="Invoice PDF"
-            />
-          </div>,
-          `Invoice ${invoice?.invoice_number || invoiceId}`,
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                const link = document.createElement("a");
-                link.href = `data:application/pdf;base64,${pdfBase64}`;
-                link.download = `invoice-${
-                  invoice?.invoice_number || invoiceId
-                }.pdf`;
-                link.click();
-              }}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto flex items-center gap-2"
-            >
-              📥 Download PDF
-            </button>
-            <button
-              type="button"
-              onClick={closeModal}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto"
-            >
-              Close
-            </button>
-          </>
-        );
+        setPdfViewer({
+          isOpen: true,
+          pdfBase64: response.data.pdf_base64,
+          title: `Invoice ${invoice?.invoice_number || invoiceId}`,
+          fileName: `invoice-${invoice?.invoice_number || invoiceId}.pdf`,
+          invoiceId: invoiceId,
+        });
       } else {
         toast.error("PDF not available. Generating...");
       }
@@ -577,6 +828,25 @@ function AppContent() {
       toast.error(apiClient.handleError(err));
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  const handleRegeneratePDF = async () => {
+    if (!pdfViewer.invoiceId) return;
+    try {
+      setIsRegeneratingPDF(true);
+      const response = await apiClient.viewInvoicePDF(pdfViewer.invoiceId);
+      if (response.success && response.data?.pdf_base64) {
+        setPdfViewer((prev) => ({
+          ...prev,
+          pdfBase64: response.data!.pdf_base64,
+        }));
+        toast.success("PDF regenerated successfully");
+      }
+    } catch (err: any) {
+      toast.error("Failed to regenerate PDF");
+    } finally {
+      setIsRegeneratingPDF(false);
     }
   };
 
@@ -599,61 +869,6 @@ function AppContent() {
     } finally {
       setDataLoading(false);
     }
-  };
-
-  const handleMarkAsPaid = async (invoice: Invoice) => {
-    openModal(
-      <PaymentForm
-        invoice={invoice}
-        onSave={async (paymentData) => {
-          try {
-            setDataLoading(true);
-            const response = await apiClient.createPayment(paymentData as any);
-            if (response.success) {
-              // Update invoice status to paid
-              const updateResponse = await apiClient.updateInvoice(invoice.id, {
-                status: "paid",
-              } as any);
-              if (updateResponse.success) {
-                setInvoices(
-                  invoices.map((i) =>
-                    i.id === invoice.id
-                      ? { ...i, status: "paid" as InvoiceStatus }
-                      : i
-                  )
-                );
-                toast.success("Payment recorded and invoice marked as paid!");
-                closeModal();
-              }
-            }
-          } catch (err: any) {
-            toast.error(apiClient.handleError(err));
-          } finally {
-            setDataLoading(false);
-          }
-        }}
-      />,
-      "Record Payment",
-      <>
-        <button
-          type="button"
-          onClick={closeModal}
-          className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const form = document.querySelector("form") as HTMLFormElement;
-            if (form) form.requestSubmit();
-          }}
-          className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto"
-        >
-          Record Payment
-        </button>
-      </>
-    );
   };
 
   const handleSaveInvoice = async (
@@ -714,6 +929,11 @@ function AppContent() {
           setInvoices(
             invoices.map((i) => (i.id === invoiceId ? updatedInvoice : i))
           );
+          setProjectInvoices(
+            projectInvoices.map((i) =>
+              i.id === invoiceId ? updatedInvoice : i
+            )
+          );
           toast.success("Invoice updated successfully!");
         }
       } else {
@@ -744,6 +964,18 @@ function AppContent() {
             custom_payment_details: responseData.custom_payment_details,
           };
           setInvoices([...invoices, newInvoice]);
+          if (
+            currentView.view === "projectDetail" &&
+            currentView.id === newInvoice.project_id
+          ) {
+            setProjectInvoices([...projectInvoices, newInvoice]);
+          } else if (
+            currentView.view === "projectDetail" &&
+            typeof newInvoice.project_id === "object" &&
+            (newInvoice.project_id as any)._id === currentView.id
+          ) {
+            setProjectInvoices([...projectInvoices, newInvoice]);
+          }
           toast.success("Invoice created successfully!");
         }
       }
@@ -757,6 +989,7 @@ function AppContent() {
       const errorMessage = apiClient.handleError(err);
       toast.error(errorMessage);
       console.error("Error saving invoice:", err);
+      throw err; // Re-throw to let form handle it
     } finally {
       setDataLoading(false);
     }
@@ -856,6 +1089,32 @@ function AppContent() {
     </button>
   );
 
+  // Memoized Handlers for Projects
+  const handleProjectPageChange = React.useCallback((page: number) => {
+    setProjectPagination((prev) => ({ ...prev, currentPage: page }));
+  }, []);
+
+  const handleProjectSearch = React.useCallback((query: string) => {
+    setProjectFilters((prev) => ({ ...prev, search: query }));
+  }, []);
+
+  const handleProjectFilterChange = React.useCallback((status: string) => {
+    setProjectFilters((prev) => ({ ...prev, status }));
+  }, []);
+
+  // Memoized Handlers for Invoices
+  const handleInvoicePageChange = React.useCallback((page: number) => {
+    setInvoicePagination((prev) => ({ ...prev, currentPage: page }));
+  }, []);
+
+  const handleInvoiceSearch = React.useCallback((query: string) => {
+    setInvoiceFilters((prev) => ({ ...prev, search: query }));
+  }, []);
+
+  const handleInvoiceFilterChange = React.useCallback((status: string) => {
+    setInvoiceFilters((prev) => ({ ...prev, status }));
+  }, []);
+
   const renderContent = () => {
     const { view, id } = currentView;
 
@@ -883,6 +1142,7 @@ function AppContent() {
             onViewProject={(projectId) =>
               navigateTo("projectDetail", projectId)
             }
+            onNavigate={navigateTo}
           />
         );
       case "projects":
@@ -893,6 +1153,11 @@ function AppContent() {
         return (
           <ProjectsListPage
             projects={projects}
+            isLoading={dataLoading}
+            pagination={projectPagination}
+            onPageChange={handleProjectPageChange}
+            onSearch={handleProjectSearch}
+            onFilterChange={handleProjectFilterChange}
             onAddProject={() => openProjectForm()}
             onViewProject={(projectId) =>
               navigateTo("projectDetail", projectId)
@@ -908,11 +1173,18 @@ function AppContent() {
           <InvoicesListPage
             invoices={invoices}
             projects={projects}
+            isLoading={dataLoading}
+            pagination={invoicePagination}
+            onPageChange={handleInvoicePageChange}
+            onSearch={handleInvoiceSearch}
+            onFilterChange={handleInvoiceFilterChange}
             onAddInvoice={() => openInvoiceForm()}
             onEditInvoice={(invoice) => openInvoiceForm(invoice)}
             onDeleteInvoice={handleDeleteInvoice}
+            onUpdateStatus={handleUpdateInvoiceStatus}
             onViewPDF={handleViewPDF}
-            onMarkAsPaid={handleMarkAsPaid}
+            onInvoiceSent={fetchInvoices}
+            initialTab={currentView.params?.tab}
           />
         );
       case "settings":
@@ -935,14 +1207,6 @@ function AppContent() {
         const project = projects.find((p) => p.id === id);
         if (!project) return <div>Project not found!</div>;
 
-        const projectInvoices = invoices.filter((i) => {
-          // Handle both string project_id and nested project object
-          if (typeof i.project_id === "string") {
-            return i.project_id === id;
-          } else {
-            return i.project_id.id === id;
-          }
-        });
         const projectPayments = payments.filter((p) => p.project_id === id);
 
         return (
@@ -955,7 +1219,10 @@ function AppContent() {
             onDeleteProject={handleDeleteProject}
             onEditInvoice={(invoice) => openInvoiceForm(invoice)}
             onDeleteInvoice={handleDeleteInvoice}
+            onUpdateStatus={handleUpdateInvoiceStatus}
             onDownloadInvoice={handleDownloadInvoicePDF}
+            onViewPDF={handleViewPDF}
+            onInvoiceSent={fetchProjectDetails}
           />
         );
       default:
@@ -968,6 +1235,7 @@ function AppContent() {
               onViewProject={(projectId) =>
                 navigateTo("projectDetail", projectId)
               }
+              onNavigate={navigateTo}
             />
           );
         } else {
@@ -1007,7 +1275,7 @@ function AppContent() {
                       onError={(e) => {
                         // Fallback to initial if image fails to load
                         e.currentTarget.src =
-                          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTAiIGZpbGw9InVybCgjcGFpbnQwXzFfMSkiLz4KPGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjAiIGZpbGw9InVybCgjcGFpbnQxXzFfMSkiLz4KPHBhdGggZD0iTTE2IDI0SDMyTTE2IDE2SDMyTTE2IDMySDMydjQiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPGRlZnM+CjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwXzFfMSIgeDE9IjAiIHkxPSIwIiB4Mj0iNDgiIHkyPSI0OCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjMzk4MUVEIi8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzA2QjZEMyIvPgo8L2xpbmVhckdyYWRpZW50Pgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MV8xXzEiIHgxPSIwIiB5MT0iMCIgeDI9IjQ4IiB5Mj0iNDgiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzEwQjk4MSIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMzc5OEQiLz4KPC9saW5lYXJHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4=";
+                          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTAiIGZpbGw9InVybCgjcGFpbnQwXzFfMSkiLz4KPGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjAiIGZpbGw9InVybCgjcGFpbnQxXzFfMSkiLz4KPHBhdGggZD0iTTE2IDI0SDMyTTE2IDE2SDMyTTE2IDMySDMydjQiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPGRlZnM+CjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwXzFfMSIgeDE9IjAiIHkxPSIwIiB4Mj0iNDgiIHkyPSI0OCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjMzk4MUVEIi8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzA2QjZEMyIvPgo8L2xpbmVhckdyYWRpZW50Pgo8bGluZWFyR3JhZGlldG4gaWQ9InBhaW50MV8xXzEiIHgxPSIwIiB5MT0iMCIgeDI9IjQ4IiB5Mj0iNDgiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzEwQjk4MSIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMzc5OEQiLz4KPC9saW5lYXJHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4=";
                       }}
                     />
                   </div>
@@ -1121,6 +1389,36 @@ function AppContent() {
       />
 
       <Toast />
+
+      {/* PDF Viewer Modal */}
+      <PDFViewerModal
+        isOpen={pdfViewer.isOpen}
+        onClose={() => setPdfViewer((prev) => ({ ...prev, isOpen: false }))}
+        pdfBase64={pdfViewer.pdfBase64}
+        title={pdfViewer.title}
+        fileName={pdfViewer.fileName}
+        onRegenerate={handleRegeneratePDF}
+        isRegenerating={isRegeneratingPDF}
+      />
+
+      <RemarkModal
+        isOpen={remarkModal.isOpen}
+        onClose={() => setRemarkModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={remarkModal.onConfirm}
+        title={remarkModal.title}
+        message={remarkModal.message}
+        required={remarkModal.required}
+        type={remarkModal.type}
+      />
+
+      {paymentModal.isOpen && paymentModal.invoice && (
+        <PaymentModal
+          isOpen={paymentModal.isOpen}
+          invoice={paymentModal.invoice}
+          onClose={() => setPaymentModal({ isOpen: false, invoice: null })}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 }

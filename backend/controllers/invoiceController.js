@@ -1,78 +1,172 @@
 import Invoice from "../models/Invoice.js";
 import Project from "../models/Project.js";
 import { validationResult } from "express-validator";
+import mongoose from "mongoose";
 
 // @desc    Get all invoices
 // @route   GET /api/invoices
 // @access  Private
 const getInvoices = async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const startIndex = (page - 1) * limit;
-    const { search, status, startDate, endDate } = req.query;
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      project,
+      issueDateFrom,
+      issueDateTo,
+      dueDateFrom,
+      dueDateTo,
+      deleted, // 'true' or 'false'
+    } = req.query;
 
-    const query = { isDeleted: false };
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
+    // Build match stage
+    const matchStage = {};
+
+    // Handle deleted status
+    if (deleted === "true") {
+      matchStage.isDeleted = true;
+    } else {
+      matchStage.isDeleted = false;
+    }
+
+    // Status filter
     if (status) {
-      query.status = status;
+      matchStage.status = status;
     }
 
-    if (startDate && endDate) {
-      query.issue_date = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      };
+    // Project filter
+    if (project) {
+      matchStage.project_id = new mongoose.Types.ObjectId(project);
     }
 
-    if (search) {
-      query.$or = [
-        { invoice_number: { $regex: search, $options: "i" } },
-        // We can't easily search by client name here because it's in a populated field
-        // But we can search by project name if we populate first or use aggregate
-      ];
+    // Date range filters
+    if (issueDateFrom || issueDateTo) {
+      matchStage.issue_date = {};
+      if (issueDateFrom) matchStage.issue_date.$gte = new Date(issueDateFrom);
+      if (issueDateTo) matchStage.issue_date.$lte = new Date(issueDateTo);
     }
 
-    const total = await Invoice.countDocuments(query);
+    if (dueDateFrom || dueDateTo) {
+      matchStage.due_date = {};
+      if (dueDateFrom) matchStage.due_date.$gte = new Date(dueDateFrom);
+      if (dueDateTo) matchStage.due_date.$lte = new Date(dueDateTo);
+    }
 
-    const invoices = await Invoice.find(query)
-      .populate({
-        path: "project_id",
-        select: "name user_id",
-        populate: {
-          path: "client_id",
-          select: "name email",
+    // Aggregation pipeline
+    const pipeline = [
+      // 1. Lookup Project
+      {
+        $lookup: {
+          from: "projects",
+          localField: "project_id",
+          foreignField: "_id",
+          as: "project",
         },
-      })
-      .sort({ createdAt: -1 })
-      .skip(startIndex)
-      .limit(limit);
-
-    // Transform data for frontend compatibility
-    const transformedInvoices = invoices.map((invoice) => ({
-      ...invoice.toObject(),
-      id: invoice._id,
-      project_id: {
-        _id: invoice.project_id._id,
-        name: invoice.project_id.name,
-        client_name: invoice.project_id.client_id?.name || "Unknown Client",
-        client_id: invoice.project_id.client_id,
-        id: invoice.project_id._id,
       },
-    }));
+      { $unwind: { path: "$project", preserveNullAndEmptyArrays: true } },
 
-    res.status(200).json({
+      // 2. Lookup Client (via Project)
+      {
+        $lookup: {
+          from: "clients",
+          localField: "project.client_id",
+          foreignField: "_id",
+          as: "client",
+        },
+      },
+      { $unwind: { path: "$client", preserveNullAndEmptyArrays: true } },
+
+      // 3. Initial Match (Filters)
+      { $match: matchStage },
+    ];
+
+    // 4. Search (if provided)
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      pipeline.push({
+        $match: {
+          $or: [
+            { invoice_number: searchRegex },
+            { "project.name": searchRegex },
+            { "client.name": searchRegex },
+          ],
+        },
+      });
+    }
+
+    // 5. Facet for Pagination and Data
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [
+          { $sort: { createdAt: -1 } }, // Newest first
+          { $skip: skip },
+          { $limit: limitNum },
+          // Project the fields we need
+          {
+            $project: {
+              _id: 1,
+              invoice_number: 1,
+              amount: 1,
+              currency: 1,
+              status: 1,
+              issue_date: 1,
+              due_date: 1,
+              services: 1,
+              subtotal: 1,
+              gst_percentage: 1,
+              gst_amount: 1,
+              include_gst: 1,
+              total_amount: 1,
+              payment_method: 1,
+              bank_account_id: 1,
+              custom_payment_details: 1,
+              isDeleted: 1,
+              deletion_remark: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              paid_amount: 1,
+              balance_due: 1,
+              // Reconstruct project_id as populated object
+              project_id: {
+                _id: "$project._id",
+                name: "$project.name",
+                client_id: "$project.client_id",
+                client_name: "$client.name",
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const result = await Invoice.aggregate(pipeline);
+
+    const metadata = result[0].metadata[0];
+    const totalItems = metadata ? metadata.total : 0;
+    const totalPages = Math.ceil(totalItems / limitNum);
+    const invoices = result[0].data;
+
+    res.json({
       success: true,
-      count: transformedInvoices.length,
-      total,
+      count: invoices.length,
       pagination: {
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
+        currentPage: pageNum,
+        totalPages: totalPages,
+        totalItems: totalItems,
+        hasNext: pageNum < totalPages,
+        hasPrev: pageNum > 1,
       },
-      data: transformedInvoices,
+      data: invoices,
     });
   } catch (error) {
+    console.error("Get invoices error:", error);
     next(error);
   }
 };
@@ -142,10 +236,31 @@ const createInvoice = async (req, res, next) => {
       });
     }
 
-    const { services = [], gst_percentage = 18 } = req.body;
+    const { services = [], gst_percentage = 18, include_gst = true } = req.body;
     const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
-    const gst_amount = (subtotal * gst_percentage) / 100;
+
+    let gst_amount = 0;
+    if (include_gst) {
+      gst_amount = (subtotal * gst_percentage) / 100;
+    }
+
     const total_amount = subtotal + gst_amount;
+
+    // Check project budget
+    const existingInvoices = await Invoice.aggregate([
+      { $match: { project_id: project._id, isDeleted: false } },
+      { $group: { _id: null, total: { $sum: "$total_amount" } } },
+    ]);
+    const currentTotal = existingInvoices[0]?.total || 0;
+
+    if (currentTotal + total_amount > project.total_amount) {
+      return res.status(400).json({
+        success: false,
+        error: `Project budget exceeded. Remaining budget: ${
+          project.total_amount - currentTotal
+        }`,
+      });
+    }
 
     const invoice = await Invoice.create({
       ...req.body,
@@ -153,8 +268,10 @@ const createInvoice = async (req, res, next) => {
       subtotal,
       gst_percentage,
       gst_amount,
+      include_gst,
       total_amount,
       amount: total_amount,
+      balance_due: total_amount, // Initial balance is total amount
     });
 
     await invoice.populate({
@@ -212,12 +329,31 @@ const updateInvoice = async (req, res, next) => {
       });
     }
 
+    if (invoice.status !== "draft") {
+      return res.status(400).json({
+        success: false,
+        error: "Only draft invoices can be edited",
+      });
+    }
+
     // Handle services calculation if services are provided
     let updateData = { ...req.body };
     if (req.body.services) {
-      const { services = [], gst_percentage = 18 } = req.body;
+      const {
+        services = [],
+        gst_percentage = 18,
+        include_gst = req.body.include_gst !== undefined
+          ? req.body.include_gst
+          : invoice.include_gst,
+      } = req.body;
+
       const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
-      const gst_amount = (subtotal * gst_percentage) / 100;
+
+      let gst_amount = 0;
+      if (include_gst) {
+        gst_amount = (subtotal * gst_percentage) / 100;
+      }
+
       const total_amount = subtotal + gst_amount;
 
       updateData = {
@@ -226,9 +362,33 @@ const updateInvoice = async (req, res, next) => {
         subtotal,
         gst_percentage,
         gst_amount,
+        include_gst,
         total_amount,
         amount: total_amount,
       };
+
+      // Check project budget if amount changed
+      const project = await Project.findById(invoice.project_id);
+      const existingInvoices = await Invoice.aggregate([
+        {
+          $match: {
+            project_id: invoice.project_id,
+            isDeleted: false,
+            _id: { $ne: invoice._id },
+          },
+        },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } },
+      ]);
+      const currentTotal = existingInvoices[0]?.total || 0;
+
+      if (currentTotal + total_amount > project.total_amount) {
+        return res.status(400).json({
+          success: false,
+          error: `Project budget exceeded. Remaining budget: ${
+            project.total_amount - currentTotal
+          }`,
+        });
+      }
     }
 
     invoice = await Invoice.findByIdAndUpdate(req.params.id, updateData, {
@@ -280,14 +440,33 @@ const deleteInvoice = async (req, res, next) => {
       });
     }
 
-    // Soft delete
-    invoice.isDeleted = true;
-    await invoice.save();
+    // Smart Delete Logic
+    if (invoice.status === "draft") {
+      // Hard delete for drafts
+      await Invoice.findByIdAndDelete(req.params.id);
+      return res.status(200).json({
+        success: true,
+        message: "Draft invoice permanently deleted",
+      });
+    } else {
+      // Soft delete for sent/paid invoices
+      const { remark } = req.body;
+      if (!remark) {
+        return res.status(400).json({
+          success: false,
+          error: "Deletion remark is required for sent/paid invoices",
+        });
+      }
 
-    res.status(200).json({
-      success: true,
-      message: "Invoice deleted successfully",
-    });
+      invoice.isDeleted = true;
+      invoice.deletion_remark = remark;
+      await invoice.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Invoice soft deleted successfully",
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -328,17 +507,54 @@ const updateInvoiceStatus = async (req, res, next) => {
 
     const updateData = { status };
 
-    // If marking as paid, add paid date
-    if (status === "paid" && paidDate) {
-      updateData.paid_date = paidDate;
-    } else if (status !== "paid") {
-      updateData.paid_date = undefined;
+    // If marking as paid, add paid date and update amounts
+    if (status === "paid") {
+      updateData.paid_date = paidDate || new Date();
+      updateData.paid_amount = invoice.total_amount;
+      updateData.balance_due = 0;
+    } else if (status === "partial") {
+      // For partial, we expect paid_amount in body
+      const { paid_amount } = req.body;
+      if (!paid_amount) {
+        return res.status(400).json({
+          success: false,
+          error: "Paid amount is required for partial status",
+        });
+      }
+      updateData.paid_amount = (invoice.paid_amount || 0) + Number(paid_amount);
+      updateData.balance_due = invoice.total_amount - updateData.paid_amount;
+
+      // Auto-switch to paid if balance is 0
+      if (updateData.balance_due <= 0) {
+        updateData.status = "paid";
+        updateData.paid_date = new Date();
+        updateData.balance_due = 0;
+      }
+    } else {
+      // Reset if moving back to sent/draft (optional, depending on business logic)
+      // For now, we keep paid history unless explicitly cleared
     }
 
-    invoice = await Invoice.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-      runValidators: true,
-    }).populate({
+    // Add to status history
+    const { remark } = req.body;
+    const historyEntry = {
+      status,
+      remark,
+      date: new Date(),
+    };
+
+    // Use findByIdAndUpdate with $set and $push
+    invoice = await Invoice.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: updateData,
+        $push: { status_history: historyEntry },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).populate({
       path: "project_id",
       select: "name user_id",
       populate: {
@@ -370,15 +586,23 @@ const updateInvoiceStatus = async (req, res, next) => {
   }
 };
 
+import { generateInvoicePDF as generatePDF } from "../utils/generatePDF.js";
+import BankDetails from "../models/BankDetails.js";
+import companyDetails from "../config/companyDetails.js";
+
+// ... (keep existing imports)
+
 // @desc    Generate invoice PDF
 // @route   GET /api/invoices/:id/pdf
 // @access  Private
 const generateInvoicePDF = async (req, res, next) => {
   try {
-    const invoice = await Invoice.findById(req.params.id).populate(
-      "project_id",
-      "name client_name"
-    );
+    const invoice = await Invoice.findById(req.params.id).populate({
+      path: "project_id",
+      populate: {
+        path: "client_id",
+      },
+    });
 
     if (!invoice) {
       return res.status(404).json({
@@ -387,24 +611,47 @@ const generateInvoicePDF = async (req, res, next) => {
       });
     }
 
-    // For now, return a simple JSON representation
-    // In a real application, you would generate an actual PDF
-    const pdfData = {
-      invoiceNumber: invoice.invoice_number,
-      projectName: invoice.project_id.name,
-      clientName: invoice.project_id.client_name,
-      amount: invoice.amount,
-      issueDate: invoice.issue_date,
-      dueDate: invoice.due_date,
-      status: invoice.status,
-    };
+    // Fetch Bank Details
+    let bankDetails;
+    if (invoice.bank_account_id) {
+      bankDetails = await BankDetails.findById(invoice.bank_account_id);
+    }
+
+    // Fallback to first bank account if not found or not specified
+    if (!bankDetails) {
+      const banks = await BankDetails.find();
+      if (banks.length > 0) bankDetails = banks[0];
+    }
+
+    if (!bankDetails) {
+      return res.status(400).json({
+        success: false,
+        error: "Bank details not found. Please add a bank account.",
+      });
+    }
+
+    // Prepare Data
+    const invoiceData = invoice.toObject();
+    const clientData = invoice.project_id.client_id;
+
+    // Generate PDF
+    const pdfBase64 = generatePDF(
+      invoiceData,
+      clientData,
+      bankDetails,
+      companyDetails
+    );
 
     res.status(200).json({
       success: true,
-      message: "Invoice PDF data generated",
-      data: pdfData,
+      message: "Invoice PDF generated",
+      data: {
+        pdf_base64: pdfBase64,
+        filename: `invoice-${invoice.invoice_number}.pdf`,
+      },
     });
   } catch (error) {
+    console.error("PDF Generation Error:", error);
     next(error);
   }
 };

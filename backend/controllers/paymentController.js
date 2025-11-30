@@ -134,8 +134,14 @@ const createPayment = async (req, res, next) => {
       });
     }
 
-    const { invoice_id, project_id, amount, payment_method, payment_date } =
-      req.body;
+    const {
+      invoice_id,
+      project_id,
+      amount,
+      payment_method,
+      payment_date,
+      remark,
+    } = req.body;
 
     // Verify project exists
     const project = await Project.findById(project_id);
@@ -163,6 +169,7 @@ const createPayment = async (req, res, next) => {
       amount,
       payment_method,
       payment_date,
+      remark,
     });
 
     // Update invoice status and amounts

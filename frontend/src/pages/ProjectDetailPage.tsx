@@ -1,13 +1,22 @@
 import React from "react";
-import { FolderOpen, Plus, Edit, Trash2, Download } from "lucide-react";
-import type { Project, Invoice, Payment } from "../types";
 import {
-  GlassCard,
-  PrimaryButton,
-  StatusChip,
-  ConfirmationModal,
-} from "../components/ui";
+  FolderOpen,
+  Plus,
+  Edit,
+  Trash2,
+  Download,
+  MoreVertical,
+  CheckCircle,
+  AlertCircle,
+  Edit2,
+  Send,
+  Eye,
+} from "lucide-react";
+import SendInvoiceModal from "../components/modals/SendInvoiceModal";
+import type { Project, Invoice, Payment } from "../types";
+import { GlassCard, PrimaryButton, StatusChip } from "../components/ui";
 import { formatCurrency, formatDate } from "../utils";
+import { useOnClickOutside } from "../hooks/useOnClickOutside";
 
 interface ProjectDetailPageProps {
   project: Project;
@@ -19,6 +28,9 @@ interface ProjectDetailPageProps {
   onEditInvoice?: (invoice: Invoice) => void;
   onDeleteInvoice?: (invoiceId: string) => void;
   onDownloadInvoice?: (invoice: Invoice) => void;
+  onUpdateStatus?: (invoice: Invoice, status: string) => void;
+  onViewPDF?: (invoiceId: string) => void;
+  onInvoiceSent?: () => void;
 }
 
 export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
@@ -31,18 +43,26 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   onEditInvoice,
   onDeleteInvoice,
   onDownloadInvoice,
+  onUpdateStatus,
+  onViewPDF,
+  onInvoiceSent,
 }) => {
   const [activeTab, setActiveTab] = React.useState<"details" | "invoices">(
     "details"
   );
-  const [deleteModal, setDeleteModal] = React.useState<{
+  const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  useOnClickOutside(dropdownRef as React.RefObject<HTMLElement>, () =>
+    setOpenDropdown(null)
+  );
+
+  const [sendModal, setSendModal] = React.useState<{
     isOpen: boolean;
-    invoiceId: string | null;
-    invoiceNumber: string;
+    invoice: Invoice | null;
   }>({
     isOpen: false,
-    invoiceId: null,
-    invoiceNumber: "",
+    invoice: null,
   });
 
   const paidAmount = React.useMemo(() => {
@@ -61,40 +81,13 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
 
   const dueAmount = project.total_amount - paidAmount;
 
-  const handleDeleteClick = (invoice: Invoice) => {
-    setDeleteModal({
-      isOpen: true,
-      invoiceId: invoice.id,
-      invoiceNumber: invoice.invoice_number,
-    });
-  };
-
-  const handleDeleteConfirm = () => {
-    if (deleteModal.invoiceId && onDeleteInvoice) {
-      onDeleteInvoice(deleteModal.invoiceId);
-    }
-    setDeleteModal({
-      isOpen: false,
-      invoiceId: null,
-      invoiceNumber: "",
-    });
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteModal({
-      isOpen: false,
-      invoiceId: null,
-      invoiceNumber: "",
-    });
-  };
-
   const TabButton: React.FC<{
     tabName: "details" | "invoices";
     label: string;
   }> = ({ tabName, label }) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${
         activeTab === tabName
           ? "bg-white/60 dark:bg-slate-700/60 text-slate-800 dark:text-slate-100 shadow"
           : "text-slate-600 dark:text-slate-300 hover:bg-white/30 dark:hover:bg-slate-600/30"
@@ -251,11 +244,13 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
                   <tr>
-                    <th className="px-6 py-3">Invoice #</th>
-                    <th className="px-6 py-3">Amount</th>
-                    <th className="px-6 py-3">Due Date</th>
-                    <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3 text-right">Actions</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Invoice #</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Amount</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Due Date</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Status</th>
+                    <th className="px-6 py-3 text-right whitespace-nowrap">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -277,42 +272,133 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         <StatusChip status={invoice.status} />
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center gap-2 justify-end">
-                          {onDownloadInvoice && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDownloadInvoice(invoice);
-                              }}
-                              className="flex items-center gap-1 px-3 py-1 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 transition-colors"
+                        <div className="relative inline-block">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdown(
+                                openDropdown === invoice.id ? null : invoice.id
+                              );
+                            }}
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                          >
+                            <MoreVertical className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                          </button>
+
+                          {openDropdown === invoice.id && (
+                            <div
+                              ref={dropdownRef}
+                              className="fixed mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-600 z-50 right-0"
+                              style={{ transform: "translateX(-10px)" }}
                             >
-                              <Download className="h-4 w-4" />
-                              PDF
-                            </button>
-                          )}
-                          {onEditInvoice && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEditInvoice(invoice);
-                              }}
-                              className="flex items-center gap-1 px-3 py-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
-                            >
-                              <Edit className="h-4 w-4" />
-                              Edit
-                            </button>
-                          )}
-                          {onDeleteInvoice && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteClick(invoice);
-                              }}
-                              className="flex items-center gap-1 px-3 py-1 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSendModal({ isOpen: true, invoice });
+                                  setOpenDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                              >
+                                <Send className="h-4 w-4" />
+                                Send
+                              </button>
+                              {onViewPDF && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onViewPDF(invoice.id);
+                                    setOpenDropdown(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  View PDF
+                                </button>
+                              )}
+                              {onDownloadInvoice && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDownloadInvoice(invoice);
+                                    setOpenDropdown(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  Download PDF
+                                </button>
+                              )}
+
+                              {invoice.status !== "paid" &&
+                                invoice.status !== "cancelled" &&
+                                onUpdateStatus && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUpdateStatus(invoice, "paid");
+                                        setOpenDropdown(null);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-green-600 dark:text-green-400"
+                                    >
+                                      <CheckCircle className="h-4 w-4" />
+                                      Mark as Paid
+                                    </button>
+                                    {invoice.status !== "overdue" && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onUpdateStatus(invoice, "overdue");
+                                          setOpenDropdown(null);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-orange-600 dark:text-orange-400"
+                                      >
+                                        <AlertCircle className="h-4 w-4" />
+                                        Mark as Overdue
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUpdateStatus(invoice, "cancelled");
+                                        setOpenDropdown(null);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Cancel Invoice
+                                    </button>
+                                  </>
+                                )}
+
+                              {invoice.status === "draft" && onEditInvoice && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEditInvoice(invoice);
+                                    setOpenDropdown(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                  Edit
+                                </button>
+                              )}
+
+                              {onDeleteInvoice && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDeleteInvoice(invoice.id);
+                                    setOpenDropdown(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </td>
@@ -325,17 +411,19 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         </div>
       </GlassCard>
 
+      {/* Send Invoice Modal */}
+      {sendModal.isOpen && sendModal.invoice && (
+        <SendInvoiceModal
+          isOpen={sendModal.isOpen}
+          invoice={sendModal.invoice}
+          onClose={() => setSendModal({ isOpen: false, invoice: null })}
+          onSuccess={() => {
+            if (onInvoiceSent) onInvoiceSent();
+          }}
+        />
+      )}
+
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={deleteModal.isOpen}
-        title="Delete Invoice"
-        message={`Are you sure you want to delete invoice "${deleteModal.invoiceNumber}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        onConfirm={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
-        type="danger"
-      />
     </div>
   );
 };

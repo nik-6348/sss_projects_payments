@@ -42,6 +42,10 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    remark: {
+      type: String,
+      trim: true,
+    },
     payment_date: {
       type: Date,
       required: [true, "Payment date is required"],

@@ -17,6 +17,8 @@ const generateInvoicePDF = (
   const doc = new jsPDF();
   const currencySymbol = invoiceData.currency === "USD" ? "$" : "Rs. ";
 
+  // Watermark removed as per user request
+
   // Logo
   doc.addImage(logoBase64, "PNG", 10, 15, 75, 15);
 

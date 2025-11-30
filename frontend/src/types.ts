@@ -108,6 +108,7 @@ export interface Invoice {
   subtotal?: number;
   gst_percentage?: number;
   gst_amount?: number;
+  include_gst?: boolean;
   total_amount?: number;
   pdf_base64?: string;
   pdf_generated_at?: string;
@@ -135,6 +136,7 @@ export interface InvoiceApiResponse {
   subtotal?: number;
   gst_percentage?: number;
   gst_amount?: number;
+  include_gst?: boolean;
   total_amount?: number;
   pdf_base64?: string;
   pdf_generated_at?: string;
@@ -152,6 +154,7 @@ export interface Payment {
   payment_method: PaymentMethod;
   bank_account_id?: string;
   custom_payment_details?: string;
+  remark?: string;
   payment_date: string;
   createdAt?: string;
   updatedAt?: string;
@@ -199,6 +202,7 @@ export interface InvoiceFormData
   subtotal?: number;
   gst_percentage?: number;
   gst_amount?: number;
+  include_gst?: boolean;
   total_amount?: number;
 }
 
@@ -206,4 +210,5 @@ export interface PaymentFormData extends Omit<Payment, "id"> {
   amount: number;
   bank_account_id?: string;
   custom_payment_details?: string;
+  remark?: string;
 }

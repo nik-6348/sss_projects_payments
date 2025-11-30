@@ -534,6 +534,7 @@ class ApiClient {
     issueDateTo?: string;
     dueDateFrom?: string;
     dueDateTo?: string;
+    deleted?: boolean;
   }): Promise<ApiResponse<Invoice[]>> {
     const response: AxiosResponse<ApiResponse<Invoice[]>> =
       await this.axiosInstance.get("/invoices", { params });
@@ -563,18 +564,32 @@ class ApiClient {
     return response.data;
   }
 
-  async deleteInvoice(id: string): Promise<ApiResponse> {
+  async deleteInvoice(id: string, remark?: string): Promise<ApiResponse> {
     const response: AxiosResponse<ApiResponse> =
-      await this.axiosInstance.delete(`/invoices/${id}`);
+      await this.axiosInstance.delete(`/invoices/${id}`, {
+        data: { remark },
+      });
+    return response.data;
+  }
+
+  async restoreInvoice(id: string): Promise<ApiResponse<Invoice>> {
+    const response: AxiosResponse<ApiResponse<Invoice>> =
+      await this.axiosInstance.put(`/invoices/${id}/restore`);
     return response.data;
   }
 
   async updateInvoiceStatus(
     id: string,
-    statusData: { status: string; paidDate?: string }
+    status: string,
+    remark?: string,
+    paidDate?: string
   ): Promise<ApiResponse<Invoice>> {
     const response: AxiosResponse<ApiResponse<Invoice>> =
-      await this.axiosInstance.put(`/invoices/${id}/status`, statusData);
+      await this.axiosInstance.put(`/invoices/${id}/status`, {
+        status,
+        remark,
+        paidDate,
+      });
     return response.data;
   }
 

@@ -39,6 +39,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
   const [bccList, setBccList] = useState<string[]>([]);
   const [newCc, setNewCc] = useState("");
   const [newBcc, setNewBcc] = useState("");
+  const [attachInvoice, setAttachInvoice] = useState(true);
 
   useEffect(() => {
     if (isOpen && invoice) {
@@ -122,6 +123,14 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
           .replace(
             /{due_date}/g,
             new Date(invoice.due_date).toLocaleDateString()
+          )
+          .replace(
+            /{project_name}/g,
+            (invoice.project_id as any)?.name || "Project"
+          )
+          .replace(
+            /{currency}/g,
+            invoice.currency || settings.currency || "INR"
           );
       };
 
@@ -195,6 +204,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
         ...formData,
         cc: ccList.join(", "),
         bcc: bccList.join(", "),
+        attachInvoice,
       };
 
       const response = await apiClient.sendInvoiceEmail(
@@ -424,11 +434,20 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
               </div>
 
               <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-3 rounded-lg">
-                <Paperclip className="h-4 w-4" />
-                <span>
-                  Invoice-{invoice.invoice_number}.pdf will be attached
-                  automatically.
-                </span>
+                <input
+                  type="checkbox"
+                  id="attachInvoice"
+                  checked={attachInvoice}
+                  onChange={(e) => setAttachInvoice(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <label
+                  htmlFor="attachInvoice"
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                >
+                  <Paperclip className="h-4 w-4" />
+                  <span>Include Invoice PDF attachment</span>
+                </label>
               </div>
             </form>
           )}

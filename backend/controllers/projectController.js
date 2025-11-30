@@ -6,10 +6,32 @@ import { validationResult } from "express-validator";
 // @access  Private
 const getProjects = async (req, res, next) => {
   try {
-    const projects = await Project.find({ user_id: req.user.id })
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const startIndex = (page - 1) * limit;
+    const { search, status } = req.query;
+
+    const query = { user_id: req.user.id };
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const total = await Project.countDocuments(query);
+
+    const projects = await Project.find(query)
       .populate("client_id", "name email phone")
       .populate("team_members.user_id", "name email role avatar")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(startIndex)
+      .limit(limit);
 
     // Transform data to include client_name for frontend compatibility
     const transformedProjects = projects.map((project) => ({
@@ -18,9 +40,17 @@ const getProjects = async (req, res, next) => {
       client_name: project.client_id?.name || "Unknown Client",
     }));
 
+    const pagination = {
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+      itemsPerPage: limit,
+    };
+
     res.status(200).json({
       success: true,
       count: transformedProjects.length,
+      pagination,
       data: transformedProjects,
     });
   } catch (error) {

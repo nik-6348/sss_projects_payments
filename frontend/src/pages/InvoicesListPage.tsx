@@ -16,21 +16,32 @@ import {
   GlassCard,
   PrimaryButton,
   StatusChip,
-  ConfirmationModal,
   Pagination,
 } from "../components/ui";
 import SendInvoiceModal from "../components/modals/SendInvoiceModal";
 import { formatCurrency, formatDate } from "../utils";
 
+import { useOnClickOutside } from "../hooks/useOnClickOutside";
+
 interface InvoicesListPageProps {
   invoices: Invoice[];
   projects?: Project[];
+  isLoading?: boolean;
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+  };
+  onPageChange: (page: number) => void;
+  onSearch: (query: string) => void;
+  onFilterChange: (status: string) => void;
   onAddInvoice: () => void;
   onEditInvoice?: (invoice: Invoice) => void;
   onDeleteInvoice?: (invoiceId: string) => void;
   onViewPDF?: (invoiceId: string) => void;
-  onMarkAsPaid?: (invoice: Invoice) => void;
+  onUpdateStatus?: (invoice: Invoice, status: string) => void;
   onInvoiceSent?: () => void;
+  initialTab?: string;
 }
 
 type TabType = "all" | "overdue" | "paid";
@@ -38,28 +49,52 @@ type TabType = "all" | "overdue" | "paid";
 export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
   invoices,
   projects,
+  isLoading,
+  pagination,
+  onPageChange,
+  onSearch,
+  onFilterChange,
   onAddInvoice,
   onEditInvoice,
   onDeleteInvoice,
   onViewPDF,
-  onMarkAsPaid,
+  onUpdateStatus,
   onInvoiceSent,
+  initialTab,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<TabType>("all");
+  const [activeTab, setActiveTab] = React.useState<TabType>(
+    (initialTab as TabType) || "all"
+  );
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const itemsPerPage = 10;
 
-  const [deleteModal, setDeleteModal] = React.useState<{
-    isOpen: boolean;
-    invoiceId: string | null;
-    invoiceNumber: string;
-  }>({
-    isOpen: false,
-    invoiceId: null,
-    invoiceNumber: "",
-  });
+  // Effect to handle initialTab changes
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab as TabType);
+      onFilterChange(initialTab === "all" ? "" : initialTab);
+    }
+  }, [initialTab, onFilterChange]);
+
+  // Debounce search
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      onSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, onSearch]);
+
+  // Handle tab change
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    onFilterChange(tab === "all" ? "" : tab);
+  };
+
   const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  useOnClickOutside(dropdownRef as React.RefObject<HTMLElement>, () =>
+    setOpenDropdown(null)
+  );
 
   const [sendModal, setSendModal] = React.useState<{
     isOpen: boolean;
@@ -69,108 +104,23 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
     invoice: null,
   });
 
-  // Reset page when filters change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, searchQuery]);
-
-  // Filter invoices based on active tab and search query
-  const filteredInvoices = React.useMemo(() => {
-    let filtered = invoices;
-
-    // Status Filter
-    switch (activeTab) {
-      case "overdue":
-        filtered = filtered.filter((i) => i.status === "overdue");
-        break;
-      case "paid":
-        filtered = filtered.filter((i) => i.status === "paid");
-        break;
-      default:
-        break;
-    }
-
-    // Search Filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((i) => {
-        const project =
-          typeof i.project_id === "string"
-            ? projects?.find((p) => p.id === i.project_id)
-            : i.project_id;
-        const projectName = project?.name || "";
-
-        return (
-          i.invoice_number.toLowerCase().includes(query) ||
-          projectName.toLowerCase().includes(query)
-        );
-      });
-    }
-
-    return filtered;
-  }, [invoices, activeTab, searchQuery, projects]);
-
-  // Pagination Logic
-  const paginatedInvoices = React.useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredInvoices.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredInvoices, currentPage]);
-
-  // Calculate counts
-  const counts = React.useMemo(() => {
-    const all = invoices.length;
-    const overdue = invoices.filter((i) => i.status === "overdue").length;
-    const paid = invoices.filter((i) => i.status === "paid").length;
-    return { all, overdue, paid };
-  }, [invoices]);
-
   const tabs = [
     {
       id: "all" as TabType,
       label: "All Invoices",
-      count: counts.all,
       icon: FileText,
     },
     {
       id: "overdue" as TabType,
       label: "Overdue",
-      count: counts.overdue,
       icon: AlertCircle,
     },
     {
       id: "paid" as TabType,
       label: "Paid",
-      count: counts.paid,
       icon: CheckCircle,
     },
   ];
-
-  const handleDeleteClick = (invoice: Invoice) => {
-    setDeleteModal({
-      isOpen: true,
-      invoiceId: invoice.id,
-      invoiceNumber: invoice.invoice_number,
-    });
-  };
-
-  const handleDeleteConfirm = () => {
-    if (deleteModal.invoiceId && onDeleteInvoice) {
-      onDeleteInvoice(deleteModal.invoiceId);
-    }
-    setDeleteModal({
-      isOpen: false,
-      invoiceId: null,
-      invoiceNumber: "",
-    });
-  };
-
-  const handleDeleteCancel = () => {
-    setDeleteModal({
-      isOpen: false,
-      invoiceId: null,
-      invoiceNumber: "",
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -197,8 +147,8 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 ${
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 whitespace-nowrap ${
                   activeTab === tab.id
                     ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
                     : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-600/50"
@@ -206,15 +156,6 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
               >
                 <Icon className="h-3 w-3" />
                 <span>{tab.label}</span>
-                <span
-                  className={`px-1.5 py-0.5 text-xs rounded-full ${
-                    activeTab === tab.id
-                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
-                      : "bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300"
-                  }`}
-                >
-                  {tab.count}
-                </span>
               </button>
             );
           })}
@@ -235,6 +176,11 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
 
       <GlassCard>
         <div className="overflow-x-auto relative min-h-[400px]">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-slate-800/50 z-10 flex items-center justify-center backdrop-blur-sm">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          )}
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
               <tr>
@@ -248,7 +194,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
               </tr>
             </thead>
             <tbody>
-              {paginatedInvoices.length === 0 ? (
+              {invoices.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
@@ -266,7 +212,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                   </td>
                 </tr>
               ) : (
-                paginatedInvoices.map((invoice) => {
+                invoices.map((invoice) => {
                   // Handle both string project_id and nested project object
                   const project =
                     typeof invoice.project_id === "string"
@@ -312,6 +258,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
 
                           {openDropdown === invoice.id && (
                             <div
+                              ref={dropdownRef}
                               className="fixed mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-600 z-50 right-0"
                               style={{ transform: "translateX(-10px)" }}
                             >
@@ -339,20 +286,49 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                                   View PDF
                                 </button>
                               )}
-                              {invoice.status !== "paid" && onMarkAsPaid && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onMarkAsPaid(invoice);
-                                    setOpenDropdown(null);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                  Mark as Paid
-                                </button>
-                              )}
-                              {invoice.status !== "paid" && onEditInvoice && (
+                              {invoice.status !== "paid" &&
+                                invoice.status !== "cancelled" &&
+                                onUpdateStatus && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUpdateStatus(invoice, "paid");
+                                        setOpenDropdown(null);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-green-600 dark:text-green-400"
+                                    >
+                                      <CheckCircle className="h-4 w-4" />
+                                      Mark as Paid
+                                    </button>
+                                    {invoice.status !== "overdue" && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onUpdateStatus(invoice, "overdue");
+                                          setOpenDropdown(null);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-orange-600 dark:text-orange-400"
+                                      >
+                                        <AlertCircle className="h-4 w-4" />
+                                        Mark as Overdue
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onUpdateStatus(invoice, "cancelled");
+                                        setOpenDropdown(null);
+                                      }}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      Cancel Invoice
+                                    </button>
+                                  </>
+                                )}
+
+                              {invoice.status === "draft" && onEditInvoice && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -365,11 +341,12 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                                   Edit
                                 </button>
                               )}
-                              {invoice.status !== "paid" && onDeleteInvoice && (
+
+                              {onDeleteInvoice && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDeleteClick(invoice);
+                                    onDeleteInvoice(invoice.id);
                                     setOpenDropdown(null);
                                   }}
                                   className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-red-600 dark:text-red-400"
@@ -392,11 +369,11 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
 
         {/* Pagination */}
         <Pagination
-          currentPage={currentPage}
-          totalPages={Math.ceil(filteredInvoices.length / itemsPerPage)}
-          onPageChange={setCurrentPage}
-          totalItems={filteredInvoices.length}
-          itemsPerPage={itemsPerPage}
+          currentPage={pagination.currentPage}
+          totalPages={pagination.totalPages}
+          onPageChange={onPageChange}
+          totalItems={pagination.totalItems}
+          itemsPerPage={10} // Assuming 10 for now, or pass from props
         />
       </GlassCard>
 
@@ -413,16 +390,6 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
       )}
 
       {/* Delete Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={deleteModal.isOpen}
-        title="Delete Invoice"
-        message={`Are you sure you want to delete invoice "${deleteModal.invoiceNumber}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        onConfirm={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
-        type="danger"
-      />
     </div>
   );
 };

@@ -133,23 +133,53 @@ export const sendInvoiceEmail = async (req, res) => {
     // Create Transporter
     const transporter = await createTransporter();
 
+    // Helper to replace variables
+    const replaceVars = (text) => {
+      if (!text) return "";
+      return text
+        .replace(
+          /{client_name}/g,
+          invoice.project_id?.client_name || client?.name || "Client"
+        )
+        .replace(/{invoice_number}/g, invoice.invoice_number)
+        .replace(/{company_name}/g, companyDetails.name || "Company")
+        .replace(
+          /{amount}/g,
+          `${invoice.currency || settings.currency || "INR"} ${
+            invoice.total_amount || invoice.amount
+          }`
+        )
+        .replace(/{due_date}/g, new Date(invoice.due_date).toLocaleDateString())
+        .replace(/{project_name}/g, invoice.project_id?.name || "Project")
+        .replace(/{currency}/g, invoice.currency || settings.currency || "INR");
+    };
+
+    const finalSubject = replaceVars(subject);
+    const finalBody = replaceVars(body);
+
     // Send Email
-    await transporter.sendMail({
+    const mailOptions = {
       from: `"${settings?.company_details?.name || "Invoice System"}" <${
         settings?.smtp_settings?.user
       }>`,
       to,
       cc,
       bcc,
-      subject,
-      html: body.replace(/\n/g, "<br>"), // Convert newlines to HTML breaks
-      attachments: [
+      subject: finalSubject,
+      html: finalBody.replace(/\n/g, "<br>"), // Convert newlines to HTML breaks
+    };
+
+    // Attach PDF if requested (default to true if not specified)
+    if (req.body.attachInvoice !== false) {
+      mailOptions.attachments = [
         {
           filename: `Invoice-${invoice.invoice_number}.pdf`,
           content: pdfBuffer,
         },
-      ],
-    });
+      ];
+    }
+
+    await transporter.sendMail(mailOptions);
 
     // Update invoice status if needed (optional)
     if (invoice.status === "draft") {

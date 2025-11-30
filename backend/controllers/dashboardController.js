@@ -8,138 +8,142 @@ import User from "../models/User.js";
 // @access  Private
 const getDashboardOverview = async (req, res, next) => {
   try {
-    // Project statistics
-    const totalProjects = await Project.countDocuments({
-      user_id: req.user.id,
-    });
-    const activeProjects = await Project.countDocuments({
-      user_id: req.user.id,
-      status: "active",
-    });
-    const completedProjects = await Project.countDocuments({
-      user_id: req.user.id,
-      status: "completed",
-    });
-
-    const projectStatusStats = await Project.aggregate([
-      { $match: { user_id: req.user.id } },
-      { $group: { _id: "$status", count: { $sum: 1 } } },
-    ]);
-
-    const totalProjectValue = await Project.aggregate([
-      { $match: { user_id: req.user.id } },
-      { $group: { _id: null, total: { $sum: "$total_amount" } } },
-    ]);
-
-    // Invoice statistics
-    const totalInvoices = await Invoice.countDocuments();
-    const paidInvoices = await Invoice.countDocuments({ status: "paid" });
-    const pendingInvoices = await Invoice.countDocuments({ status: "sent" });
-    const overdueInvoices = await Invoice.countDocuments({
-      status: { $in: ["sent", "overdue"] },
-      due_date: { $lt: new Date() },
-    });
-
-    const invoiceStatusStats = await Invoice.aggregate([
-      { $group: { _id: "$status", count: { $sum: 1 } } },
-    ]);
-
-    const totalInvoiceAmount = await Invoice.aggregate([
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-
-    const paidInvoiceAmount = await Invoice.aggregate([
-      { $match: { status: "paid" } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-
-    // Payment statistics
-    const totalPayments = await Payment.countDocuments();
-    const totalPaymentAmount = await Payment.aggregate([
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-
-    // Monthly trends (last 6 months)
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    const monthlyProjectTrends = await Project.aggregate([
-      { $match: { user_id: req.user.id, createdAt: { $gte: sixMonthsAgo } } },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
+    const [
+      totalProjects,
+      activeProjects,
+      completedProjects,
+      projectStatusStats,
+      totalProjectValue,
+      totalInvoices,
+      paidInvoices,
+      pendingInvoices,
+      overdueInvoices,
+      invoiceStatusStats,
+      totalInvoiceAmount,
+      paidInvoiceAmount,
+      totalPayments,
+      totalPaymentAmount,
+      monthlyProjectTrends,
+      monthlyInvoiceTrends,
+      monthlyPaymentTrends,
+      recentProjects,
+      recentInvoices,
+      recentPayments,
+    ] = await Promise.all([
+      // Project stats
+      Project.countDocuments({ user_id: req.user.id }),
+      Project.countDocuments({ user_id: req.user.id, status: "active" }),
+      Project.countDocuments({ user_id: req.user.id, status: "completed" }),
+      Project.aggregate([
+        { $match: { user_id: req.user.id } },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ]),
+      Project.aggregate([
+        { $match: { user_id: req.user.id } },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } },
+      ]),
+
+      // Invoice stats
+      Invoice.countDocuments(),
+      Invoice.countDocuments({ status: "paid" }),
+      Invoice.countDocuments({ status: "sent" }),
+      Invoice.countDocuments({
+        status: { $in: ["sent", "overdue"] },
+        due_date: { $lt: new Date() },
+      }),
+      Invoice.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+      Invoice.aggregate([
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Invoice.aggregate([
+        { $match: { status: "paid" } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+
+      // Payment stats
+      Payment.countDocuments(),
+      Payment.aggregate([
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+
+      // Trends
+      Project.aggregate([
+        { $match: { user_id: req.user.id, createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+            totalValue: { $sum: "$total_amount" },
           },
-          count: { $sum: 1 },
-          totalValue: { $sum: "$total_amount" },
         },
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } },
-    ]);
-
-    const monthlyInvoiceTrends = await Invoice.aggregate([
-      { $match: { createdAt: { $gte: sixMonthsAgo } } },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+      ]),
+      Invoice.aggregate([
+        { $match: { createdAt: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            count: { $sum: 1 },
+            totalAmount: { $sum: "$amount" },
           },
-          count: { $sum: 1 },
-          totalAmount: { $sum: "$amount" },
         },
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } },
-    ]);
-
-    const monthlyPaymentTrends = await Payment.aggregate([
-      { $match: { payment_date: { $gte: sixMonthsAgo } } },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$payment_date" },
-            month: { $month: "$payment_date" },
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+      ]),
+      Payment.aggregate([
+        { $match: { payment_date: { $gte: sixMonthsAgo } } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$payment_date" },
+              month: { $month: "$payment_date" },
+            },
+            count: { $sum: 1 },
+            totalAmount: { $sum: "$amount" },
           },
-          count: { $sum: 1 },
-          totalAmount: { $sum: "$amount" },
         },
-      },
-      { $sort: { "_id.year": 1, "_id.month": 1 } },
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+      ]),
+
+      // Recent activities
+      Project.find({ user_id: req.user.id })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("name status createdAt"),
+      Invoice.find()
+        .populate({
+          path: "project_id",
+          select: "name user_id",
+          populate: {
+            path: "client_id",
+            select: "name",
+          },
+        })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("invoice_number amount status project_id createdAt"),
+      Payment.find()
+        .populate({
+          path: "project_id",
+          select: "name user_id",
+          populate: {
+            path: "client_id",
+            select: "name",
+          },
+        })
+        .populate("invoice_id", "invoice_number")
+        .sort({ payment_date: -1 })
+        .limit(5)
+        .select("amount payment_method payment_date project_id invoice_id"),
     ]);
-
-    // Recent activities
-    const recentProjects = await Project.find({ user_id: req.user.id })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select("name status createdAt");
-
-    const recentInvoices = await Invoice.find()
-      .populate({
-        path: "project_id",
-        select: "name user_id",
-        populate: {
-          path: "client_id",
-          select: "name",
-        },
-      })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select("invoice_number amount status project_id createdAt");
-
-    const recentPayments = await Payment.find()
-      .populate({
-        path: "project_id",
-        select: "name user_id",
-        populate: {
-          path: "client_id",
-          select: "name",
-        },
-      })
-      .populate("invoice_id", "invoice_number")
-      .sort({ payment_date: -1 })
-      .limit(5)
-      .select("amount payment_method payment_date project_id invoice_id");
 
     res.status(200).json({
       success: true,

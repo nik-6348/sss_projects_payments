@@ -48,14 +48,27 @@ const invoiceSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    issue_date: {
-      type: Date,
-      required: [true, "Issue date is required"],
+    deletion_remark: {
+      type: String,
+      trim: true,
     },
-    due_date: {
-      type: Date,
-      required: [true, "Due date is required"],
-    },
+    status_history: [
+      {
+        status: {
+          type: String,
+          required: true,
+          enum: ["draft", "sent", "paid", "partial", "overdue", "cancelled"],
+        },
+        remark: {
+          type: String,
+          trim: true,
+        },
+        date: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     services: [
       {
         description: {
@@ -81,6 +94,10 @@ const invoiceSchema = new mongoose.Schema(
     gst_amount: {
       type: Number,
       default: 0,
+    },
+    include_gst: {
+      type: Boolean,
+      default: true,
     },
     total_amount: {
       type: Number,

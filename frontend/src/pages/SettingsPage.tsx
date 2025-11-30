@@ -9,6 +9,7 @@ import {
   CreditCard,
   Edit2,
   Mail,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import apiClient from "../utils/api";
@@ -21,7 +22,7 @@ interface SettingsPageProps {
 
 const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [activeTab, setActiveTab] = React.useState<
-    "general" | "team" | "bank" | "email"
+    "general" | "team" | "bank" | "email" | "deleted_invoices"
   >("general");
   const [loading, setLoading] = React.useState(false);
 
@@ -92,12 +93,17 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     accountName: "",
   });
 
+  // Deleted Invoices State
+  const [deletedInvoices, setDeletedInvoices] = React.useState<any[]>([]);
+
   React.useEffect(() => {
     fetchSettings();
     if (activeTab === "team") {
       fetchTeamMembers();
     } else if (activeTab === "bank") {
       fetchBankAccounts();
+    } else if (activeTab === "deleted_invoices") {
+      fetchDeletedInvoices();
     }
   }, [activeTab]);
 
@@ -151,6 +157,38 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       const response = await apiClient.getBankAccounts();
       if (response.success && response.data) {
         setBankAccounts(response.data);
+      }
+    } catch (error: any) {
+      toast.error(apiClient.handleError(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDeletedInvoices = async () => {
+    try {
+      setLoading(true);
+      // Use getInvoices with deleted=true param
+      const response = await apiClient.getInvoices({ deleted: true });
+      if (response.success && response.data) {
+        setDeletedInvoices(response.data);
+      }
+    } catch (error: any) {
+      toast.error(apiClient.handleError(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestoreInvoice = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await apiClient.restoreInvoice(id);
+      if (response.success) {
+        toast.success("Invoice restored successfully");
+        fetchDeletedInvoices();
+      } else {
+        toast.error(response.error || "Failed to restore invoice");
       }
     } catch (error: any) {
       toast.error(apiClient.handleError(error));
@@ -403,6 +441,22 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
               Email Configuration
             </div>
             {activeTab === "email" && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400" />
+            )}
+          </button>
+          <button
+            className={`px-6 py-3 font-medium text-sm transition-colors relative whitespace-nowrap ${
+              activeTab === "deleted_invoices"
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+            }`}
+            onClick={() => setActiveTab("deleted_invoices")}
+          >
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Deleted Invoices
+            </div>
+            {activeTab === "deleted_invoices" && (
               <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400" />
             )}
           </button>
@@ -732,6 +786,74 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   No bank accounts found. Add one to display on invoices.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "deleted_invoices" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                Deleted Invoices
+              </h3>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-700/50">
+                  <tr>
+                    <th className="px-6 py-3 rounded-l-lg">Invoice #</th>
+                    <th className="px-6 py-3">Project</th>
+                    <th className="px-6 py-3">Amount</th>
+                    <th className="px-6 py-3">Deleted Reason</th>
+                    <th className="px-6 py-3 rounded-r-lg text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deletedInvoices.length > 0 ? (
+                    deletedInvoices.map((invoice) => (
+                      <tr
+                        key={invoice.id}
+                        className="border-b border-slate-200 dark:border-slate-700"
+                      >
+                        <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-100">
+                          {invoice.invoice_number}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                          {invoice.project_id?.name || "Unknown Project"}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                          {invoice.currency} {invoice.amount}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300 italic">
+                          {invoice.deletion_remark || "No reason provided"}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => handleRestoreInvoice(invoice.id)}
+                            className="flex items-center gap-1 ml-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                            title="Restore Invoice"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            Restore
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-6 py-8 text-center text-slate-500 dark:text-slate-400 italic"
+                      >
+                        No deleted invoices found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

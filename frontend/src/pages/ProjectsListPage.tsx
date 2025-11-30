@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   FolderOpen,
   Plus,
@@ -15,11 +15,21 @@ import {
   Pagination,
 } from "../components/ui";
 import { formatCurrency, formatDate } from "../utils";
+import { useDebounce } from "../hooks/useDebounce";
 
 interface ProjectsListPageProps {
   projects: Project[];
   onAddProject: () => void;
   onViewProject: (projectId: string) => void;
+  isLoading?: boolean;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+  };
+  onPageChange?: (page: number) => void;
+  onSearch?: (query: string) => void;
+  onFilterChange?: (status: string) => void;
 }
 
 type TabType = "all" | "active" | "completed";
@@ -28,69 +38,34 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
   projects,
   onAddProject,
   onViewProject,
+  isLoading = false,
+  pagination = { currentPage: 1, totalPages: 1, totalItems: 0 },
+  onPageChange,
+  onSearch,
+  onFilterChange,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<TabType>("active");
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const itemsPerPage = 10;
+  const [activeTab, setActiveTab] = useState<TabType>("active");
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 500);
 
-  // Reset page when filters change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, searchQuery]);
-
-  // Filter projects based on active tab and search query
-  const filteredProjects = React.useMemo(() => {
-    let filtered = projects;
-
-    // Status Filter
-    switch (activeTab) {
-      case "active":
-        filtered = filtered.filter(
-          (p) => p.status === "active" || p.status === "on_hold"
-        );
-        break;
-      case "completed":
-        filtered = filtered.filter((p) => p.status === "completed");
-        break;
-      default:
-        break;
+  // Effect for search debounce
+  useEffect(() => {
+    if (onSearch) {
+      onSearch(debouncedSearch);
     }
+  }, [debouncedSearch, onSearch]);
 
-    // Search Filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.client_name.toLowerCase().includes(query) ||
-          (p.description && p.description.toLowerCase().includes(query))
-      );
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    if (onFilterChange) {
+      onFilterChange(tab === "all" ? "" : tab);
     }
-
-    return filtered;
-  }, [projects, activeTab, searchQuery]);
-
-  // Pagination Logic
-  const paginatedProjects = React.useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredProjects.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredProjects, currentPage]);
-
-  // Calculate counts
-  const counts = React.useMemo(() => {
-    const all = projects.length;
-    const active = projects.filter(
-      (p) => p.status === "active" || p.status === "on_hold"
-    ).length;
-    const completed = projects.filter((p) => p.status === "completed").length;
-    return { all, active, completed };
-  }, [projects]);
+  };
 
   const tabs = [
-    { id: "active" as TabType, label: "Active", count: counts.active },
-    { id: "completed" as TabType, label: "Completed", count: counts.completed },
-    { id: "all" as TabType, label: "All Projects", count: counts.all },
+    { id: "active" as TabType, label: "Active" },
+    { id: "completed" as TabType, label: "Completed" },
+    { id: "all" as TabType, label: "All Projects" },
   ];
 
   return (
@@ -116,7 +91,7 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 ${
                 activeTab === tab.id
                   ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
@@ -126,15 +101,6 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
               {tab.id === "active" && <Clock className="h-3 w-3" />}
               {tab.id === "completed" && <CheckCircle className="h-3 w-3" />}
               <span>{tab.label}</span>
-              <span
-                className={`px-1.5 py-0.5 text-xs rounded-full ${
-                  activeTab === tab.id
-                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
-                    : "bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300"
-                }`}
-              >
-                {tab.count}
-              </span>
             </button>
           ))}
         </div>
@@ -154,7 +120,12 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
 
       {/* Projects Table */}
       <GlassCard>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative min-h-[200px]">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          )}
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
               <tr>
@@ -168,7 +139,7 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
               </tr>
             </thead>
             <tbody>
-              {paginatedProjects.length === 0 ? (
+              {projects.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
@@ -186,7 +157,7 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
                   </td>
                 </tr>
               ) : (
-                paginatedProjects.map((project) => (
+                projects.map((project) => (
                   <tr
                     key={project.id}
                     className="border-b border-white/20 dark:border-slate-600/20 hover:bg-white/30 dark:hover:bg-slate-700/30 cursor-pointer transition-colors"
@@ -231,11 +202,11 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
 
         {/* Pagination */}
         <Pagination
-          currentPage={currentPage}
-          totalPages={Math.ceil(filteredProjects.length / itemsPerPage)}
-          onPageChange={setCurrentPage}
-          totalItems={filteredProjects.length}
-          itemsPerPage={itemsPerPage}
+          currentPage={pagination.currentPage}
+          totalPages={pagination.totalPages}
+          onPageChange={onPageChange || (() => {})}
+          totalItems={pagination.totalItems}
+          itemsPerPage={10}
         />
       </GlassCard>
     </div>

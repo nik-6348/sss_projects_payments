@@ -16,6 +16,7 @@ interface DashboardPageProps {
   payments: Payment[];
   invoices: any[]; // Invoice type from types
   onViewProject: (projectId: string) => void;
+  onNavigate: (view: string, id?: string, params?: any) => void;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
@@ -23,6 +24,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   payments,
   invoices,
   onViewProject,
+  onNavigate,
 }) => {
   const activeProjects = projects.filter(
     (p) => p.status === "active" || p.status === "on_hold"
@@ -76,9 +78,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      
-        <GlassCard className="!p-4">
-          <div className="flex items-center justify-between">
+        <GlassCard className="!p-4 relative group">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Active Projects
@@ -91,10 +92,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
+          <button
+            onClick={() => onNavigate("projects")}
+            className="w-full mt-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors flex items-center justify-center gap-1"
+          >
+            <Eye className="h-3 w-3" /> View Projects
+          </button>
         </GlassCard>
-        
-        <GlassCard className="!p-4">
-          <div className="flex items-center justify-between">
+
+        <GlassCard className="!p-4 relative group">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Total Invoiced
@@ -107,10 +114,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-300" />
             </div>
           </div>
+          <button
+            onClick={() => onNavigate("invoices")}
+            className="w-full mt-2 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors flex items-center justify-center gap-1"
+          >
+            <Eye className="h-3 w-3" /> View Invoices
+          </button>
         </GlassCard>
 
-        <GlassCard className="!p-4">
-          <div className="flex items-center justify-between">
+        <GlassCard className="!p-4 relative group">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Total Paid
@@ -123,10 +136,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
+          <button
+            onClick={() => onNavigate("invoices", undefined, { tab: "paid" })}
+            className="w-full mt-2 py-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors flex items-center justify-center gap-1"
+          >
+            <Eye className="h-3 w-3" /> View Paid Invoices
+          </button>
         </GlassCard>
 
-        <GlassCard className="!p-4">
-          <div className="flex items-center justify-between">
+        <GlassCard className="!p-4 relative group">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Total Due
@@ -139,8 +158,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <Clock className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
           </div>
+          <button
+            onClick={() =>
+              onNavigate("invoices", undefined, { tab: "overdue" })
+            }
+            className="w-full mt-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center justify-center gap-1"
+          >
+            <Eye className="h-3 w-3" /> View Overdue
+          </button>
         </GlassCard>
-
       </div>
 
       <div>
