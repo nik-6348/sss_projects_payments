@@ -279,7 +279,7 @@ class ApiClient {
   constructor() {
     this.axiosInstance = axios.create({
       baseURL: import.meta.env.VITE_API_URL,
-      timeout: 10000,
+      timeout: 300000,
       headers: {
         "Content-Type": "application/json",
       },
@@ -679,6 +679,32 @@ class ApiClient {
   async deleteBankAccount(id: string): Promise<ApiResponse> {
     const response: AxiosResponse<ApiResponse> =
       await this.axiosInstance.delete(`/bank-accounts/${id}`);
+    return response.data;
+  }
+
+  // Email methods
+  async sendInvoiceEmail(
+    id: string,
+    emailData: {
+      to: string;
+      cc?: string;
+      bcc?: string;
+      subject: string;
+      body: string;
+    }
+  ): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.post(
+      `/email/send-invoice/${id}`,
+      emailData
+    );
+    return response.data;
+  }
+
+  async testSMTP(smtpSettings: any): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.post(
+      "/email/test-smtp",
+      smtpSettings
+    );
     return response.data;
   }
 

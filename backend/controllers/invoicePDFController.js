@@ -3,6 +3,8 @@ import Client from "../models/Client.js";
 import BankDetails from "../models/BankDetails.js";
 import { generateInvoicePDF } from "../utils/generatePDF.js";
 
+import Settings from "../models/Settings.js";
+
 export const generatePDF = async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id)
@@ -18,7 +20,15 @@ export const generatePDF = async (req, res) => {
     const bankDetails =
       invoice.bank_account_id || (await BankDetails.findOne());
 
-    const pdfBase64 = generateInvoicePDF(invoice, client, bankDetails);
+    const settings = await Settings.findOne();
+    const companyDetails = settings?.company_details || {};
+
+    const pdfBase64 = generateInvoicePDF(
+      invoice,
+      client,
+      bankDetails,
+      companyDetails
+    );
 
     await Invoice.findByIdAndUpdate(req.params.id, {
       pdf_base64: pdfBase64,
@@ -52,7 +62,16 @@ export const viewPDF = async (req, res) => {
       const client = await Client.findById(invoice.project_id.client_id);
       const bankDetails =
         invoice.bank_account_id || (await BankDetails.findOne());
-      const pdfBase64 = generateInvoicePDF(invoice, client, bankDetails);
+
+      const settings = await Settings.findOne();
+      const companyDetails = settings?.company_details || {};
+
+      const pdfBase64 = generateInvoicePDF(
+        invoice,
+        client,
+        bankDetails,
+        companyDetails
+      );
 
       await Invoice.findByIdAndUpdate(req.params.id, {
         pdf_base64: pdfBase64,

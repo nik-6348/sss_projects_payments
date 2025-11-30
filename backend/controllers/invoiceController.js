@@ -41,7 +41,7 @@ const getInvoices = async (req, res, next) => {
         select: "name user_id",
         populate: {
           path: "client_id",
-          select: "name",
+          select: "name email",
         },
       })
       .sort({ createdAt: -1 })
@@ -56,6 +56,7 @@ const getInvoices = async (req, res, next) => {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
       },
     }));
@@ -86,7 +87,7 @@ const getInvoice = async (req, res, next) => {
       select: "name user_id",
       populate: {
         path: "client_id",
-        select: "name",
+        select: "name email",
       },
     });
 
@@ -105,6 +106,7 @@ const getInvoice = async (req, res, next) => {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
       },
     };
@@ -160,7 +162,7 @@ const createInvoice = async (req, res, next) => {
       select: "name user_id",
       populate: {
         path: "client_id",
-        select: "name",
+        select: "name email",
       },
     });
 
@@ -172,6 +174,7 @@ const createInvoice = async (req, res, next) => {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
       },
     };
@@ -236,7 +239,7 @@ const updateInvoice = async (req, res, next) => {
       select: "name user_id",
       populate: {
         path: "client_id",
-        select: "name",
+        select: "name email",
       },
     });
 
@@ -248,6 +251,7 @@ const updateInvoice = async (req, res, next) => {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
       },
     };
@@ -339,7 +343,7 @@ const updateInvoiceStatus = async (req, res, next) => {
       select: "name user_id",
       populate: {
         path: "client_id",
-        select: "name",
+        select: "name email",
       },
     });
 
@@ -351,6 +355,7 @@ const updateInvoiceStatus = async (req, res, next) => {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
       },
     };
@@ -453,7 +458,7 @@ const getDeletedInvoices = async (req, res, next) => {
         select: "name user_id",
         populate: {
           path: "client_id",
-          select: "name",
+          select: "name email",
         },
       })
       .sort({ updatedAt: -1 });
@@ -466,6 +471,7 @@ const getDeletedInvoices = async (req, res, next) => {
         _id: invoice.project_id._id,
         name: invoice.project_id.name,
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
+        client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
       },
     }));

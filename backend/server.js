@@ -69,6 +69,8 @@ if (env.NODE_ENV !== "production") {
   createTestUser();
 }
 
+import emailRoutes from "./routes/emailRoutes.js";
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
@@ -80,6 +82,7 @@ app.use("/api/invoices", invoicePDFRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/bank-accounts", bankDetailsRoutes);
 app.use("/api/team", teamRoutes);
+app.use("/api/email", emailRoutes);
 
 // Health check endpoint
 app.get("/", (req, res) => {

@@ -8,20 +8,21 @@ import {
   Trash2,
   CreditCard,
   Edit2,
+  Mail,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import apiClient from "../utils/api";
 import { GlassCard, PrimaryButton, ConfirmationModal } from "../components/ui";
-import { FormInput, FormSelect } from "../components/forms";
+import { FormInput, FormSelect, FormTextarea } from "../components/forms";
 
 interface SettingsPageProps {
   // No props needed for now
 }
 
 const SettingsPage: React.FC<SettingsPageProps> = () => {
-  const [activeTab, setActiveTab] = React.useState<"general" | "team" | "bank">(
-    "general"
-  );
+  const [activeTab, setActiveTab] = React.useState<
+    "general" | "team" | "bank" | "email"
+  >("general");
   const [loading, setLoading] = React.useState(false);
 
   // General Settings State
@@ -31,6 +32,23 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     gstPercentage: 18,
     invoiceFormat: "INV-{YYYY}-{000}",
     currency: "INR",
+    smtp_settings: {
+      host: "",
+      port: 587,
+      user: "",
+      pass: "",
+      secure: false,
+    },
+    email_settings: {
+      default_cc: "",
+      default_bcc: "",
+    },
+    email_templates: {
+      invoice_default: {
+        subject: "",
+        body: "",
+      },
+    },
   });
 
   // Team State
@@ -88,7 +106,23 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       setLoading(true);
       const response = await apiClient.getSettings();
       if (response.success && response.data) {
-        setSettings(response.data);
+        setSettings({
+          ...response.data,
+          smtp_settings: response.data.smtp_settings || {
+            host: "",
+            port: 587,
+            user: "",
+            pass: "",
+            secure: false,
+          },
+          email_settings: response.data.email_settings || {
+            default_cc: "",
+            default_bcc: "",
+          },
+          email_templates: response.data.email_templates || {
+            invoice_default: { subject: "", body: "" },
+          },
+        });
       }
     } catch (error: any) {
       console.error("Error fetching settings:", error);
@@ -134,6 +168,22 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
         toast.success("Settings saved successfully!");
       } else {
         toast.error(response.error || "Failed to save settings");
+      }
+    } catch (error: any) {
+      toast.error(apiClient.handleError(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTestSMTP = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.testSMTP(settings.smtp_settings);
+      if (response.success) {
+        toast.success("SMTP Connection Successful!");
+      } else {
+        toast.error("SMTP Connection Failed");
       }
     } catch (error: any) {
       toast.error(apiClient.handleError(error));
@@ -259,6 +309,28 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     setShowBankModal(true);
   };
 
+  const insertVariable = (variable: string) => {
+    const textarea = document.getElementById(
+      "email-body-editor"
+    ) as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = settings.email_templates.invoice_default.body;
+      const newText = text.substring(0, start) + variable + text.substring(end);
+      setSettings({
+        ...settings,
+        email_templates: {
+          ...settings.email_templates,
+          invoice_default: {
+            ...settings.email_templates.invoice_default,
+            body: newText,
+          },
+        },
+      });
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-3">
@@ -318,40 +390,146 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
               <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400" />
             )}
           </button>
+          <button
+            className={`px-6 py-3 font-medium text-sm transition-colors relative whitespace-nowrap ${
+              activeTab === "email"
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+            }`}
+            onClick={() => setActiveTab("email")}
+          >
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email Configuration
+            </div>
+            {activeTab === "email" && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400" />
+            )}
+          </button>
         </div>
 
         {activeTab === "general" && (
           <form onSubmit={handleSaveSettings} className="space-y-6 max-w-2xl">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 border-b pb-2 border-slate-200 dark:border-slate-700">
+              Company Details
+            </h3>
             <FormInput
               label="Company Name"
-              value={settings.companyName}
+              value={settings.company_details?.name || ""}
               onChange={(e) =>
-                setSettings({ ...settings, companyName: e.target.value })
+                setSettings({
+                  ...settings,
+                  company_details: {
+                    ...settings.company_details,
+                    name: e.target.value,
+                  },
+                })
               }
               required
             />
-            <FormInput
+            <FormTextarea
               label="Company Address"
-              value={settings.companyAddress}
+              value={settings.company_details?.address || ""}
               onChange={(e) =>
-                setSettings({ ...settings, companyAddress: e.target.value })
+                setSettings({
+                  ...settings,
+                  company_details: {
+                    ...settings.company_details,
+                    address: e.target.value,
+                  },
+                })
               }
+              rows={3}
             />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormInput
+                label="Contact Number"
+                value={settings.company_details?.contact || ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    company_details: {
+                      ...settings.company_details,
+                      contact: e.target.value,
+                    },
+                  })
+                }
+              />
+              <FormInput
+                label="Email Address"
+                value={settings.company_details?.email || ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    company_details: {
+                      ...settings.company_details,
+                      email: e.target.value,
+                    },
+                  })
+                }
+              />
+              <FormInput
+                label="GST Number"
+                value={settings.company_details?.gst_number || ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    company_details: {
+                      ...settings.company_details,
+                      gst_number: e.target.value,
+                    },
+                  })
+                }
+              />
+              <FormInput
+                label="LUT Number"
+                value={settings.company_details?.LUTNumber || ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    company_details: {
+                      ...settings.company_details,
+                      LUTNumber: e.target.value,
+                    },
+                  })
+                }
+              />
+              <FormInput
+                label="Website"
+                value={settings.company_details?.website || ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    company_details: {
+                      ...settings.company_details,
+                      website: e.target.value,
+                    },
+                  })
+                }
+              />
+            </div>
+
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 border-b pb-2 border-slate-200 dark:border-slate-700 mt-8">
+              Invoice Settings
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormInput
                 label="GST Percentage (%)"
                 type="number"
-                value={settings.gstPercentage}
+                value={settings.gst_settings?.default_percentage || 18}
                 onChange={(e) =>
                   setSettings({
                     ...settings,
-                    gstPercentage: Number(e.target.value),
+                    gst_settings: {
+                      ...settings.gst_settings,
+                      default_percentage: Number(e.target.value),
+                    },
                   })
                 }
               />
               <FormSelect
                 label="Currency"
-                value={settings.currency}
+                value={settings.currency || "INR"}
                 onChange={(e) =>
                   setSettings({ ...settings, currency: e.target.value })
                 }
@@ -364,15 +542,21 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
             </div>
             <FormInput
               label="Invoice Format"
-              value={settings.invoiceFormat}
+              value={settings.invoice_settings?.format || "INV-{YYYY}-{SEQ}"}
               onChange={(e) =>
-                setSettings({ ...settings, invoiceFormat: e.target.value })
+                setSettings({
+                  ...settings,
+                  invoice_settings: {
+                    ...settings.invoice_settings,
+                    format: e.target.value,
+                  },
+                })
               }
-              placeholder="e.g. INV-{YYYY}-{000}"
+              placeholder="e.g. INV-{YYYY}-{SEQ}"
             />
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Use &#123;YYYY&#125; for year, &#123;MM&#125; for month,
-              &#123;000&#125; for sequence number
+              &#123;SEQ&#125; for sequence number
             </p>
             <div className="pt-4">
               <PrimaryButton type="submit" disabled={loading}>
@@ -550,6 +734,212 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === "email" && (
+          <form onSubmit={handleSaveSettings} className="space-y-8">
+            {/* SMTP Settings */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 border-b pb-2 border-slate-200 dark:border-slate-700">
+                SMTP Configuration
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormInput
+                  label="SMTP Host"
+                  value={settings.smtp_settings.host}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      smtp_settings: {
+                        ...settings.smtp_settings,
+                        host: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="smtp.example.com"
+                />
+                <FormInput
+                  label="SMTP Port"
+                  type="number"
+                  value={settings.smtp_settings.port}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      smtp_settings: {
+                        ...settings.smtp_settings,
+                        port: Number(e.target.value),
+                      },
+                    })
+                  }
+                  placeholder="587"
+                />
+                <FormInput
+                  label="Username"
+                  value={settings.smtp_settings.user}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      smtp_settings: {
+                        ...settings.smtp_settings,
+                        user: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="email@example.com"
+                />
+                <FormInput
+                  label="Password"
+                  type="password"
+                  value={settings.smtp_settings.pass}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      smtp_settings: {
+                        ...settings.smtp_settings,
+                        pass: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={settings.smtp_settings.secure}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        smtp_settings: {
+                          ...settings.smtp_settings,
+                          secure: e.target.checked,
+                        },
+                      })
+                    }
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Secure Connection (SSL/TLS)
+                </label>
+                <button
+                  type="button"
+                  onClick={handleTestSMTP}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Test Connection
+                </button>
+              </div>
+            </div>
+
+            {/* Default Email Settings */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 border-b pb-2 border-slate-200 dark:border-slate-700">
+                Default Recipients
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormInput
+                  label="Default CC"
+                  value={settings.email_settings.default_cc}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      email_settings: {
+                        ...settings.email_settings,
+                        default_cc: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="cc@example.com, manager@example.com"
+                />
+                <FormInput
+                  label="Default BCC"
+                  value={settings.email_settings.default_bcc}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      email_settings: {
+                        ...settings.email_settings,
+                        default_bcc: e.target.value,
+                      },
+                    })
+                  }
+                  placeholder="archive@example.com"
+                />
+              </div>
+            </div>
+
+            {/* Email Template */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 border-b pb-2 border-slate-200 dark:border-slate-700">
+                Invoice Email Template
+              </h3>
+              <FormInput
+                label="Subject"
+                value={settings.email_templates.invoice_default.subject}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    email_templates: {
+                      ...settings.email_templates,
+                      invoice_default: {
+                        ...settings.email_templates.invoice_default,
+                        subject: e.target.value,
+                      },
+                    },
+                  })
+                }
+              />
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Body
+                </label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {[
+                    "{client_name}",
+                    "{invoice_number}",
+                    "{company_name}",
+                    "{amount}",
+                    "{due_date}",
+                  ].map((variable) => (
+                    <button
+                      key={variable}
+                      type="button"
+                      onClick={() => insertVariable(variable)}
+                      className="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                    >
+                      {variable}
+                    </button>
+                  ))}
+                </div>
+                <FormTextarea
+                  id="email-body-editor"
+                  name="emailBody"
+                  value={settings.email_templates.invoice_default.body}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      email_templates: {
+                        ...settings.email_templates,
+                        invoice_default: {
+                          ...settings.email_templates.invoice_default,
+                          body: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  rows={10}
+                />
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <PrimaryButton type="submit" disabled={loading}>
+                <Save className="h-4 w-4 mr-2" />
+                Save Email Settings
+              </PrimaryButton>
+            </div>
+          </form>
         )}
       </GlassCard>
 

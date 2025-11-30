@@ -89,6 +89,7 @@ export interface Invoice {
         _id: string;
         name: string;
         client_name: string;
+        client_id?: string | { _id: string; name: string; email: string };
         id: string;
       };
   invoice_number: string;

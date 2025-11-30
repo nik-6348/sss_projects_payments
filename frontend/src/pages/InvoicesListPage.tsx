@@ -9,6 +9,7 @@ import {
   Trash2,
   MoreVertical,
   Search,
+  Send,
 } from "lucide-react";
 import type { Invoice, Project } from "../types";
 import {
@@ -18,6 +19,7 @@ import {
   ConfirmationModal,
   Pagination,
 } from "../components/ui";
+import SendInvoiceModal from "../components/modals/SendInvoiceModal";
 import { formatCurrency, formatDate } from "../utils";
 
 interface InvoicesListPageProps {
@@ -28,6 +30,7 @@ interface InvoicesListPageProps {
   onDeleteInvoice?: (invoiceId: string) => void;
   onViewPDF?: (invoiceId: string) => void;
   onMarkAsPaid?: (invoice: Invoice) => void;
+  onInvoiceSent?: () => void;
 }
 
 type TabType = "all" | "overdue" | "paid";
@@ -40,6 +43,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
   onDeleteInvoice,
   onViewPDF,
   onMarkAsPaid,
+  onInvoiceSent,
 }) => {
   const [activeTab, setActiveTab] = React.useState<TabType>("all");
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -56,6 +60,14 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
     invoiceNumber: "",
   });
   const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
+
+  const [sendModal, setSendModal] = React.useState<{
+    isOpen: boolean;
+    invoice: Invoice | null;
+  }>({
+    isOpen: false,
+    invoice: null,
+  });
 
   // Reset page when filters change
   React.useEffect(() => {
@@ -303,6 +315,17 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                               className="fixed mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-600 z-50 right-0"
                               style={{ transform: "translateX(-10px)" }}
                             >
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSendModal({ isOpen: true, invoice });
+                                  setOpenDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                              >
+                                <Send className="h-4 w-4" />
+                                Send
+                              </button>
                               {onViewPDF && (
                                 <button
                                   onClick={(e) => {
@@ -376,6 +399,18 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
           itemsPerPage={itemsPerPage}
         />
       </GlassCard>
+
+      {/* Send Invoice Modal */}
+      {sendModal.isOpen && sendModal.invoice && (
+        <SendInvoiceModal
+          isOpen={sendModal.isOpen}
+          invoice={sendModal.invoice}
+          onClose={() => setSendModal({ isOpen: false, invoice: null })}
+          onSuccess={() => {
+            if (onInvoiceSent) onInvoiceSent();
+          }}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
