@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Modal, PrimaryButton } from "../ui";
 import PaymentForm from "../forms/PaymentForm";
 import type { Invoice, PaymentFormData } from "../../types";
@@ -17,8 +17,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   invoice,
   onSuccess,
 }) => {
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSavePayment = async (data: PaymentFormData) => {
     try {
+      setIsSaving(true);
       const response = await fetch(`${import.meta.env.VITE_API_URL}/payments`, {
         method: "POST",
         headers: {
@@ -39,6 +42,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     } catch (error) {
       console.error("Error recording payment:", error);
       toast.error("An error occurred while recording payment");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -52,11 +57,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
+            disabled={isSaving}
+            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
-          <PrimaryButton type="submit" form="payment-form">
+          <PrimaryButton type="submit" form="payment-form" loading={isSaving}>
             Save Payment
           </PrimaryButton>
         </>

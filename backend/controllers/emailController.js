@@ -195,3 +195,105 @@ export const sendInvoiceEmail = async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// Send Invoice Status Email (cancelled, overdue, paid)
+import emailTemplates from "../config/emailTemplates.js";
+import Project from "../models/Project.js";
+
+export const sendInvoiceStatusEmail = async (invoiceId, status) => {
+  try {
+    // Validate status
+    if (!["cancelled", "overdue", "paid"].includes(status)) {
+      console.log(`Status "${status}" does not require email notification`);
+      return { success: false, message: "No email required for this status" };
+    }
+
+    // Fetch invoice with project details
+    const invoice = await Invoice.findById(invoiceId)
+      .populate({
+        path: "project_id",
+        populate: {
+          path: "client_id",
+          select: "name email",
+        },
+      })
+      .populate("bank_account_id");
+
+    if (!invoice) {
+      throw new Error("Invoice not found");
+    }
+
+    // Get project and client details
+    const project = await Project.findById(invoice.project_id._id).populate(
+      "client_id"
+    );
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Get client from project
+    const client = project.client_id;
+
+    // Determine recipient email - prioritize finance_email for invoices
+    const recipientEmail =
+      client?.finance_email || client?.business_email || client?.email;
+
+    if (!recipientEmail) {
+      console.log("No recipient email found for invoice notification");
+      return { success: false, message: "No recipient email configured" };
+    }
+
+    // Get settings and company details
+    const settings = await Settings.findOne();
+    const companyDetails = settings?.company_details || {};
+
+    // Get email template
+    const template = emailTemplates[status];
+    if (!template) {
+      throw new Error(`Email template not found for status: ${status}`);
+    }
+
+    // Replace placeholders in template
+    const replaceVars = (text) => {
+      if (!text) return "";
+      return text
+        .replace(/{client_name}/g, client?.name || "Client")
+        .replace(/{invoice_number}/g, invoice.invoice_number)
+        .replace(/{company_name}/g, companyDetails.name || "Company")
+        .replace(
+          /{amount}/g,
+          `${invoice.currency || "INR"} ${
+            invoice.total_amount || invoice.amount
+          }`
+        )
+        .replace(/{due_date}/g, new Date(invoice.due_date).toLocaleDateString())
+        .replace(/{paid_date}/g, new Date().toLocaleDateString())
+        .replace(/{project_name}/g, invoice.project_id?.name || "Project");
+    };
+
+    const finalSubject = replaceVars(template.subject);
+    const finalBody = replaceVars(template.body);
+
+    // Create transporter and send email
+    const transporter = await createTransporter();
+
+    const mailOptions = {
+      from: `"${companyDetails.name || "Invoice System"}" <${
+        settings?.smtp_settings?.user
+      }>`,
+      to: recipientEmail,
+      subject: finalSubject,
+      html: finalBody,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    console.log(
+      `Status email sent successfully: ${status} - ${invoice.invoice_number} to ${recipientEmail}`
+    );
+    return { success: true, message: "Email sent successfully" };
+  } catch (error) {
+    console.error("Send Status Email Error:", error);
+    return { success: false, error: error.message };
+  }
+};

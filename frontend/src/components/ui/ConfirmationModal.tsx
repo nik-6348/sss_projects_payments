@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Trash2, AlertTriangle } from 'lucide-react';
+import React from "react";
+import { X, Trash2, AlertTriangle } from "lucide-react";
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -9,7 +9,7 @@ interface ConfirmationModalProps {
   cancelText: string;
   onConfirm: () => void;
   onCancel: () => void;
-  type?: 'danger' | 'warning';
+  type?: "danger" | "warning";
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -20,15 +20,15 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   cancelText,
   onConfirm,
   onCancel,
-  type = 'danger'
+  type = "danger",
 }) => {
   if (!isOpen) return null;
 
-  const isDanger = type === 'danger';
+  const isDanger = type === "danger";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/50">
-      <div className="bg-white/80 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl shadow-lg border border-white/20 dark:border-slate-600/50 max-w-md w-full mx-4 overflow-hidden relative">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-600 max-w-md w-full mx-4 overflow-hidden relative">
         <button
           onClick={onCancel}
           className="absolute top-4 right-4 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors z-10"
@@ -47,10 +47,14 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
               </div>
             )}
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h2>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+              {title}
+            </h2>
           </div>
 
-          <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed mb-6">{message}</p>
+          <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed mb-6">
+            {message}
+          </p>
 
           <div className="flex gap-3">
             <button
@@ -61,10 +65,11 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             </button>
             <button
               onClick={onConfirm}
-              className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${isDanger
-                  ? 'bg-red-500 dark:bg-red-600/80 text-white hover:bg-red-600 dark:hover:bg-red-700/90 shadow-lg hover:shadow-xl border border-red-600 dark:border-red-500'
-                  : 'bg-amber-500 dark:bg-amber-600/80 text-white hover:bg-amber-600 dark:hover:bg-amber-700/90 shadow-lg hover:shadow-xl border border-amber-600 dark:border-amber-500'
-                }`}
+              className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                isDanger
+                  ? "bg-red-500 dark:bg-red-600/80 text-white hover:bg-red-600 dark:hover:bg-red-700/90 shadow-lg hover:shadow-xl border border-red-600 dark:border-red-500"
+                  : "bg-amber-500 dark:bg-amber-600/80 text-white hover:bg-amber-600 dark:hover:bg-amber-700/90 shadow-lg hover:shadow-xl border border-amber-600 dark:border-amber-500"
+              }`}
             >
               {confirmText}
             </button>

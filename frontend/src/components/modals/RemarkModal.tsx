@@ -55,7 +55,7 @@ export const RemarkModal: React.FC<RemarkModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md transform transition-all scale-100 opacity-100">
         <div className="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-700">
           <h3 className="text-xl font-bold text-slate-800 dark:text-white">

@@ -248,6 +248,39 @@ export interface DashboardOverview {
   };
 }
 
+// Filtered Dashboard Stats type
+export interface DashboardStats {
+  availableYears: number[];
+  selectedYear: number;
+  selectedMonth: number | null;
+  stats: {
+    projects: {
+      total: number;
+      active: number;
+      completed: number;
+      onHold: number;
+      totalValue: number;
+    };
+    invoices: {
+      total: number;
+      paid: number;
+      pending: number;
+      overdue: number;
+      totalAmount: number;
+      paidAmount: number;
+    };
+    payments: {
+      total: number;
+      totalAmount: number;
+    };
+    summary: {
+      totalRevenue: number;
+      totalPaid: number;
+      totalDue: number;
+    };
+  };
+}
+
 // Statistics types
 export interface ProjectStats {
   total: number;
@@ -448,6 +481,15 @@ class ApiClient {
   async getPaymentDashboard(): Promise<ApiResponse<any>> {
     const response: AxiosResponse<ApiResponse<any>> =
       await this.axiosInstance.get("/dashboard/payments");
+    return response.data;
+  }
+
+  async getDashboardStats(params?: {
+    year?: number;
+    month?: number;
+  }): Promise<ApiResponse<DashboardStats>> {
+    const response: AxiosResponse<ApiResponse<DashboardStats>> =
+      await this.axiosInstance.get("/dashboard/stats", { params });
     return response.data;
   }
 

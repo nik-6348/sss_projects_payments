@@ -48,6 +48,13 @@ const invoiceSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    issue_date: {
+      type: Date,
+      default: Date.now,
+    },
+    due_date: {
+      type: Date,
+    },
     deletion_remark: {
       type: String,
       trim: true,

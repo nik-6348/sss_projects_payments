@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,7 +8,13 @@ interface ModalProps {
   actions?: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, actions }) => {
+export const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  children,
+  title,
+  actions,
+}) => {
   if (!isOpen) return null;
 
   return (
@@ -17,7 +23,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
       onClick={onClose}
     >
       <div
-        className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-2xl border border-white/30 dark:border-slate-600/50 w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden relative flex flex-col"
+        className="bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-600 w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden relative flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header  */}
@@ -53,9 +59,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, 
 
         {/* Modal Content - Scrollable */}
         <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin">
-          <div className="p-4 sm:p-6">
-            {children}
-          </div>
+          <div className="p-4 sm:p-6">{children}</div>
         </div>
 
         {/* Modal Footer  */}

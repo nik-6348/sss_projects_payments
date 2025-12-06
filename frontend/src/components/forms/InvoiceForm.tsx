@@ -12,18 +12,35 @@ const InvoiceForm: React.FC<{
   onCancel?: () => void;
 }> = ({ invoice, projects, defaultProjectId, onSave }) => {
   const [bankAccounts, setBankAccounts] = React.useState<BankAccount[]>([]);
+
+  // Helper to safely get project ID
+  const getProjectId = (projectId: any): string => {
+    if (!projectId) return "";
+    if (typeof projectId === "string") return projectId;
+    return projectId.id || projectId._id || "";
+  };
+
+  // Helper to format date safely
+  const formatDate = (date: string | undefined): string => {
+    if (!date) return "";
+    try {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return "";
+      return d.toISOString().split("T")[0];
+    } catch {
+      return "";
+    }
+  };
+
   const [formData, setFormData] = React.useState<InvoiceFormData>(
     invoice
       ? {
-          project_id:
-            typeof invoice.project_id === "string"
-              ? invoice.project_id
-              : invoice.project_id.id,
+          project_id: getProjectId(invoice.project_id),
           amount: invoice.amount.toString(),
           currency: invoice.currency || "INR",
           status: invoice.status,
-          issue_date: invoice.issue_date,
-          due_date: invoice.due_date,
+          issue_date: formatDate(invoice.issue_date),
+          due_date: formatDate(invoice.due_date),
           payment_method: invoice.payment_method || "bank_account",
         }
       : {
@@ -53,6 +70,11 @@ const InvoiceForm: React.FC<{
     React.useState<string>("");
   const [customPaymentDetails, setCustomPaymentDetails] =
     React.useState<string>(invoice?.custom_payment_details || "");
+  const [projectSettings, setProjectSettings] = React.useState<{
+    currency: "INR" | "USD";
+    gst_percentage: number;
+    include_gst: boolean;
+  } | null>(null);
 
   // Fetch bank accounts and settings
   React.useEffect(() => {
@@ -81,9 +103,9 @@ const InvoiceForm: React.FC<{
         }
 
         if (settingsResponse.success && !invoice) {
-          // Only set defaults for new invoices
+          // Only set defaults for new invoices (if no project selected)
           const settings = settingsResponse.data;
-          if (settings.gst_settings) {
+          if (settings.gst_settings && !projectSettings) {
             setGstPercentage(settings.gst_settings.default_percentage || 18);
             setIncludeGst(settings.gst_settings.enable_gst !== false);
           }
@@ -93,7 +115,48 @@ const InvoiceForm: React.FC<{
       }
     };
     fetchData();
-  }, [invoice]);
+  }, [invoice, projectSettings]);
+
+  // Auto-fetch Currency & GST from selected project
+  React.useEffect(() => {
+    const fetchProjectSettings = async () => {
+      const projectId =
+        typeof formData.project_id === "string"
+          ? formData.project_id
+          : formData.project_id?.id;
+
+      if (!projectId) return;
+
+      // Find project from props
+      const selectedProject = projects.find(
+        (p) => p.id === projectId || p._id === projectId
+      );
+
+      if (selectedProject) {
+        // Apply project's currency and GST settings
+        setProjectSettings({
+          currency: selectedProject.currency || "INR",
+          gst_percentage: selectedProject.gst_percentage ?? 18,
+          include_gst: selectedProject.include_gst ?? true,
+        });
+
+        // Update form data with project's currency
+        setFormData((prev) => ({
+          ...prev,
+          currency: selectedProject.currency || "INR",
+        }));
+
+        // Update GST settings from project
+        setGstPercentage(selectedProject.gst_percentage ?? 18);
+        setIncludeGst(selectedProject.include_gst ?? true);
+      }
+    };
+
+    if (!invoice) {
+      // Only auto-fetch for new invoices
+      fetchProjectSettings();
+    }
+  }, [formData.project_id, projects, invoice]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -169,18 +232,14 @@ const InvoiceForm: React.FC<{
         <FormSelect
           label="Project"
           name="project_id"
-          value={
-            typeof formData.project_id === "string"
-              ? formData.project_id
-              : formData.project_id.id
-          }
+          value={getProjectId(formData.project_id)}
           onChange={handleChange}
           required
           options={[
             { value: "", label: "Select a Project" },
             ...projects.map((p) => ({
               value: p.id,
-              label: `${p.name} (${p.client_name})`,
+              label: `${p.name} (${p.client_name || "No Client"})`,
             })),
           ]}
         />
@@ -236,63 +295,35 @@ const InvoiceForm: React.FC<{
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormSelect
-            label="Currency"
-            name="currency"
-            value={formData.currency as string}
-            onChange={handleChange}
-            options={[
-              { value: "INR", label: "INR (₹)" },
-              { value: "USD", label: "USD ($)" },
-            ]}
-          />
-
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 mt-6">
-              <input
-                type="checkbox"
-                id="includeGst"
-                checked={includeGst}
-                onChange={(e) => setIncludeGst(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <label
-                htmlFor="includeGst"
-                className="text-sm font-medium text-gray-900 dark:text-gray-300"
-              >
-                Include GST
-              </label>
-            </div>
-            {includeGst && (
-              <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                GST applied at {gstPercentage}%
-              </div>
-            )}
-          </div>
-        </div>
-
+        {/* Amount Summary */}
         <div className="bg-slate-100 dark:bg-slate-700 p-4 rounded-lg space-y-2">
           <div className="flex justify-between">
             <span>Subtotal:</span>
             <span>
-              {formData.currency === "USD" ? "$" : "₹"}
+              {projectSettings?.currency === "USD" ? "$" : "₹"}
               {subtotal.toFixed(2)}
             </span>
           </div>
           {includeGst && (
-            <div className="flex justify-between">
+            <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>GST ({gstPercentage}%):</span>
               <span>
-                {formData.currency === "USD" ? "$" : "₹"}
+                {projectSettings?.currency === "USD" ? "$" : "₹"}
                 {gstAmount.toFixed(2)}
               </span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-lg">
-            <span>Total:</span>
+          <div className="flex justify-between font-bold text-lg border-t border-slate-200 dark:border-slate-600 pt-2">
             <span>
-              {formData.currency === "USD" ? "$" : "₹"}
+              Total
+              {includeGst && (
+                <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1">
+                  (GST Included)
+                </span>
+              )}
+            </span>
+            <span>
+              {projectSettings?.currency === "USD" ? "$" : "₹"}
               {totalAmount.toFixed(2)}
             </span>
           </div>

@@ -8,8 +8,18 @@ import User from "../models/User.js";
 // @access  Private
 const getDashboardOverview = async (req, res, next) => {
   try {
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const { period = "monthly" } = req.query;
+
+    // Calculate date range based on period
+    const startDate = new Date();
+    if (period === "yearly") {
+      startDate.setFullYear(startDate.getFullYear() - 1);
+    } else {
+      // monthly - show last 6 months for trends
+      startDate.setMonth(startDate.getMonth() - 6);
+    }
+
+    const sixMonthsAgo = startDate;
 
     const [
       totalProjects,
@@ -302,9 +312,192 @@ const getPaymentDashboard = async (req, res, next) => {
   }
 };
 
+// @desc    Get filtered dashboard statistics with year/month filters
+// @route   GET /api/dashboard/stats
+// @access  Private
+const getFilteredDashboardStats = async (req, res, next) => {
+  try {
+    const currentYear = new Date().getFullYear();
+    const year = parseInt(req.query.year) || currentYear;
+    const month = req.query.month ? parseInt(req.query.month) : null; // null means all months
+
+    // Build date range for filtering
+    let startDate, endDate;
+    if (month) {
+      // Specific month
+      startDate = new Date(year, month - 1, 1);
+      endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+    } else {
+      // All months in year
+      startDate = new Date(year, 0, 1);
+      endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+    }
+
+    // Get available years from all collections
+    const [projectYears, invoiceYears, paymentYears] = await Promise.all([
+      Project.aggregate([
+        { $match: { user_id: req.user.id } },
+        { $group: { _id: { $year: "$start_date" } } },
+        { $sort: { _id: -1 } },
+      ]),
+      Invoice.aggregate([
+        { $group: { _id: { $year: "$issue_date" } } },
+        { $sort: { _id: -1 } },
+      ]),
+      Payment.aggregate([
+        { $group: { _id: { $year: "$payment_date" } } },
+        { $sort: { _id: -1 } },
+      ]),
+    ]);
+
+    // Combine and deduplicate years
+    const allYears = new Set([
+      ...projectYears.map((y) => y._id),
+      ...invoiceYears.map((y) => y._id),
+      ...paymentYears.map((y) => y._id),
+    ]);
+    // Always include current year
+    allYears.add(currentYear);
+    const availableYears = [...allYears].filter((y) => y).sort((a, b) => b - a);
+
+    // Get all active projects count (not date filtered - shows current active projects)
+    const activeProjectsCount = await Project.countDocuments({
+      user_id: req.user.id,
+      status: "active",
+    });
+
+    // Aggregate project stats for the selected period (by start_date)
+    const projectStats = await Project.aggregate([
+      {
+        $match: {
+          user_id: req.user.id,
+          start_date: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          active: {
+            $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] },
+          },
+          completed: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
+          onHold: {
+            $sum: { $cond: [{ $eq: ["$status", "on_hold"] }, 1, 0] },
+          },
+          totalValue: { $sum: "$total_amount" },
+        },
+      },
+    ]);
+
+    // Aggregate invoice stats (by issue_date) - for Total Invoiced
+    const invoiceStats = await Invoice.aggregate([
+      {
+        $match: {
+          isDeleted: { $ne: true },
+          issue_date: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          paid: {
+            $sum: { $cond: [{ $eq: ["$status", "paid"] }, 1, 0] },
+          },
+          pending: {
+            $sum: { $cond: [{ $eq: ["$status", "sent"] }, 1, 0] },
+          },
+          overdue: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $in: ["$status", ["sent", "overdue"]] },
+                    { $lt: ["$due_date", new Date()] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          totalAmount: { $sum: "$total_amount" },
+          paidAmount: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "paid"] }, "$total_amount", 0],
+            },
+          },
+        },
+      },
+    ]);
+
+    // Aggregate payment stats (by payment_date) - for Total Paid
+    const paymentStats = await Payment.aggregate([
+      {
+        $match: {
+          payment_date: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          totalAmount: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    // Calculate totals
+    const totalInvoiced = invoiceStats[0]?.totalAmount || 0;
+    const totalPaid = paymentStats[0]?.totalAmount || 0;
+    const totalDue = totalInvoiced - totalPaid;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        availableYears,
+        selectedYear: year,
+        selectedMonth: month,
+        stats: {
+          projects: {
+            total: projectStats[0]?.total || 0,
+            active: activeProjectsCount, // Use all-time active count
+            completed: projectStats[0]?.completed || 0,
+            onHold: projectStats[0]?.onHold || 0,
+            totalValue: projectStats[0]?.totalValue || 0,
+          },
+          invoices: {
+            total: invoiceStats[0]?.total || 0,
+            paid: invoiceStats[0]?.paid || 0,
+            pending: invoiceStats[0]?.pending || 0,
+            overdue: invoiceStats[0]?.overdue || 0,
+            totalAmount: totalInvoiced,
+            paidAmount: invoiceStats[0]?.paidAmount || 0,
+          },
+          payments: {
+            total: paymentStats[0]?.total || 0,
+            totalAmount: totalPaid,
+          },
+          summary: {
+            totalRevenue: totalInvoiced,
+            totalPaid: totalPaid,
+            totalDue: totalDue > 0 ? totalDue : 0,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export {
   getDashboardOverview,
   getProjectDashboard,
   getInvoiceDashboard,
   getPaymentDashboard,
+  getFilteredDashboardStats,
 };

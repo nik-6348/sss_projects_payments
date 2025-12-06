@@ -5,3 +5,4 @@ export { StatusChip } from "./StatusChip";
 export { ConfirmationModal } from "./ConfirmationModal";
 export * from "./Toast";
 export * from "./Pagination";
+export { Spinner, LoadingOverlay, Skeleton } from "./Spinner";

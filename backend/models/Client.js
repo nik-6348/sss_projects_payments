@@ -35,6 +35,22 @@ const clientSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    // Additional email contacts
+    business_email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    finance_email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    support_email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
   },
   {
     timestamps: true,

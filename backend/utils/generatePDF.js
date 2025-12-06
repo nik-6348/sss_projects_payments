@@ -70,12 +70,26 @@ const generateInvoicePDF = (
   doc.text(`INVOICE NO: ${invoiceData.invoice_number}`, 195, 50, {
     align: "right",
   });
-  doc.text(
-    `Date: ${new Date(invoiceData.issue_date).toLocaleDateString()}`,
-    195,
-    56,
-    { align: "right" }
-  );
+
+  // Safe date formatting
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "N/A";
+      return date.toLocaleDateString("en-IN", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "N/A";
+    }
+  };
+
+  doc.text(`Date: ${formatDate(invoiceData.issue_date)}`, 195, 56, {
+    align: "right",
+  });
 
   // === MODIFICATION 1: Services Table ===
   const tableRows = invoiceData.services.map((s) => ({

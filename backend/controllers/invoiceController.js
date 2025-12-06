@@ -2,6 +2,7 @@ import Invoice from "../models/Invoice.js";
 import Project from "../models/Project.js";
 import { validationResult } from "express-validator";
 import mongoose from "mongoose";
+import { sendInvoiceStatusEmail } from "./emailController.js";
 
 // @desc    Get all invoices
 // @route   GET /api/invoices
@@ -575,6 +576,16 @@ const updateInvoiceStatus = async (req, res, next) => {
         id: invoice.project_id._id,
       },
     };
+
+    // Send email notification for status changes
+    if (["cancelled", "overdue", "paid"].includes(status)) {
+      try {
+        await sendInvoiceStatusEmail(invoice._id, status);
+      } catch (emailError) {
+        console.error("Failed to send status email:", emailError);
+        // Don't fail the request if email fails
+      }
+    }
 
     res.status(200).json({
       success: true,

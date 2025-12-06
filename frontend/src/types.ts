@@ -5,6 +5,18 @@ export type ProjectStatus =
   | "cancelled"
   | "draft";
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
+export type ProjectType =
+  | "fixed_contract"
+  | "monthly_retainer"
+  | "hourly_billing"
+  | "";
+export type BillingCycle = "monthly" | "quarterly" | "yearly" | "";
+
+export interface ProjectClientEmails {
+  business_email?: string;
+  finance_email?: string;
+  support_email?: string;
+}
 export type PaymentMethod =
   | "bank_account"
   | "other"
@@ -24,7 +36,10 @@ export interface Client {
     country?: string;
   };
   gst_number?: string;
-  pan_number?: string;
+  // Additional email contacts
+  business_email?: string;
+  finance_email?: string;
+  support_email?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -61,6 +76,19 @@ export interface Project {
   created_at?: string;
   user_id: string;
   team_members?: TeamMember[];
+  // GST Settings
+  gst_percentage?: number;
+  include_gst?: boolean;
+  // Multi-Email Support
+  client_emails?: ProjectClientEmails;
+  // Project Type
+  project_type?: ProjectType;
+  contract_amount?: number;
+  contract_length?: number;
+  monthly_fee?: number;
+  billing_cycle?: BillingCycle;
+  hourly_rate?: number;
+  estimated_hours?: number;
 }
 
 // API response type for projects
@@ -78,6 +106,19 @@ export interface ProjectApiResponse {
   createdAt?: string;
   updatedAt?: string;
   user_id: string;
+  // GST Settings
+  gst_percentage?: number;
+  include_gst?: boolean;
+  // Multi-Email Support
+  client_emails?: ProjectClientEmails;
+  // Project Type
+  project_type?: ProjectType;
+  contract_amount?: number;
+  contract_length?: number;
+  monthly_fee?: number;
+  billing_cycle?: BillingCycle;
+  hourly_rate?: number;
+  estimated_hours?: number;
 }
 
 export interface Invoice {

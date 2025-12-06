@@ -63,6 +63,55 @@ const projectSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // GST Settings (moved from Invoice to Project level)
+    gst_percentage: {
+      type: Number,
+      default: 18,
+    },
+    include_gst: {
+      type: Boolean,
+      default: true,
+    },
+    // Multi-Email Support
+    client_emails: {
+      business_email: { type: String, trim: true },
+      finance_email: { type: String, trim: true },
+      support_email: { type: String, trim: true },
+    },
+    // Project Type
+    project_type: {
+      type: String,
+      enum: ["fixed_contract", "monthly_retainer", "hourly_billing", ""],
+      default: "",
+    },
+    // Fixed Contract fields
+    contract_amount: {
+      type: Number,
+      default: 0,
+    },
+    contract_length: {
+      type: Number, // in months
+      default: 0,
+    },
+    // Monthly Retainer fields
+    monthly_fee: {
+      type: Number,
+      default: 0,
+    },
+    billing_cycle: {
+      type: String,
+      enum: ["monthly", "quarterly", "yearly", ""],
+      default: "",
+    },
+    // Hourly Billing fields
+    hourly_rate: {
+      type: Number,
+      default: 0,
+    },
+    estimated_hours: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

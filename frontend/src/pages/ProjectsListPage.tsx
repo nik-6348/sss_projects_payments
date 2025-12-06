@@ -65,7 +65,7 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
   const tabs = [
     { id: "active" as TabType, label: "Active" },
     { id: "completed" as TabType, label: "Completed" },
-    { id: "all" as TabType, label: "All Projects" },
+    { id: "all" as TabType, label: "All" },
   ];
 
   return (

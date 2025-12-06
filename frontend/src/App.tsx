@@ -125,6 +125,7 @@ function AppContent() {
     invoice: null,
   });
   const [isRegeneratingPDF, setIsRegeneratingPDF] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
   const [isSidebarOpen, _] = React.useState(false);
 
   // Initialize dark mode from localStorage
@@ -422,8 +423,8 @@ function AppContent() {
     fetchProjectDetails();
   }, [fetchProjectDetails]);
 
-  const navigateTo = (view: string, id?: string) => {
-    setCurrentView({ view, id: id || undefined });
+  const navigateTo = (view: string, id?: string, params?: any) => {
+    setCurrentView({ view, id: id || undefined, params });
   };
 
   const handleLogin = async (email: string, password: string) => {
@@ -492,7 +493,7 @@ function AppContent() {
   // CRUD Handlers with API integration
   const handleSaveProject = async (projectData: ProjectFormData) => {
     try {
-      setDataLoading(true);
+      setIsSaving(true);
 
       // Map frontend status to backend status
       const statusMapping: Record<string, string> = {
@@ -507,12 +508,26 @@ function AppContent() {
         name: projectData.name,
         description: projectData.description,
         total_amount: parseFloat(String(projectData.total_amount)),
+        currency: projectData.currency || "INR",
         status: statusMapping[projectData.status || "active"] || "active",
         start_date: projectData.start_date,
         end_date: projectData.end_date || undefined,
         client_id: projectData.client_id,
         notes: projectData.notes,
         team_members: projectData.team_members,
+        // GST Settings
+        gst_percentage: projectData.gst_percentage ?? 18,
+        include_gst: projectData.include_gst ?? true,
+        // Client Emails
+        client_emails: projectData.client_emails || {},
+        // Project Type
+        project_type: projectData.project_type || "",
+        contract_amount: projectData.contract_amount || 0,
+        contract_length: projectData.contract_length || 0,
+        monthly_fee: projectData.monthly_fee || 0,
+        billing_cycle: projectData.billing_cycle || "",
+        hourly_rate: projectData.hourly_rate || 0,
+        estimated_hours: projectData.estimated_hours || 0,
       };
       console.log("Sending payload:", projectPayload);
 
@@ -531,6 +546,7 @@ function AppContent() {
             name: responseData.name,
             description: responseData.description,
             total_amount: responseData.total_amount,
+            currency: responseData.currency,
             status: responseData.status as ProjectStatus,
             start_date: responseData.start_date
               ? new Date(responseData.start_date).toISOString().split("T")[0]
@@ -552,6 +568,17 @@ function AppContent() {
             created_at: responseData.createdAt,
             user_id: responseData.user_id,
             team_members: responseData.team_members,
+            // New fields
+            gst_percentage: responseData.gst_percentage,
+            include_gst: responseData.include_gst,
+            client_emails: responseData.client_emails,
+            project_type: responseData.project_type,
+            contract_amount: responseData.contract_amount,
+            contract_length: responseData.contract_length,
+            monthly_fee: responseData.monthly_fee,
+            billing_cycle: responseData.billing_cycle,
+            hourly_rate: responseData.hourly_rate,
+            estimated_hours: responseData.estimated_hours,
           };
           setProjects(
             projects.map((p) => (p.id === projectData.id ? updatedProject : p))
@@ -568,6 +595,7 @@ function AppContent() {
             name: responseData.name,
             description: responseData.description,
             total_amount: responseData.total_amount,
+            currency: responseData.currency,
             status: responseData.status as ProjectStatus,
             start_date: responseData.start_date
               ? new Date(responseData.start_date).toISOString().split("T")[0]
@@ -589,6 +617,17 @@ function AppContent() {
             created_at: responseData.createdAt,
             user_id: responseData.user_id,
             team_members: responseData.team_members,
+            // New fields
+            gst_percentage: responseData.gst_percentage,
+            include_gst: responseData.include_gst,
+            client_emails: responseData.client_emails,
+            project_type: responseData.project_type,
+            contract_amount: responseData.contract_amount,
+            contract_length: responseData.contract_length,
+            monthly_fee: responseData.monthly_fee,
+            billing_cycle: responseData.billing_cycle,
+            hourly_rate: responseData.hourly_rate,
+            estimated_hours: responseData.estimated_hours,
           };
           setProjects([...projects, newProject]);
           toast.success("Project created successfully!");
@@ -605,7 +644,7 @@ function AppContent() {
       toast.error(errorMessage);
       console.error("Error saving project:", err);
     } finally {
-      setDataLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -876,7 +915,7 @@ function AppContent() {
     invoiceId?: string
   ) => {
     try {
-      setDataLoading(true);
+      setIsSaving(true);
 
       const invoicePayload = {
         project_id: invoiceData.project_id,
@@ -991,7 +1030,7 @@ function AppContent() {
       console.error("Error saving invoice:", err);
       throw err; // Re-throw to let form handle it
     } finally {
-      setDataLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -1008,20 +1047,31 @@ function AppContent() {
         <button
           type="button"
           onClick={closeModal}
-          className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto"
+          disabled={isSaving}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           type="button"
+          disabled={isSaving}
           onClick={() => {
             // Trigger form submission programmatically
             const form = document.querySelector("form") as HTMLFormElement;
             if (form) form.requestSubmit();
           }}
-          className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto"
+          className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto disabled:opacity-50"
         >
-          {project ? "Update Project" : "Create Project"}
+          {isSaving ? (
+            <>
+              <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              Saving...
+            </>
+          ) : project ? (
+            "Update Project"
+          ) : (
+            "Create Project"
+          )}
         </button>
       </>
     );
@@ -1048,20 +1098,31 @@ function AppContent() {
         <button
           type="button"
           onClick={closeModal}
-          className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto"
+          disabled={isSaving}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-all duration-200 font-semibold border border-slate-300 dark:border-slate-600 w-full sm:w-auto disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           type="button"
+          disabled={isSaving}
           onClick={() => {
             // Trigger form submission programmatically
             const form = document.querySelector("form") as HTMLFormElement;
             if (form) form.requestSubmit();
           }}
-          className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto"
+          className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl transition-all duration-200 font-semibold w-full sm:w-auto disabled:opacity-50"
         >
-          {invoice ? "Update Invoice" : "Create Invoice"}
+          {isSaving ? (
+            <>
+              <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              Saving...
+            </>
+          ) : invoice ? (
+            "Update Invoice"
+          ) : (
+            "Create Invoice"
+          )}
         </button>
       </>
     );
@@ -1118,7 +1179,8 @@ function AppContent() {
   const renderContent = () => {
     const { view, id } = currentView;
 
-    if (isLoading || dataLoading) {
+    // Only show full-page loader for initial loading, not for data operations
+    if (isLoading) {
       return (
         <div className="flex items-center justify-center h-full">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
