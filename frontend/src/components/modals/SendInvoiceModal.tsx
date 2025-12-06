@@ -13,6 +13,8 @@ import { toast } from "react-toastify";
 import apiClient from "../../utils/api";
 import { PrimaryButton } from "../ui";
 import { FormInput, FormTextarea } from "../forms";
+import { generateEmailPreview } from "../../utils/emailPreview";
+import { emailTemplates } from "../../config/emailTemplates";
 
 interface SendInvoiceModalProps {
   isOpen: boolean;
@@ -40,6 +42,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
   const [newCc, setNewCc] = useState("");
   const [newBcc, setNewBcc] = useState("");
   const [attachInvoice, setAttachInvoice] = useState(true);
+  const [companyDetails, setCompanyDetails] = useState<any>({});
 
   useEffect(() => {
     if (isOpen && invoice) {
@@ -51,11 +54,12 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
     try {
       setLoading(true);
       const settingsResponse = await apiClient.getSettings();
+      const settings = settingsResponse.data || {};
 
       let clientEmail = "";
-
-      // Check if we already have the email in the invoice object (new backend logic)
       const project = invoice.project_id;
+
+      // Determine client email
       if (
         project &&
         typeof project === "object" &&
@@ -65,44 +69,46 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
       ) {
         clientEmail = (project.client_id as any).email;
       } else {
-        // Fallback: Fetch full invoice details to get client email
         const invoiceDetails = await apiClient.getInvoice(
           invoice.id || invoice._id
         );
-        if (invoiceDetails.success && invoiceDetails.data) {
-          const project = invoiceDetails.data.project_id as any;
-          // Check if project is populated object or just ID
-          if (project && typeof project === "object" && project.client_id) {
-            // If client_id is populated object
-            if (
-              typeof project.client_id === "object" &&
-              project.client_id.email
-            ) {
-              clientEmail = project.client_id.email;
-            } else if (typeof project.client_id === "string") {
-              // Fetch client if ID is string
-              const clientResponse = await apiClient.getClient(
-                project.client_id
-              );
-              if (clientResponse.success && clientResponse.data) {
-                clientEmail = clientResponse.data.email;
-              }
-            }
-          }
+        if (
+          invoiceDetails.success &&
+          (invoiceDetails.data?.project_id as any)?.client_id
+        ) {
+          const client = (invoiceDetails.data?.project_id as any)?.client_id;
+          clientEmail =
+            client && typeof client === "object" && "email" in client
+              ? client.email
+              : "";
         }
       }
 
-      const settings = settingsResponse.data || {};
-      const template = settings.email_templates?.invoice_default || {
-        subject: "",
-        body: "",
-      };
+      // Use hardcoded template
+      const template = emailTemplates.invoice_default;
       const emailSettings = settings.email_settings || {
         default_cc: "",
         default_bcc: "",
       };
 
-      // Replace variables
+      // internal helper to get cancellation remark
+      const getCancellationRemark = () => {
+        if (invoice.status !== "cancelled") return "";
+        // Try top level if exists, otherwise check history
+        if (invoice.deletion_remark) return invoice.deletion_remark;
+        if (invoice.remark && invoice.status === "cancelled")
+          return invoice.remark; // sometimes top level in transition
+
+        if (Array.isArray(invoice.status_history)) {
+          // Find the most recent cancelled status
+          const cancelledEntry = [...invoice.status_history]
+            .reverse()
+            .find((h: any) => h.status === "cancelled");
+          return cancelledEntry?.remark || "";
+        }
+        return "";
+      };
+
       const replaceVars = (text: string) => {
         return text
           .replace(
@@ -131,7 +137,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
           .replace(
             /{currency}/g,
             invoice.currency || settings.currency || "INR"
-          );
+          )
+          .replace(/{deletion_remark}/g, getCancellationRemark());
       };
 
       setFormData({
@@ -139,6 +146,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
         subject: replaceVars(template.subject),
         body: replaceVars(template.body),
       });
+
+      setCompanyDetails(settings.company_details || {});
 
       if (emailSettings.default_cc) {
         setCcList(
@@ -417,8 +426,15 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
                 </div>
 
                 {showPreview ? (
-                  <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 min-h-[200px] whitespace-pre-wrap text-sm">
-                    {formData.body}
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden h-[400px] bg-white">
+                    <iframe
+                      srcDoc={generateEmailPreview(
+                        formData.body,
+                        companyDetails
+                      )}
+                      title="Email Preview"
+                      className="w-full h-full border-0"
+                    />
                   </div>
                 ) : (
                   <FormTextarea

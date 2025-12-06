@@ -1,5 +1,5 @@
 // Email templates for invoice status notifications
-// These contain ONLY the inner body content. The standardized wrapper will add <html>, <head>, logo, footer etc.
+// Matches backend/config/emailTemplates.js
 
 export const emailTemplates = {
   invoice_default: {

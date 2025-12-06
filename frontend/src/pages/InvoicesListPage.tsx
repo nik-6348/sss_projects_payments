@@ -262,17 +262,22 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                               className="fixed mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-600 z-50 right-0"
                               style={{ transform: "translateX(-10px)" }}
                             >
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSendModal({ isOpen: true, invoice });
-                                  setOpenDropdown(null);
-                                }}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
-                              >
-                                <Send className="h-4 w-4" />
-                                Send
-                              </button>
+                              {invoice.status !== "cancelled" &&
+                                invoice.status !== "overdue" && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSendModal({ isOpen: true, invoice });
+                                      setOpenDropdown(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                                  >
+                                    <Send className="h-4 w-4" />
+                                    {invoice.status === "sent"
+                                      ? "Resend"
+                                      : "Send"}
+                                  </button>
+                                )}
                               {onViewPDF && (
                                 <button
                                   onClick={(e) => {

@@ -4,7 +4,11 @@ import Settings from "../models/Settings.js";
 import Invoice from "../models/Invoice.js";
 import Client from "../models/Client.js";
 import BankDetails from "../models/BankDetails.js";
+import Project from "../models/Project.js";
 import { generateInvoicePDF } from "../utils/generatePDF.js";
+
+import { wrapEmailBody } from "../config/emailBaseTemplate.js";
+import emailTemplates from "../config/emailTemplates.js";
 
 // Encryption settings
 const ENCRYPTION_KEY =
@@ -133,6 +137,14 @@ export const sendInvoiceEmail = async (req, res) => {
     // Create Transporter
     const transporter = await createTransporter();
 
+    // Use hardcoded template for defaults variables/structure if needed,
+    // but here we trust the frontend sent the correct body/subject
+    // OR we can re-generate them from hardcoded templates if we want to enforce it.
+    // User asked to "hard code" templates. Assuming frontend might send custom body?
+    // User said "Templates hard code rakho".
+    // If the frontend sends body, it's used. If not, we should probably fetch default.
+    // However, existing logic uses body from request. Let's keep it but wrap it.
+
     // Helper to replace variables
     const replaceVars = (text) => {
       if (!text) return "";
@@ -155,7 +167,8 @@ export const sendInvoiceEmail = async (req, res) => {
     };
 
     const finalSubject = replaceVars(subject);
-    const finalBody = replaceVars(body);
+    // Use the wrapped email body
+    const finalBody = wrapEmailBody(replaceVars(body), companyDetails);
 
     // Send Email
     const mailOptions = {
@@ -166,7 +179,7 @@ export const sendInvoiceEmail = async (req, res) => {
       cc,
       bcc,
       subject: finalSubject,
-      html: finalBody.replace(/\n/g, "<br>"), // Convert newlines to HTML breaks
+      html: finalBody, // Already HTML
     };
 
     // Attach PDF if requested (default to true if not specified)
@@ -197,9 +210,6 @@ export const sendInvoiceEmail = async (req, res) => {
 };
 
 // Send Invoice Status Email (cancelled, overdue, paid)
-import emailTemplates from "../config/emailTemplates.js";
-import Project from "../models/Project.js";
-
 export const sendInvoiceStatusEmail = async (invoiceId, status) => {
   try {
     // Validate status
@@ -247,11 +257,30 @@ export const sendInvoiceStatusEmail = async (invoiceId, status) => {
     const settings = await Settings.findOne();
     const companyDetails = settings?.company_details || {};
 
-    // Get email template
-    const template = emailTemplates[status];
+    // Get email template from hardcoded config
+    let template = emailTemplates[status];
+
     if (!template) {
-      throw new Error(`Email template not found for status: ${status}`);
+      console.log(`Email template not configured for status: ${status}`);
+      return { success: false, message: "Template not found" };
     }
+
+    // Helper to get cancellation remark
+    const getCancellationRemark = () => {
+      if (status !== "cancelled") return "";
+      // Check top level
+      if (invoice.deletion_remark) return invoice.deletion_remark;
+      if (invoice.remark) return invoice.remark;
+
+      // Check history
+      if (Array.isArray(invoice.status_history)) {
+        const cancelledEntry = [...invoice.status_history]
+          .reverse()
+          .find((h) => h.status === "cancelled");
+        return cancelledEntry?.remark || "";
+      }
+      return "";
+    };
 
     // Replace placeholders in template
     const replaceVars = (text) => {
@@ -268,11 +297,13 @@ export const sendInvoiceStatusEmail = async (invoiceId, status) => {
         )
         .replace(/{due_date}/g, new Date(invoice.due_date).toLocaleDateString())
         .replace(/{paid_date}/g, new Date().toLocaleDateString())
-        .replace(/{project_name}/g, invoice.project_id?.name || "Project");
+        .replace(/{project_name}/g, invoice.project_id?.name || "Project")
+        .replace(/{deletion_remark}/g, getCancellationRemark() || "");
     };
 
     const finalSubject = replaceVars(template.subject);
-    const finalBody = replaceVars(template.body);
+    // Wrap with standardized template
+    const finalBody = wrapEmailBody(replaceVars(template.body), companyDetails);
 
     // Create transporter and send email
     const transporter = await createTransporter();
@@ -295,5 +326,76 @@ export const sendInvoiceStatusEmail = async (invoiceId, status) => {
   } catch (error) {
     console.error("Send Status Email Error:", error);
     return { success: false, error: error.message };
+  }
+};
+
+// Send Test Email
+export const sendTestEmail = async (req, res) => {
+  try {
+    const { templateKey, toEffect } = req.body;
+    let { to } = req.body;
+    if (!to && toEffect) to = toEffect; // Handle potential naming confusion if any
+
+    const settings = await Settings.findOne();
+    const companyDetails = settings?.company_details || {};
+
+    // Use hardcoded templates
+    let template = emailTemplates[templateKey];
+
+    // Fallback mapping if frontend sends different keys
+    if (!template) {
+      const map = {
+        invoice_default: "invoice_default", // standard
+        payment_receipt: "paid",
+        invoice_overdue: "overdue",
+        invoice_cancelled: "cancelled",
+      };
+      template = emailTemplates[map[templateKey]];
+    }
+
+    if (!template) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Template not found" });
+    }
+
+    // Dummy Data for Preview
+    const dummyData = {
+      client_name: "John Doe",
+      invoice_number: "INV-TEST-001",
+      company_name: companyDetails.name || "Your Company",
+      amount: `${settings?.currency || "INR"} 1,000.00`,
+      due_date: new Date().toLocaleDateString(),
+      project_name: "Test Project",
+      paid_date: new Date().toLocaleDateString(),
+      deletion_remark: "Created by mistake (Test)",
+    };
+
+    const replaceVars = (text) => {
+      let newText = text;
+      for (const [key, value] of Object.entries(dummyData)) {
+        newText = newText.replace(new RegExp(`{${key}}`, "g"), value);
+      }
+      return newText;
+    };
+
+    const finalSubject = "[TEST] " + replaceVars(template.subject);
+    const finalBody = wrapEmailBody(replaceVars(template.body), companyDetails);
+
+    const transporter = await createTransporter();
+
+    await transporter.sendMail({
+      from: `"${companyDetails.name || "Invoice System"}" <${
+        settings?.smtp_settings?.user
+      }>`,
+      to: to,
+      subject: finalSubject,
+      html: finalBody,
+    });
+
+    res.json({ success: true, message: "Test email sent successfully" });
+  } catch (error) {
+    console.error("Test email error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };

@@ -765,6 +765,17 @@ class ApiClient {
     return response.data;
   }
 
+  async sendTestEmail(data: {
+    templateKey: string;
+    to: string;
+  }): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.post(
+      "/email/test-email",
+      data
+    );
+    return response.data;
+  }
+
   // Utility method to handle API errors
   handleError(error: AxiosError): string {
     if (

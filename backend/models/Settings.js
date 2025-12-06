@@ -25,6 +25,7 @@ const settingsSchema = new mongoose.Schema(
     },
     company_details: {
       name: { type: String, trim: true },
+      logo: { type: String, trim: true }, // URL to company logo
       address: { type: String, trim: true },
       contact: { type: String, trim: true },
       email: { type: String, trim: true },
@@ -53,6 +54,39 @@ const settingsSchema = new mongoose.Schema(
           type: String,
           default:
             "Dear {client_name},\n\nPlease find attached the invoice {invoice_number}.\n\nRegards,\n{company_name}",
+        },
+      },
+      payment_receipt: {
+        subject: {
+          type: String,
+          default: "Payment Received - Invoice {invoice_number}",
+        },
+        body: {
+          type: String,
+          default:
+            "Dear {client_name},\n\nWe have received your payment of {amount} for invoice {invoice_number}.\n\nThank you for your business.\n\nRegards,\n{company_name}",
+        },
+      },
+      invoice_overdue: {
+        subject: {
+          type: String,
+          default: "Overdue Reminder: Invoice {invoice_number}",
+        },
+        body: {
+          type: String,
+          default:
+            "Dear {client_name},\n\nThis is a reminder that invoice {invoice_number} for {amount} was due on {due_date}.\n\nPlease arrange for payment at your earliest convenience.\n\nRegards,\n{company_name}",
+        },
+      },
+      invoice_cancelled: {
+        subject: {
+          type: String,
+          default: "Invoice {invoice_number} Cancelled",
+        },
+        body: {
+          type: String,
+          default:
+            "Dear {client_name},\n\nInvoice {invoice_number} has been cancelled.\n\nIf you have any questions, please contact us.\n\nRegards,\n{company_name}",
         },
       },
     },

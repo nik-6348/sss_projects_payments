@@ -15,6 +15,8 @@ import { toast } from "react-toastify";
 import apiClient from "../utils/api";
 import { GlassCard, PrimaryButton, ConfirmationModal } from "../components/ui";
 import { FormInput, FormSelect, FormTextarea } from "../components/forms";
+import { generateEmailPreview } from "../utils/emailPreview";
+import emailTemplatesConfig from "../config/emailTemplates";
 
 interface SettingsPageProps {
   // No props needed for now
@@ -33,6 +35,16 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     gstPercentage: 18,
     invoiceFormat: "INV-{YYYY}-{000}",
     currency: "INR",
+    company_details: {
+      name: "",
+      logo: "", // Logo URL
+      address: "",
+      contact: "",
+      email: "",
+      gst_number: "",
+      LUTNumber: "",
+      website: "",
+    },
     smtp_settings: {
       host: "",
       port: 587,
@@ -45,12 +57,22 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       default_bcc: "",
     },
     email_templates: {
-      invoice_default: {
-        subject: "",
-        body: "",
-      },
+      invoice_default: { subject: "", body: "" },
+      payment_receipt: { subject: "", body: "" },
+      invoice_overdue: { subject: "", body: "" },
+      invoice_cancelled: { subject: "", body: "" },
     },
   });
+
+  const [selectedTemplate, setSelectedTemplate] = React.useState<
+    | "invoice_default"
+    | "payment_receipt"
+    | "invoice_overdue"
+    | "invoice_cancelled"
+  >("invoice_default");
+
+  const [testEmailTo, setTestEmailTo] = React.useState("");
+  const [sendingTestEmail, setSendingTestEmail] = React.useState(false);
 
   // Team State
   const [teamMembers, setTeamMembers] = React.useState<any[]>([]);
@@ -125,8 +147,12 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
             default_cc: "",
             default_bcc: "",
           },
-          email_templates: response.data.email_templates || {
+          email_templates: {
             invoice_default: { subject: "", body: "" },
+            payment_receipt: { subject: "", body: "" },
+            invoice_overdue: { subject: "", body: "" },
+            invoice_cancelled: { subject: "", body: "" },
+            ...response.data.email_templates,
           },
         });
       }
@@ -347,25 +373,45 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     setShowBankModal(true);
   };
 
-  const insertVariable = (variable: string) => {
-    const textarea = document.getElementById(
-      "email-body-editor"
-    ) as HTMLTextAreaElement;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const text = settings.email_templates.invoice_default.body;
-      const newText = text.substring(0, start) + variable + text.substring(end);
-      setSettings({
-        ...settings,
-        email_templates: {
-          ...settings.email_templates,
-          invoice_default: {
-            ...settings.email_templates.invoice_default,
-            body: newText,
-          },
-        },
+  const handleSendTestEmail = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!testEmailTo) {
+      toast.error("Please enter a recipient email address");
+      return;
+    }
+
+    try {
+      setSendingTestEmail(true);
+      const response = await apiClient.sendTestEmail({
+        templateKey: selectedTemplate,
+        to: testEmailTo,
       });
+
+      if (response.success) {
+        toast.success(`Test email sent to ${testEmailTo}`);
+        setTestEmailTo("");
+      } else {
+        toast.error(response.error || "Failed to send test email");
+      }
+    } catch (error: any) {
+      toast.error(apiClient.handleError(error));
+    } finally {
+      setSendingTestEmail(false);
+    }
+  };
+
+  const getTemplateLabel = (key: string) => {
+    switch (key) {
+      case "invoice_default":
+        return "Invoice Sending (Default)";
+      case "payment_receipt":
+        return "Payment Receipt";
+      case "invoice_overdue":
+        return "Overdue Reminder";
+      case "invoice_cancelled":
+        return "Cancellation Notice";
+      default:
+        return key;
     }
   };
 
@@ -481,6 +527,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
               }
               required
             />
+
             <FormTextarea
               label="Company Address"
               value={settings.company_details?.address || ""}
@@ -548,7 +595,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   })
                 }
               />
-              <FormInput
+              {/* <FormInput
                 label="Website"
                 value={settings.company_details?.website || ""}
                 onChange={(e) =>
@@ -560,7 +607,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                     },
                   })
                 }
-              />
+              /> */}
             </div>
 
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 border-b pb-2 border-slate-200 dark:border-slate-700 mt-8">
@@ -990,68 +1037,48 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
               </div>
             </div>
 
-            {/* Email Template */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 border-b pb-2 border-slate-200 dark:border-slate-700">
-                Invoice Email Template
-              </h3>
-              <FormInput
-                label="Subject"
-                value={settings.email_templates.invoice_default.subject}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    email_templates: {
-                      ...settings.email_templates,
-                      invoice_default: {
-                        ...settings.email_templates.invoice_default,
-                        subject: e.target.value,
+            {/* Email Template Editor */}
+            <div className="space-y-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex flex-col lg:flex-row gap-6 items-end">
+                <div className="flex-1 w-full">
+                  <FormSelect
+                    label="Select Template"
+                    value={selectedTemplate}
+                    onChange={(e) => setSelectedTemplate(e.target.value as any)}
+                    options={[
+                      {
+                        value: "invoice_default",
+                        label: "Invoice Sending (Default)",
                       },
-                    },
-                  })
-                }
-              />
-
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Body
-                </label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {[
-                    "{client_name}",
-                    "{invoice_number}",
-                    "{company_name}",
-                    "{amount}",
-                    "{due_date}",
-                  ].map((variable) => (
-                    <button
-                      key={variable}
-                      type="button"
-                      onClick={() => insertVariable(variable)}
-                      className="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                    >
-                      {variable}
-                    </button>
-                  ))}
+                      { value: "payment_receipt", label: "Payment Receipt" },
+                      { value: "invoice_overdue", label: "Overdue Reminder" },
+                      {
+                        value: "invoice_cancelled",
+                        label: "Cancellation Notice",
+                      },
+                    ]}
+                  />
                 </div>
-                <FormTextarea
-                  id="email-body-editor"
-                  name="emailBody"
-                  value={settings.email_templates.invoice_default.body}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      email_templates: {
-                        ...settings.email_templates,
-                        invoice_default: {
-                          ...settings.email_templates.invoice_default,
-                          body: e.target.value,
-                        },
-                      },
-                    })
-                  }
-                  rows={10}
-                />
+
+                <div className="flex-1 w-full pb-1">
+                  <div className="flex gap-3">
+                    <input
+                      type="email"
+                      value={testEmailTo}
+                      onChange={(e) => setTestEmailTo(e.target.value)}
+                      placeholder="Recipient email for test..."
+                      className="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    />
+                    <PrimaryButton
+                      onClick={() => handleSendTestEmail()}
+                      disabled={sendingTestEmail || !testEmailTo}
+                      type="button"
+                      className="whitespace-nowrap"
+                    >
+                      {sendingTestEmail ? "Sending..." : "Send Test"}
+                    </PrimaryButton>
+                  </div>
+                </div>
               </div>
             </div>
 
