@@ -14,9 +14,10 @@ export async function checkOverdueInvoices() {
     today.setHours(0, 0, 0, 0);
 
     // Find invoices that are due and should be marked as overdue
-    // Logic: Status is 'sent', due_date < today, and not already overdue or paid
+    // Logic: Status is 'sent' OR 'overdue', due_date < today
+    // This allows sending reminders for already overdue invoices too
     const overdueInvoices = await Invoice.find({
-      status: "sent",
+      status: { $in: ["sent", "overdue"] },
       due_date: { $lt: today },
       isDeleted: false,
     });
@@ -29,27 +30,31 @@ export async function checkOverdueInvoices() {
 
     for (const invoice of overdueInvoices) {
       try {
-        // Update status to overdue
-        invoice.status = "overdue";
-        invoice.status_history.push({
-          status: "overdue",
-          remark: "Automatically marked as overdue by system",
-          date: new Date(),
-        });
-        await invoice.save();
+        let statusUpdated = false;
 
-        // Send overdue reminder email
+        // Only update status if it was "sent" (newly overdue)
+        if (invoice.status === "sent") {
+          invoice.status = "overdue";
+          invoice.status_history.push({
+            status: "overdue",
+            remark: "Automatically marked as overdue by system",
+            date: new Date(),
+          });
+          await invoice.save();
+          statusUpdated = true;
+        }
+
+        // Send overdue reminder email (for both newly overdue and existing overdue)
+        // Note: This will send daily reminders if scheduled daily
         const emailResult = await sendInvoiceStatusEmail(
           invoice._id,
           "overdue"
         );
 
         console.log(
-          `Invoice ${
-            invoice.invoice_number
-          }: Status updated to overdue, Email: ${
-            emailResult.success ? "Sent" : "Failed"
-          }`
+          `Invoice ${invoice.invoice_number}: ${
+            statusUpdated ? "Marked as overdue & " : ""
+          }Reminder Sent. Email: ${emailResult.success ? "Success" : "Failed"}`
         );
       } catch (invoiceError) {
         console.error(

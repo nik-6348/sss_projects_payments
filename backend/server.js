@@ -34,6 +34,21 @@ cron.schedule(
   }
 );
 
+// Test Route for Overdue Invoices (Manual Trigger)
+app.get("/api/test-cron", async (req, res) => {
+  try {
+    console.log("Manual trigger: Checking overdue invoices...");
+    await checkOverdueInvoices();
+    res.json({
+      success: true,
+      message: "Overdue check completed. Check server logs for details.",
+    });
+  } catch (error) {
+    console.error("Manual trigger error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Security middleware
 app.use(helmet());
 
