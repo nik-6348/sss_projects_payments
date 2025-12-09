@@ -3,6 +3,7 @@ import Invoice from "../models/Invoice.js";
 import Project from "../models/Project.js";
 import BankDetails from "../models/BankDetails.js";
 import { validationResult } from "express-validator";
+import { sendInvoiceStatusEmail } from "./emailController.js";
 
 // @desc    Get all payments
 // @route   GET /api/payments
@@ -143,8 +144,18 @@ const createPayment = async (req, res, next) => {
       remark,
     } = req.body;
 
+    let projectIdToUse = project_id;
+
+    // If project_id is missing but invoice_id is present, infer it
+    if (!projectIdToUse && invoice_id) {
+      const invoice = await Invoice.findById(invoice_id);
+      if (invoice) {
+        projectIdToUse = invoice.project_id;
+      }
+    }
+
     // Verify project exists
-    const project = await Project.findById(project_id);
+    const project = await Project.findById(projectIdToUse);
     if (!project) {
       return res.status(404).json({
         success: false,
@@ -165,7 +176,7 @@ const createPayment = async (req, res, next) => {
 
     const payment = await Payment.create({
       invoice_id,
-      project_id,
+      project_id: projectIdToUse,
       amount,
       payment_method,
       payment_date,
@@ -177,12 +188,15 @@ const createPayment = async (req, res, next) => {
       const invoice = await Invoice.findById(invoice_id);
       if (invoice) {
         const newPaidAmount = (invoice.paid_amount || 0) + Number(amount);
-        const newBalanceDue = invoice.total_amount - newPaidAmount;
+
+        // Calculate balance based on Principal Amount (excluding GST) as per user requirement
+        // User wants "Due" to track Principal remaining, treating GST as separate/ untracked for due
+        const newBalanceDue = invoice.amount - newPaidAmount;
 
         let newStatus = invoice.status;
         if (newBalanceDue <= 0) {
           newStatus = "paid";
-        } else if (newBalanceDue < invoice.total_amount) {
+        } else if (newBalanceDue < invoice.amount) {
           newStatus = "partial";
         }
 
@@ -194,6 +208,17 @@ const createPayment = async (req, res, next) => {
         }
 
         await invoice.save();
+
+        // Send email notification for payment
+        if (newStatus === "paid" || newStatus === "partial") {
+          try {
+            await sendInvoiceStatusEmail(invoice._id, newStatus, {
+              amount: amount,
+            });
+          } catch (emailError) {
+            console.error("Failed to send payment email:", emailError);
+          }
+        }
       }
     }
 

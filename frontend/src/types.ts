@@ -151,6 +151,8 @@ export interface Invoice {
   gst_amount?: number;
   include_gst?: boolean;
   total_amount?: number;
+  paid_amount?: number;
+  balance_due?: number;
   pdf_base64?: string;
   pdf_generated_at?: string;
   createdAt?: string;
@@ -205,6 +207,7 @@ export interface ProjectWithStats extends Project {
   paidAmount: number;
   dueAmount: number;
   progress: number;
+  calculatedTotal: number;
 }
 
 export interface DashboardStats {

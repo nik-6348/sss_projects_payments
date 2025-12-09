@@ -209,11 +209,15 @@ export const sendInvoiceEmail = async (req, res) => {
   }
 };
 
-// Send Invoice Status Email (cancelled, overdue, paid)
-export const sendInvoiceStatusEmail = async (invoiceId, status) => {
+// Send Invoice Status Email (cancelled, overdue, paid, partial)
+export const sendInvoiceStatusEmail = async (
+  invoiceId,
+  status,
+  extraData = {}
+) => {
   try {
     // Validate status
-    if (!["cancelled", "overdue", "paid"].includes(status)) {
+    if (!["cancelled", "overdue", "paid", "partial"].includes(status)) {
       console.log(`Status "${status}" does not require email notification`);
       return { success: false, message: "No email required for this status" };
     }
@@ -285,16 +289,24 @@ export const sendInvoiceStatusEmail = async (invoiceId, status) => {
     // Replace placeholders in template
     const replaceVars = (text) => {
       if (!text) return "";
+      const currency = invoice.currency || "INR";
       return text
         .replace(/{client_name}/g, client?.name || "Client")
         .replace(/{invoice_number}/g, invoice.invoice_number)
         .replace(/{company_name}/g, companyDetails.name || "Company")
         .replace(
           /{amount}/g,
-          `${invoice.currency || "INR"} ${
-            invoice.total_amount || invoice.amount
-          }`
+          `${currency} ${invoice.total_amount || invoice.amount}`
         )
+        .replace(
+          /{total_amount}/g,
+          `${currency} ${invoice.total_amount || invoice.amount}`
+        )
+        .replace(
+          /{paid_now}/g,
+          `${currency} ${extraData.amount || invoice.paid_amount || 0}`
+        )
+        .replace(/{balance_due}/g, `${currency} ${invoice.balance_due || 0}`)
         .replace(/{due_date}/g, new Date(invoice.due_date).toLocaleDateString())
         .replace(/{paid_date}/g, new Date().toLocaleDateString())
         .replace(/{project_name}/g, invoice.project_id?.name || "Project")

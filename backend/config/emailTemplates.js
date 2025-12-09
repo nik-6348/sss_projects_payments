@@ -125,6 +125,45 @@ export const emailTemplates = {
       <p>Best regards,<br><strong>{company_name}</strong></p>
     `,
   },
+
+  partial: {
+    subject: "Partial Payment Received - Invoice {invoice_number}",
+    body: `
+      <p>Dear {client_name},</p>
+      
+      <div class="info" style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 15px; margin: 20px 0;">
+        <strong>✅ Partial Payment Received</strong>
+      </div>
+      
+      <p>We have received a partial payment for your invoice.</p>
+      
+      <div class="details">
+        <div class="details-row">
+          <span><strong>Invoice Number:</strong></span>
+          <span>{invoice_number}</span>
+        </div>
+        <div class="details-row">
+          <span><strong>Total Amount:</strong></span>
+          <span>{total_amount}</span>
+        </div>
+        <div class="details-row">
+          <span><strong>Amount Paid Now:</strong></span>
+          <span style="color: #059669; font-weight: bold;">{paid_now}</span>
+        </div>
+        <div class="details-row">
+          <span><strong>Remaining Balance:</strong></span>
+          <span style="color: #dc2626; font-weight: bold;">{balance_due}</span>
+        </div>
+        <div class="details-row">
+          <span><strong>Payment Date:</strong></span>
+          <span>{paid_date}</span>
+        </div>
+      </div>
+      
+      <p>Please arrange to pay the remaining balance by the due date.</p>
+      <p>Best regards,<br><strong>{company_name}</strong></p>
+    `,
+  },
 };
 
 export default emailTemplates;

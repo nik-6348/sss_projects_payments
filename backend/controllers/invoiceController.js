@@ -248,13 +248,20 @@ const createInvoice = async (req, res, next) => {
     const total_amount = subtotal + gst_amount;
 
     // Check project budget
+    // We compare Principal (Subtotal) against Project Budget (Principal)
     const existingInvoices = await Invoice.aggregate([
-      { $match: { project_id: project._id, isDeleted: false } },
-      { $group: { _id: null, total: { $sum: "$total_amount" } } },
+      {
+        $match: {
+          project_id: project._id,
+          isDeleted: false,
+          status: { $ne: "cancelled" },
+        },
+      },
+      { $group: { _id: null, total: { $sum: "$subtotal" } } },
     ]);
     const currentTotal = existingInvoices[0]?.total || 0;
 
-    if (currentTotal + total_amount > project.total_amount) {
+    if (currentTotal + subtotal > project.total_amount) {
       return res.status(400).json({
         success: false,
         error: `Project budget exceeded. Remaining budget: ${
@@ -271,8 +278,8 @@ const createInvoice = async (req, res, next) => {
       gst_amount,
       include_gst,
       total_amount,
-      amount: total_amount,
-      balance_due: total_amount, // Initial balance is total amount
+      amount: subtotal, // Save Subtotal as the main Amount (for Analytics/Project Value)
+      balance_due: subtotal, // Initial balance is Principal Amount (Excl GST)
     });
 
     await invoice.populate({
@@ -365,7 +372,7 @@ const updateInvoice = async (req, res, next) => {
         gst_amount,
         include_gst,
         total_amount,
-        amount: total_amount,
+        amount: subtotal, // Save Subtotal as Amount
       };
 
       // Check project budget if amount changed
@@ -376,13 +383,14 @@ const updateInvoice = async (req, res, next) => {
             project_id: invoice.project_id,
             isDeleted: false,
             _id: { $ne: invoice._id },
+            status: { $ne: "cancelled" },
           },
         },
-        { $group: { _id: null, total: { $sum: "$total_amount" } } },
+        { $group: { _id: null, total: { $sum: "$subtotal" } } },
       ]);
       const currentTotal = existingInvoices[0]?.total || 0;
 
-      if (currentTotal + total_amount > project.total_amount) {
+      if (currentTotal + subtotal > project.total_amount) {
         return res.status(400).json({
           success: false,
           error: `Project budget exceeded. Remaining budget: ${

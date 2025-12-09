@@ -79,7 +79,35 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     return paymentAmount;
   }, [payments, invoices]);
 
-  const dueAmount = project.total_amount - paidAmount;
+  const { calculatedTotal, totalLabel } = React.useMemo(() => {
+    let total = project.total_amount || 0;
+    let label = "Total Value";
+
+    if (
+      project.project_type === "hourly_billing" &&
+      project.hourly_rate &&
+      project.estimated_hours
+    ) {
+      total = project.hourly_rate * project.estimated_hours;
+      label = `Est. Value (${project.estimated_hours}h x ${project.hourly_rate})`;
+    } else if (
+      project.project_type === "monthly_retainer" &&
+      project.monthly_fee &&
+      project.contract_length
+    ) {
+      total = project.monthly_fee * project.contract_length;
+      label = `Contract Value (${project.contract_length}mo x ${project.monthly_fee})`;
+    }
+
+    return { calculatedTotal: total, totalLabel: label };
+  }, [project]);
+
+  const progress =
+    calculatedTotal > 0
+      ? Math.min((paidAmount / calculatedTotal) * 100, 100)
+      : 0;
+
+  const dueAmount = calculatedTotal - paidAmount;
 
   const TabButton: React.FC<{
     tabName: "details" | "invoices";
@@ -119,10 +147,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <GlassCard className="!p-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">
-            Total Value
+            {totalLabel}
           </div>
           <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-            {formatCurrency(project.total_amount, project.currency)}
+            {formatCurrency(calculatedTotal, project.currency)}
           </div>
         </GlassCard>
         <GlassCard className="!p-4">
@@ -142,6 +170,35 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           </div>
         </GlassCard>
       </div>
+
+      {/* Progress Bar */}
+      <GlassCard className="!p-6">
+        <div className="flex justify-between items-end mb-2">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              Payment Progress
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {project.project_type === "hourly_billing"
+                ? "Based on estimated hours"
+                : project.project_type === "monthly_retainer"
+                ? "Based on contract length"
+                : "Based on fixed contract value"}
+            </p>
+          </div>
+          <div className="text-right">
+            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {Math.round(progress)}%
+            </span>
+          </div>
+        </div>
+        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
+          <div
+            className="bg-blue-600 h-3 rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </GlassCard>
 
       {/* Tabbed Content */}
       <GlassCard>
@@ -245,7 +302,9 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                 <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
                   <tr>
                     <th className="px-6 py-3 whitespace-nowrap">Invoice #</th>
-                    <th className="px-6 py-3 whitespace-nowrap">Amount</th>
+                    <th className="px-6 py-3 whitespace-nowrap">
+                      Total Amount
+                    </th>
                     <th className="px-6 py-3 whitespace-nowrap">Due Date</th>
                     <th className="px-6 py-3 whitespace-nowrap">Status</th>
                     <th className="px-6 py-3 text-right whitespace-nowrap">
@@ -263,7 +322,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         {invoice.invoice_number}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                        {formatCurrency(invoice.amount, invoice.currency)}
+                        {formatCurrency(
+                          invoice.total_amount || invoice.amount,
+                          invoice.currency
+                        )}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(invoice.due_date)}

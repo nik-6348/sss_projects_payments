@@ -94,15 +94,33 @@ export const calculateProjectStats = (
     .reduce((sum, i) => sum + i.amount, 0);
 
   const paidAmount = paidFromPayments + paidFromInvoices;
-  const dueAmount = project.total_amount - paidAmount;
+  // Calculate effective total based on project type
+  let calculatedTotal = project.total_amount || 0;
+
+  if (
+    project.project_type === "hourly_billing" &&
+    project.hourly_rate &&
+    project.estimated_hours
+  ) {
+    calculatedTotal = project.hourly_rate * project.estimated_hours;
+  } else if (
+    project.project_type === "monthly_retainer" &&
+    project.monthly_fee &&
+    project.contract_length
+  ) {
+    calculatedTotal = project.monthly_fee * project.contract_length;
+  }
+
+  const dueAmount = calculatedTotal - paidAmount;
   const progress =
-    project.total_amount > 0 ? (paidAmount / project.total_amount) * 100 : 0;
+    calculatedTotal > 0 ? (paidAmount / calculatedTotal) * 100 : 0;
 
   return {
     ...project,
     paidAmount,
     dueAmount,
     progress: Math.round(progress * 100) / 100,
+    calculatedTotal,
   };
 };
 

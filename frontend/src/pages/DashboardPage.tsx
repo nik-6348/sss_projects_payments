@@ -327,7 +327,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                       Total:
                     </span>
                     <span className="font-bold text-slate-800 dark:text-white">
-                      {formatCurrency(project.total_amount)}
+                      {formatCurrency(projectStats.calculatedTotal)}
                     </span>
                   </div>
                 </div>

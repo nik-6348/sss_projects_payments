@@ -34,7 +34,7 @@ const PaymentForm: React.FC<{
           project_id:
             typeof invoice.project_id === "string"
               ? invoice.project_id
-              : invoice.project_id.id,
+              : (invoice.project_id as any)._id || invoice.project_id.id,
           invoice_id: invoice.id,
           amount: invoice.amount,
           currency: invoice.currency || "INR",
@@ -122,9 +122,9 @@ const PaymentForm: React.FC<{
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Total Amount
             </label>
-            <div className="px-4 py-2 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300">
+            <div className="px-4 py-2 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 font-bold">
               {invoice.currency === "USD" ? "$" : "₹"}
-              {invoice.amount.toLocaleString()}
+              {(invoice.total_amount || invoice.amount).toLocaleString()}
             </div>
           </div>
         </div>
@@ -150,6 +150,45 @@ const PaymentForm: React.FC<{
             onChange={handleChange}
             required
           />
+        </div>
+
+        {/* Remaining Balance Display */}
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-slate-600 dark:text-slate-400">
+              Current Due:
+            </span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200">
+              {invoice.currency === "USD" ? "$" : "₹"}
+              {(
+                (invoice.total_amount || invoice.amount) -
+                (invoice.paid_amount || 0)
+              ).toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between items-center mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+            <span className="text-blue-700 dark:text-blue-300 font-medium">
+              Remaining after Payment:
+            </span>
+            <span
+              className={`text-lg font-bold ${
+                (invoice.total_amount || invoice.amount) -
+                  (invoice.paid_amount || 0) -
+                  Number(formData.amount) <
+                0
+                  ? "text-red-600"
+                  : "text-blue-700 dark:text-blue-400"
+              }`}
+            >
+              {invoice.currency === "USD" ? "$" : "₹"}
+              {Math.max(
+                0,
+                (invoice.total_amount || invoice.amount) -
+                  (invoice.paid_amount || 0) -
+                  Number(formData.amount)
+              ).toLocaleString()}
+            </span>
+          </div>
         </div>
         <FormInput
           label="Payment Date"

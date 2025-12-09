@@ -827,6 +827,9 @@ function AppContent() {
   const handlePaymentSuccess = () => {
     fetchInvoices();
     fetchProjects(); // Update project stats
+    if (currentView.view === "projectDetail") {
+      fetchProjectDetails();
+    }
     // Also update payments list if we have it
     const fetchPayments = async () => {
       const response = await apiClient.getPayments();
@@ -968,11 +971,10 @@ function AppContent() {
           setInvoices(
             invoices.map((i) => (i.id === invoiceId ? updatedInvoice : i))
           );
-          setProjectInvoices(
-            projectInvoices.map((i) =>
-              i.id === invoiceId ? updatedInvoice : i
-            )
-          );
+          // If in Project Detail View, refresh everything to update stats
+          if (currentView.view === "projectDetail") {
+            fetchProjectDetails();
+          }
           toast.success("Invoice updated successfully!");
         }
       } else {
@@ -1003,17 +1005,9 @@ function AppContent() {
             custom_payment_details: responseData.custom_payment_details,
           };
           setInvoices([...invoices, newInvoice]);
-          if (
-            currentView.view === "projectDetail" &&
-            currentView.id === newInvoice.project_id
-          ) {
-            setProjectInvoices([...projectInvoices, newInvoice]);
-          } else if (
-            currentView.view === "projectDetail" &&
-            typeof newInvoice.project_id === "object" &&
-            (newInvoice.project_id as any)._id === currentView.id
-          ) {
-            setProjectInvoices([...projectInvoices, newInvoice]);
+          // If in Project Detail View, refresh everything to update stats and list
+          if (currentView.view === "projectDetail") {
+            fetchProjectDetails();
           }
           toast.success("Invoice created successfully!");
         }
