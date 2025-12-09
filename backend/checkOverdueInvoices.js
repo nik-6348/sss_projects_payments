@@ -6,28 +6,26 @@ import dotenv from "dotenv";
 import Invoice from "./models/Invoice.js";
 import { sendInvoiceStatusEmail } from "./controllers/emailController.js";
 
-dotenv.config();
-
-const MONGODB_URI =
-  process.env.MONGODB_URI || "mongodb://localhost:27017/sss_projects";
-
-async function checkOverdueInvoices() {
+export async function checkOverdueInvoices() {
   try {
-    await mongoose.connect(MONGODB_URI);
-    console.log("Connected to MongoDB");
     console.log(`Checking for overdue invoices at ${new Date().toISOString()}`);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     // Find invoices that are due and should be marked as overdue
+    // Logic: Status is 'sent', due_date < today, and not already overdue or paid
     const overdueInvoices = await Invoice.find({
       status: "sent",
       due_date: { $lt: today },
       isDeleted: false,
     });
 
-    console.log(`Found ${overdueInvoices.length} overdue invoices`);
+    console.log(
+      `Found ${
+        overdueInvoices.length
+      } overdue invoices at ${today.toISOString()}`
+    );
 
     for (const invoice of overdueInvoices) {
       try {
@@ -64,9 +62,5 @@ async function checkOverdueInvoices() {
     console.log("Overdue check complete");
   } catch (error) {
     console.error("Error checking overdue invoices:", error);
-  } finally {
-    await mongoose.disconnect();
   }
 }
-
-checkOverdueInvoices();

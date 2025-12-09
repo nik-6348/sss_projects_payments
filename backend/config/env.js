@@ -14,5 +14,9 @@ export default {
   JWT_REFRESH_EXPIRE: "7d",
   JWT_COOKIE_EXPIRE: "1d",
 
+  // WhatsApp Meta
+  WA_PHONE_NUMBER_ID: process.env.WA_PHONE_NUMBER_ID,
+  WA_ACCESS_TOKEN: process.env.WA_ACCESS_TOKEN,
+
   NODE_ENV: "development",
 };

@@ -224,7 +224,7 @@ export const sendInvoiceStatusEmail = async (invoiceId, status) => {
         path: "project_id",
         populate: {
           path: "client_id",
-          select: "name email",
+          // Removed select to ensure we get all email fields (finance_email, etc)
         },
       })
       .populate("bank_account_id");

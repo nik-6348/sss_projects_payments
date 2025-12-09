@@ -776,6 +776,17 @@ class ApiClient {
     return response.data;
   }
 
+  async sendWhatsAppMessage(
+    id: string,
+    data: { to: string }
+  ): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.post(
+      `/whatsapp/send-invoice/${id}`,
+      data
+    );
+    return response.data;
+  }
+
   // Utility method to handle API errors
   handleError(error: AxiosError): string {
     if (

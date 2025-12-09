@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cron from "node-cron";
 import projectRoutes from "./routes/projectRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
@@ -15,9 +16,23 @@ import teamRoutes from "./routes/teamRoutes.js";
 import connectDB from "./config/database.js";
 import errorHandler from "./middleware/errorHandler.js";
 import env from "./config/env.js";
+import { checkOverdueInvoices } from "./checkOverdueInvoices.js";
 
 const app = express();
 const PORT = env.PORT || 5000;
+
+// Schedule Overdue Invoice Check: Runs every day at 10:00 AM
+cron.schedule(
+  "0 10 * * *",
+  () => {
+    console.log("Running scheduled overdue invoice check...");
+    checkOverdueInvoices();
+  },
+  {
+    scheduled: true,
+    timezone: "Asia/Kolkata",
+  }
+);
 
 // Security middleware
 app.use(helmet());
@@ -70,6 +85,7 @@ if (env.NODE_ENV !== "production") {
 }
 
 import emailRoutes from "./routes/emailRoutes.js";
+import whatsappRoutes from "./routes/whatsappRoutes.js";
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -83,6 +99,7 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/bank-accounts", bankDetailsRoutes);
 app.use("/api/team", teamRoutes);
 app.use("/api/email", emailRoutes);
+app.use("/api/whatsapp", whatsappRoutes);
 
 // Health check endpoint
 app.get("/", (req, res) => {

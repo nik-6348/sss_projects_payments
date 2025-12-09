@@ -1,18 +1,9 @@
-import React, { useState, useEffect } from "react";
-import {
-  X,
-  Mail,
-  MessageCircle,
-  Send,
-  Eye,
-  EyeOff,
-  Paperclip,
-  Plus,
-} from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Mail, MessageCircle, Send, Paperclip, Plus } from "lucide-react";
 import { toast } from "react-toastify";
 import apiClient from "../../utils/api";
 import { PrimaryButton } from "../ui";
-import { FormInput, FormTextarea } from "../forms";
+import { FormInput } from "../forms";
 import { generateEmailPreview } from "../../utils/emailPreview";
 import { emailTemplates } from "../../config/emailTemplates";
 
@@ -31,18 +22,65 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
 }) => {
   const [method, setMethod] = useState<"email" | "whatsapp">("email");
   const [loading, setLoading] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [formData, setFormData] = useState({
     to: "",
     subject: "",
     body: "",
   });
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [ccList, setCcList] = useState<string[]>([]);
   const [bccList, setBccList] = useState<string[]>([]);
   const [newCc, setNewCc] = useState("");
   const [newBcc, setNewBcc] = useState("");
   const [attachInvoice, setAttachInvoice] = useState(true);
   const [companyDetails, setCompanyDetails] = useState<any>({});
+
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const isInternalUpdate = useRef(false);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const fullHtml = generateEmailPreview(formData.body, companyDetails);
+
+    // Check if content is already initialized
+    const contentDiv = doc.querySelector(".content");
+
+    if (!contentDiv) {
+      doc.open();
+      doc.write(fullHtml);
+      doc.close();
+
+      const newContentDiv = doc.querySelector(".content");
+      if (newContentDiv) {
+        newContentDiv.setAttribute("contenteditable", "true");
+        (newContentDiv as HTMLElement).style.outline = "none";
+
+        newContentDiv.addEventListener("input", (e: any) => {
+          isInternalUpdate.current = true;
+          setFormData((prev) => ({ ...prev, body: e.target.innerHTML }));
+        });
+      }
+    } else {
+      // Update content if not triggered by internal edit
+      if (!isInternalUpdate.current) {
+        const formatted =
+          formData.body.trim().startsWith("<") || formData.body.includes("<br")
+            ? formData.body
+            : formData.body.replace(/\n/g, "<br>");
+
+        if (contentDiv.innerHTML !== formatted) {
+          contentDiv.innerHTML = formatted;
+        }
+      } else {
+        isInternalUpdate.current = false;
+      }
+    }
+  }, [formData.body, companyDetails]);
 
   useEffect(() => {
     if (isOpen && invoice) {
@@ -57,30 +95,60 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
       const settings = settingsResponse.data || {};
 
       let clientEmail = "";
-      const project = invoice.project_id;
+      let clientId = "";
 
-      // Determine client email
-      if (
-        project &&
-        typeof project === "object" &&
-        project.client_id &&
-        typeof project.client_id === "object" &&
-        "email" in project.client_id
-      ) {
-        clientEmail = (project.client_id as any).email;
-      } else {
+      // Extract Client ID safely
+      if (invoice.project_id) {
+        if (
+          typeof invoice.project_id === "object" &&
+          invoice.project_id.client_id
+        ) {
+          const cid = invoice.project_id.client_id;
+          clientId = typeof cid === "object" ? cid._id || cid.id : cid;
+        } else if (typeof invoice.project_id === "string") {
+          // If project_id is string, we might need to fetch project first,
+          // but usually invoice from list has object.
+          // Let's try to get it from invoice detail if missing
+        }
+      }
+
+      // If we don't have a reliable client ID yet, fetch the full invoice to be sure
+      if (!clientId) {
         const invoiceDetails = await apiClient.getInvoice(
           invoice.id || invoice._id
         );
-        if (
-          invoiceDetails.success &&
-          (invoiceDetails.data?.project_id as any)?.client_id
-        ) {
-          const client = (invoiceDetails.data?.project_id as any)?.client_id;
-          clientEmail =
-            client && typeof client === "object" && "email" in client
-              ? client.email
-              : "";
+        if (invoiceDetails.success && invoiceDetails.data) {
+          const proj = invoiceDetails.data.project_id as any;
+          if (proj && proj.client_id) {
+            clientId =
+              typeof proj.client_id === "object"
+                ? proj.client_id._id
+                : proj.client_id;
+          }
+        }
+      }
+
+      // Now fetch full client details if we have an ID
+      if (clientId) {
+        try {
+          const clientResponse = await apiClient.getClient(clientId);
+          if (clientResponse.success && clientResponse.data) {
+            const client = clientResponse.data;
+
+            // Email Priority: Finance > Business > Default
+            clientEmail =
+              client.finance_email ||
+              client.business_email ||
+              client.email ||
+              "";
+
+            // Phone
+            if (client.phone) {
+              setPhoneNumber(client.phone);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching client details:", err);
         }
       }
 
@@ -202,13 +270,25 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (method === "whatsapp") {
-      toast.info("WhatsApp integration coming soon!");
-      return;
-    }
 
     try {
       setLoading(true);
+
+      if (method === "whatsapp") {
+        const response = await apiClient.sendWhatsAppMessage(
+          invoice.id || invoice._id,
+          { to: phoneNumber }
+        );
+        if (response.success) {
+          toast.success("WhatsApp message sent successfully!");
+          if (onSuccess) onSuccess();
+          onClose();
+        } else {
+          toast.error(response.error || "Failed to send WhatsApp message");
+        }
+        return;
+      }
+
       const payload = {
         ...formData,
         cc: ccList.join(", "),
@@ -280,7 +360,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
               <MessageCircle className="h-5 w-5" />
               <div className="flex flex-col items-start">
                 <span className="font-semibold">WhatsApp</span>
-                <span className="text-xs opacity-70">Coming Soon</span>
+                <span className="text-xs opacity-70">Meta Business API</span>
               </div>
             </button>
           </div>
@@ -406,47 +486,17 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Message Body
+                    Message Preview
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowPreview(!showPreview)}
-                    className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    {showPreview ? (
-                      <>
-                        <EyeOff className="h-3 w-3" /> Hide Preview
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="h-3 w-3" /> Show Preview
-                      </>
-                    )}
-                  </button>
                 </div>
 
-                {showPreview ? (
-                  <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden h-[400px] bg-white">
-                    <iframe
-                      srcDoc={generateEmailPreview(
-                        formData.body,
-                        companyDetails
-                      )}
-                      title="Email Preview"
-                      className="w-full h-full border-0"
-                    />
-                  </div>
-                ) : (
-                  <FormTextarea
-                    name="body"
-                    value={formData.body}
-                    onChange={(e) =>
-                      setFormData({ ...formData, body: e.target.value })
-                    }
-                    rows={8}
-                    required
+                <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden h-[400px] bg-white">
+                  <iframe
+                    ref={iframeRef}
+                    title="Email Preview"
+                    className="w-full h-full border-0"
                   />
-                )}
+                </div>
               </div>
 
               <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-3 rounded-lg">
@@ -467,6 +517,34 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
               </div>
             </form>
           )}
+
+          {method === "whatsapp" && (
+            <form
+              id="send-invoice-whatsapp-form"
+              onSubmit={handleSubmit}
+              className="space-y-4"
+            >
+              <FormInput
+                label="WhatsApp Number"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                required
+                placeholder="e.g. 919876543210"
+              />
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-700 dark:text-blue-300">
+                <p className="font-semibold mb-1">Note:</p>
+                <p>
+                  This will send a templated WhatsApp message to the client with
+                  the invoice details and a link to view/download it.
+                </p>
+                <p className="mt-2 text-xs opacity-80">
+                  Ensure the phone number includes the country code without '+'
+                  (e.g., 91 for India).
+                </p>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Footer */}
@@ -478,20 +556,26 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
           >
             Cancel
           </button>
-          <PrimaryButton
-            type="submit"
-            form="send-invoice-form"
-            disabled={loading || method === "whatsapp"}
-          >
-            {loading ? (
-              "Sending..."
-            ) : (
-              <div className="flex items-center gap-2">
-                <Send className="h-4 w-4" />
-                Send Invoice
-              </div>
-            )}
-          </PrimaryButton>
+          {invoice.status === "draft" && (
+            <PrimaryButton
+              type="submit"
+              form={
+                method === "email"
+                  ? "send-invoice-form"
+                  : "send-invoice-whatsapp-form"
+              }
+              disabled={loading}
+            >
+              {loading ? (
+                "Sending..."
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Send className="h-4 w-4" />
+                  Send Invoice
+                </div>
+              )}
+            </PrimaryButton>
+          )}
         </div>
       </div>
     </div>
