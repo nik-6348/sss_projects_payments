@@ -176,11 +176,6 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
 
       <GlassCard>
         <div className="overflow-x-auto relative min-h-[400px]">
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/50 dark:bg-slate-800/50 z-10 flex items-center justify-center backdrop-blur-sm">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          )}
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
               <tr>
@@ -194,7 +189,37 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
               </tr>
             </thead>
             <tbody>
-              {invoices.length === 0 ? (
+              {isLoading ? (
+                // Skeleton Loader
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr
+                    key={`skeleton-${index}`}
+                    className="border-b border-white/10 dark:border-slate-600/10 animate-pulse"
+                  >
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-20"></div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="h-8 w-8 bg-slate-200 dark:bg-slate-700 rounded-full inline-block"></div>
+                    </td>
+                  </tr>
+                ))
+              ) : invoices.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}

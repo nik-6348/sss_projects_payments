@@ -57,7 +57,11 @@ export const wrapEmailBody = (content, companyDetails = {}) => {
     <div class="footer">
       <p>&copy; ${new Date().getFullYear()} ${name}. All rights reserved.</p>
       ${address ? `<p>${address}</p>` : ""}
-      ${website ? `<p><a href="${website}">${website}</a></p>` : ""}
+      ${
+        website && website !== "#"
+          ? `<p><a href="${website}" target="_blank">${website}</a></p>`
+          : ""
+      }
     </div>
   </div>
 </body>
