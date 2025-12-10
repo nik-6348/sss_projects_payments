@@ -15,8 +15,6 @@ import { toast } from "react-toastify";
 import apiClient from "../utils/api";
 import { GlassCard, PrimaryButton, ConfirmationModal } from "../components/ui";
 import { FormInput, FormSelect, FormTextarea } from "../components/forms";
-import { generateEmailPreview } from "../utils/emailPreview";
-import emailTemplatesConfig from "../config/emailTemplates";
 
 interface SettingsPageProps {
   // No props needed for now
@@ -430,21 +428,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       toast.error(apiClient.handleError(error));
     } finally {
       setSendingTestEmail(false);
-    }
-  };
-
-  const getTemplateLabel = (key: string) => {
-    switch (key) {
-      case "invoice_default":
-        return "Invoice Sending (Default)";
-      case "payment_receipt":
-        return "Payment Receipt";
-      case "invoice_overdue":
-        return "Overdue Reminder";
-      case "invoice_cancelled":
-        return "Cancellation Notice";
-      default:
-        return key;
     }
   };
 
