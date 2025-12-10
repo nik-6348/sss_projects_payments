@@ -1,129 +1,195 @@
 // Email templates for invoice status notifications
 // Matches backend/config/emailTemplates.js
 
+// Template wrapper for consistent design
+const wrapEmail = (
+  title: string,
+  content: string,
+  color: string = "#2563eb"
+) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #334155; line-height: 1.6;">
+  <!-- Main Container -->
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    
+    <!-- Card -->
+    <div style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); overflow: hidden;">
+      
+      <!-- Header -->
+      <div style="background-color: ${color}; padding: 32px 40px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.5px;">${title}</h1>
+      </div>
+
+      <!-- Content -->
+      <div style="padding: 40px;">
+        ${content}
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #f8fafc; padding: 24px 40px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 13px; color: #64748b;">
+        <p style="margin: 0 0 8px 0;">This is an automated message from <strong>{company_name}</strong></p>
+        <p style="margin: 0;">&copy; ${new Date().getFullYear()} {company_name}. All rights reserved.</p>
+      </div>
+    </div>
+
+    <!-- Powered By -->
+    <div style="text-align: center; margin-top: 24px; font-size: 12px; color: #94a3b8;">
+      <p style="margin: 0;">Sent via Payment System</p>
+    </div>
+  </div>
+</body>
+</html>
+`;
+
 export const emailTemplates = {
   invoice_default: {
     subject: "Invoice {invoice_number} from {company_name}",
-    body: `
-      <p>Dear {client_name},</p>
-      <p>Please find attached the invoice {invoice_number} from {company_name}.</p>
+    body: wrapEmail(
+      "Invoice Details",
+      `
+      <p style="font-size: 16px; margin-bottom: 24px;">Dear <strong>{client_name}</strong>,</p>
+      <p style="margin-bottom: 24px;">Please find attached the invoice <strong>{invoice_number}</strong> from {company_name}. We appreciate your business.</p>
       
-      <div class="details">
-        <div class="details-row">
-          <span><strong>Invoice Number:</strong></span>
-          <span>{invoice_number}</span>
+      <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #e2e8f0;">
+        <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; color: #64748b; letter-spacing: 1px;">Summary</h3>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+          <span style="color: #64748b;">Invoice Number</span>
+          <span style="font-weight: 600; color: #334155;">{invoice_number}</span>
         </div>
-        <div class="details-row">
-          <span><strong>Amount:</strong></span>
-          <span>{amount}</span>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+          <span style="color: #64748b;">Due Date</span>
+          <span style="font-weight: 600; color: #334155;">{due_date}</span>
         </div>
-        <div class="details-row">
-          <span><strong>Due Date:</strong></span>
-          <span>{due_date}</span>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px;">
+          <span style="color: #64748b;">Total Amount</span>
+          <span style="font-size: 20px; font-weight: 700; color: #2563eb;">{amount}</span>
         </div>
       </div>
 
-      <p>We appreciate your business.</p>
-      <p>Regards,<br><strong>{company_name}</strong></p>
-    `,
+      <p style="margin-bottom: 0;">If you have any questions, please reply to this email.</p>
+      <p style="margin-top: 8px;">Regards,<br><strong>{company_name}</strong></p>
+      `,
+      "#2563eb" // Blue
+    ),
   },
 
   cancelled: {
-    subject: "Invoice {invoice_number} Has Been Cancelled",
-    body: `
-      <p>Dear {client_name},</p>
-      <p>We would like to inform you that your invoice has been <span class="status-badge" style="display: inline-block; background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9em;">Cancelled</span>.</p>
+    subject: "Invoice {invoice_number} Cancelled",
+    body: wrapEmail(
+      "Invoice Cancelled",
+      `
+      <p style="font-size: 16px; margin-bottom: 24px;">Dear <strong>{client_name}</strong>,</p>
+      <p style="margin-bottom: 24px;">We would like to inform you that invoice <strong>{invoice_number}</strong> has been cancelled.</p>
       
-      <p><strong>Reason for Cancellation:</strong> {deletion_remark}</p>
+      <div style="background-color: #fef2f2; border-radius: 8px; padding: 16px; margin-bottom: 24px; border-left: 4px solid #ef4444;">
+        <p style="margin: 0; color: #b91c1c; font-weight: 500;">Reason: {deletion_remark}</p>
+      </div>
 
-      <div class="details">
-        <div class="details-row">
-          <span><strong>Invoice Number:</strong></span>
-          <span>{invoice_number}</span>
+      <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #e2e8f0;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
+          <span style="color: #64748b;">Invoice Number</span>
+          <span style="font-weight: 600;">{invoice_number}</span>
         </div>
-        <div class="details-row">
-          <span><strong>Project:</strong></span>
-          <span>{project_name}</span>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
+          <span style="color: #64748b;">Project</span>
+          <span style="font-weight: 600;">{project_name}</span>
         </div>
-        <div class="details-row">
-          <span><strong>Amount:</strong></span>
-          <span>{amount}</span>
+         <div style="display: flex; justify-content: space-between;">
+          <span style="color: #64748b;">Amount</span>
+          <span style="font-weight: 600; color: #94a3b8; text-decoration: line-through;">{amount}</span>
         </div>
       </div>
       
-      <p>If you have any questions regarding this cancellation, please don't hesitate to contact us.</p>
-      <p>Best regards,<br><strong>{company_name}</strong></p>
-    `,
+      <p style="margin-bottom: 0;">If you have any questions, please contact us.</p>
+       <p style="margin-top: 8px;">Regards,<br><strong>{company_name}</strong></p>
+      `,
+      "#ef4444" // Red
+    ),
   },
 
   overdue: {
-    subject: "Reminder: Invoice {invoice_number} is Overdue",
-    body: `
-      <p>Dear {client_name},</p>
+    subject: "Action Required: Details for Invoice {invoice_number}",
+    body: wrapEmail(
+      "Payment Reminder",
+      `
+      <p style="font-size: 16px; margin-bottom: 24px;">Dear <strong>{client_name}</strong>,</p>
+      <p style="margin-bottom: 24px;">This is a friendly reminder that invoice <strong>{invoice_number}</strong> is now overdue. We kindly request you to process the payment as soon as possible.</p>
       
-      <div class="urgent" style="background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
-        <strong>⚠️ Important:</strong> Your invoice is now <span class="status-badge" style="display: inline-block; background: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9em;">Overdue</span>
+      <div style="background-color: #fff7ed; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #ffedd5;">
+         <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; color: #9a3412; letter-spacing: 1px;">Invoice Details</h3>
+         
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #fed7aa;">
+          <span style="color: #9a3412;">Invoice Number</span>
+          <span style="font-weight: 600; color: #431407;">{invoice_number}</span>
+        </div>
+        
+         <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #fed7aa;">
+          <span style="color: #9a3412;">Project</span>
+          <span style="font-weight: 600; color: #431407;">{project_name}</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #fed7aa;">
+          <span style="color: #9a3412;">Due Date</span>
+          <span style="font-weight: 600; color: #c2410c;">{due_date}</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px;">
+          <span style="color: #9a3412;">Amount Due</span>
+          <span style="font-size: 20px; font-weight: 700; color: #ea580c;">{amount}</span>
+        </div>
       </div>
       
-      <p>This is a friendly reminder that payment for the following invoice is past due. Please arrange payment at your earliest convenience to avoid any service interruptions.</p>
-      
-      <div class="details">
-        <div class="details-row">
-          <span><strong>Invoice Number:</strong></span>
-          <span>{invoice_number}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Project:</strong></span>
-          <span>{project_name}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Amount Due:</strong></span>
-          <span style="color: #dc2626; font-weight: bold;">{amount}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Due Date:</strong></span>
-          <span style="color: #dc2626;">{due_date}</span>
-        </div>
-      </div>
-      
-      <p>If you have already made this payment, please disregard this notice.</p>
-      <p>Best regards,<br><strong>{company_name}</strong></p>
-    `,
+      <p style="margin-bottom: 0;">If you have already made this payment, please disregard this notice.</p>
+      <p style="margin-top: 8px;">Regards,<br><strong>{company_name}</strong></p>
+      `,
+      "#f97316" // Orange
+    ),
   },
 
   paid: {
-    subject: "Payment Received - Invoice {invoice_number}",
-    body: `
-      <p>Dear {client_name},</p>
-      
-      <div class="success" style="background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-        <strong>🎉 Thank you!</strong> We have received your payment for invoice <span class="status-badge" style="display: inline-block; background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9em;">PAID</span>
+    subject: "Payment Received: Invoice {invoice_number}",
+    body: wrapEmail(
+      "Payment Receipt",
+      `
+      <p style="font-size: 16px; margin-bottom: 24px;">Dear <strong>{client_name}</strong>,</p>
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="display: inline-block; background-color: #dcfce7; color: #15803d; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 14px;">PASID IN FULL</span>
       </div>
+      <p style="margin-bottom: 24px; text-align: center;">Thank you! We have received your payment for invoice <strong>{invoice_number}</strong>.</p>
       
-      <p>This email confirms that your payment has been successfully processed.</p>
-      
-      <div class="details">
-        <div class="details-row">
-          <span><strong>Invoice Number:</strong></span>
-          <span>{invoice_number}</span>
+      <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #e2e8f0;">
+        <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; color: #64748b; letter-spacing: 1px;">Transaction Details</h3>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+          <span style="color: #64748b;">Invoice Number</span>
+          <span style="font-weight: 600; color: #334155;">{invoice_number}</span>
         </div>
-        <div class="details-row">
-          <span><strong>Project:</strong></span>
-          <span>{project_name}</span>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+          <span style="color: #64748b;">Payment Date</span>
+          <span style="font-weight: 600; color: #334155;">{paid_date}</span>
         </div>
-        <div class="details-row">
-          <span><strong>Amount Paid:</strong></span>
-          <span style="color: #059669; font-weight: bold;">{amount}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Payment Date:</strong></span>
-          <span>{paid_date}</span>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px;">
+          <span style="color: #64748b;">Amount Paid</span>
+          <span style="font-size: 20px; font-weight: 700; color: #16a34a;">{amount}</span>
         </div>
       </div>
-      
-      <p>We appreciate your prompt payment and continued business.</p>
-      <p>Best regards,<br><strong>{company_name}</strong></p>
-    `,
+
+      <p style="margin-bottom: 0;">We appreciate your prompt payment.</p>
+      <p style="margin-top: 8px;">Regards,<br><strong>{company_name}</strong></p>
+      `,
+      "#10b981" // Green
+    ),
   },
 };
 

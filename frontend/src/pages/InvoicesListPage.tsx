@@ -181,7 +181,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
               <tr>
                 <th className="px-6 py-3">Invoice #</th>
                 <th className="px-6 py-3">Project</th>
-                <th className="px-6 py-3">Total Amount</th>
+                <th className="px-6 py-3">Amount</th>
                 <th className="px-6 py-3">Issue Date</th>
                 <th className="px-6 py-3">Due Date</th>
                 <th className="px-6 py-3">Status</th>
@@ -256,10 +256,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                         {project?.name || "N/A"}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                        {formatCurrency(
-                          invoice.total_amount || invoice.amount,
-                          invoice.currency
-                        )}
+                        {formatCurrency(invoice.amount, invoice.currency)}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(invoice.issue_date)}

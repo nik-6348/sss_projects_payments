@@ -27,6 +27,7 @@ const ClientForm: React.FC<ClientFormProps> = ({
       country: initialData?.address?.country || "India",
     },
     gst_number: initialData?.gst_number || "",
+    pan_number: initialData?.pan_number || "",
     // Additional email contacts
     business_email: initialData?.business_email || "",
     finance_email: initialData?.finance_email || "",
@@ -139,16 +140,28 @@ const ClientForm: React.FC<ClientFormProps> = ({
             })
           }
         />
-        <FormInput
-          label="GST Number"
-          value={formData.gst_number}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              gst_number: e.target.value.toUpperCase(),
-            })
-          }
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormInput
+            label="GST Number"
+            value={formData.gst_number}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                gst_number: e.target.value.toUpperCase(),
+              })
+            }
+          />
+          <FormInput
+            label="PAN Number"
+            value={formData.pan_number}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                pan_number: e.target.value.toUpperCase(),
+              })
+            }
+          />
+        </div>
       </div>
       <div className="flex gap-4">
         <PrimaryButton type="submit" loading={loading}>

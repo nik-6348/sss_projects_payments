@@ -399,6 +399,15 @@ class ApiClient {
     return response.data;
   }
 
+  async updateTeamMember(
+    id: string,
+    userData: any
+  ): Promise<ApiResponse<User>> {
+    const response: AxiosResponse<ApiResponse<User>> =
+      await this.axiosInstance.put(`/team/${id}`, userData);
+    return response.data;
+  }
+
   async getSettings(): Promise<ApiResponse<any>> {
     const response: AxiosResponse<ApiResponse<any>> =
       await this.axiosInstance.get("/settings");

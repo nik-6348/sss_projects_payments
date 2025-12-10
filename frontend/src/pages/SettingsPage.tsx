@@ -82,6 +82,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     password: "",
     role: "employee",
   });
+  const [editingMember, setEditingMember] = React.useState<any>(null);
   const [showAddMemberModal, setShowAddMemberModal] = React.useState(false);
   const [deleteMemberModal, setDeleteMemberModal] = React.useState<{
     isOpen: boolean;
@@ -256,18 +257,39 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     }
   };
 
-  const handleAddMember = async (e: React.FormEvent) => {
+  const handleSaveMember = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
-      const response = await apiClient.createTeamMember(newMember);
+
+      const memberData = { ...newMember };
+      if (editingMember && !memberData.password) {
+        delete (memberData as any).password;
+      }
+
+      let response;
+      if (editingMember) {
+        response = await apiClient.updateTeamMember(
+          editingMember._id,
+          memberData
+        );
+      } else {
+        response = await apiClient.createTeamMember(memberData);
+      }
+
       if (response.success) {
-        toast.success("Team member added successfully!");
+        toast.success(
+          `Team member ${editingMember ? "updated" : "added"} successfully!`
+        );
         setShowAddMemberModal(false);
         setNewMember({ name: "", email: "", password: "", role: "employee" });
+        setEditingMember(null);
         fetchTeamMembers();
       } else {
-        toast.error(response.error || "Failed to add team member");
+        toast.error(
+          response.error ||
+            `Failed to ${editingMember ? "update" : "add"} team member`
+        );
       }
     } catch (error: any) {
       toast.error(apiClient.handleError(error));
@@ -371,6 +393,17 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       swiftCode: bank.swiftCode || "",
     });
     setShowBankModal(true);
+  };
+
+  const openEditMemberModal = (member: any) => {
+    setEditingMember(member);
+    setNewMember({
+      name: member.name,
+      email: member.email,
+      password: "", // Don't populate password
+      role: member.role,
+    });
+    setShowAddMemberModal(true);
   };
 
   const handleSendTestEmail = async (e?: React.FormEvent) => {
@@ -674,7 +707,18 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
                 Team Members
               </h3>
-              <PrimaryButton onClick={() => setShowAddMemberModal(true)}>
+              <PrimaryButton
+                onClick={() => {
+                  setEditingMember(null);
+                  setNewMember({
+                    name: "",
+                    email: "",
+                    password: "",
+                    role: "employee",
+                  });
+                  setShowAddMemberModal(true);
+                }}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Member
               </PrimaryButton>
@@ -720,18 +764,28 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() =>
-                              setDeleteMemberModal({
-                                isOpen: true,
-                                memberId: member._id,
-                                memberName: member.name,
-                              })
-                            }
-                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => openEditMemberModal(member)}
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                              title="Edit Member"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                setDeleteMemberModal({
+                                  isOpen: true,
+                                  memberId: member._id,
+                                  memberName: member.name,
+                                })
+                              }
+                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                              title="Delete Member"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1098,10 +1152,10 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-slate-200 dark:border-slate-700">
               <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                Add Team Member
+                {editingMember ? "Edit Team Member" : "Add Team Member"}
               </h3>
             </div>
-            <form onSubmit={handleAddMember} className="p-6 space-y-4">
+            <form onSubmit={handleSaveMember} className="p-6 space-y-4">
               <FormInput
                 label="Name"
                 value={newMember.name}
@@ -1120,13 +1174,17 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                 required
               />
               <FormInput
-                label="Password"
+                label={
+                  editingMember
+                    ? "New Password (leave blank to keep current)"
+                    : "Password"
+                }
                 type="password"
                 value={newMember.password}
                 onChange={(e) =>
                   setNewMember({ ...newMember, password: e.target.value })
                 }
-                required
+                required={!editingMember}
               />
               <FormSelect
                 label="Role"
@@ -1137,7 +1195,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                 options={[
                   { value: "employee", label: "Employee" },
                   { value: "manager", label: "Manager" },
-                  { value: "admin", label: "Admin" },
                 ]}
               />
               <div className="flex gap-3 pt-4">
@@ -1153,7 +1210,13 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   disabled={loading}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-xl transition-colors font-semibold"
                 >
-                  {loading ? "Adding..." : "Add Member"}
+                  {loading
+                    ? editingMember
+                      ? "Updating..."
+                      : "Adding..."
+                    : editingMember
+                    ? "Update Member"
+                    : "Add Member"}
                 </button>
               </div>
             </form>

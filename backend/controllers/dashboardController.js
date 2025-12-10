@@ -424,10 +424,10 @@ const getFilteredDashboardStats = async (req, res, next) => {
               ],
             },
           },
-          totalAmount: { $sum: "$total_amount" },
+          totalAmount: { $sum: "$amount" },
           paidAmount: {
             $sum: {
-              $cond: [{ $eq: ["$status", "paid"] }, "$total_amount", 0],
+              $cond: [{ $eq: ["$status", "paid"] }, "$amount", 0],
             },
           },
         },

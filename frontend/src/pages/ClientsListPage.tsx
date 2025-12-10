@@ -101,6 +101,7 @@ const ClientsListPage: React.FC = () => {
                 <th className="px-6 py-3">Phone</th>
                 <th className="px-6 py-3">Address</th>
                 <th className="px-6 py-3">GST Number</th>
+                <th className="px-6 py-3">PAN Number</th>
                 <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -108,7 +109,7 @@ const ClientsListPage: React.FC = () => {
               {clients.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-12 text-center text-slate-500 dark:text-slate-400"
                   >
                     <div className="flex flex-col items-center gap-3">
@@ -141,6 +142,9 @@ const ClientsListPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       {client.gst_number || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                      {client.pan_number || "N/A"}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">

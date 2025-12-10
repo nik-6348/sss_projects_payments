@@ -1,50 +1,131 @@
-// No longer needed since we use process.env directly
-const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
+import env from "../config/env.js";
 
-  // Log error
-  console.error(err);
+/**
+ * Global error handler middleware
+ * Ensures all errors return proper responses with CORS headers
+ */
+const errorHandler = (err, req, res, next) => {
+  // Log error with context
+  console.error(`❌ Error [${req.method} ${req.path}]:`, err.message);
+  if (env.NODE_ENV === "development") {
+    console.error(err.stack);
+  }
+
+  let error = {
+    message: err.message || "Server Error",
+    statusCode: err.statusCode || 500,
+  };
+
+  // ==========================================
+  // MONGOOSE ERRORS
+  // ==========================================
 
   // Mongoose bad ObjectId
   if (err.name === "CastError") {
-    const message = "Resource not found";
-    error = { message, statusCode: 404 };
+    error = {
+      message: "Resource not found",
+      statusCode: 404,
+    };
   }
 
   // Mongoose duplicate key
   if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    const value = err.keyValue[field];
-    const message = `${
-      field.charAt(0).toUpperCase() + field.slice(1)
-    } '${value}' already exists`;
-    error = { message, statusCode: 400 };
+    const field = Object.keys(err.keyValue || {})[0] || "field";
+    const value = err.keyValue ? err.keyValue[field] : "value";
+    error = {
+      message: `${
+        field.charAt(0).toUpperCase() + field.slice(1)
+      } '${value}' already exists`,
+      statusCode: 400,
+    };
   }
 
   // Mongoose validation error
   if (err.name === "ValidationError") {
-    const messages = Object.values(err.errors).map((val) => val.message);
-    const message = messages.join(". ");
-    error = { message, statusCode: 400 };
+    const messages = Object.values(err.errors || {}).map((val) => val.message);
+    error = {
+      message: messages.join(". ") || "Validation Error",
+      statusCode: 400,
+    };
   }
 
-  // JWT errors
+  // ==========================================
+  // JWT ERRORS
+  // ==========================================
+
   if (err.name === "JsonWebTokenError") {
-    const message = "Not authorized, invalid token";
-    error = { message, statusCode: 401 };
+    error = {
+      message: "Not authorized, invalid token",
+      statusCode: 401,
+    };
   }
 
   if (err.name === "TokenExpiredError") {
-    const message = "Not authorized, token expired";
-    error = { message, statusCode: 401 };
+    error = {
+      message: "Not authorized, token expired",
+      statusCode: 401,
+    };
   }
 
-  res.status(error.statusCode || 500).json({
+  // ==========================================
+  // NETWORK/CONNECTION ERRORS
+  // ==========================================
+
+  // MongoDB network error
+  if (
+    err.name === "MongoNetworkError" ||
+    err.name === "MongooseServerSelectionError"
+  ) {
+    error = {
+      message: "Database connection error. Please try again later.",
+      statusCode: 503,
+    };
+  }
+
+  // Timeout errors
+  if (err.name === "MongoTimeoutError") {
+    error = {
+      message: "Request timed out. Please try again.",
+      statusCode: 504,
+    };
+  }
+
+  // ==========================================
+  // REQUEST ERRORS
+  // ==========================================
+
+  // Bad JSON syntax
+  if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+    error = {
+      message: "Invalid JSON in request body",
+      statusCode: 400,
+    };
+  }
+
+  // Payload too large
+  if (err.type === "entity.too.large") {
+    error = {
+      message: "Request payload too large",
+      statusCode: 413,
+    };
+  }
+
+  // ==========================================
+  // SEND RESPONSE
+  // ==========================================
+
+  // Ensure we haven't already sent a response
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  res.status(error.statusCode).json({
     success: false,
-    error: error.message || "Server Error",
-    ...(process.env.NODE_ENV &&
-      process.env.NODE_ENV === "development" && { stack: err.stack }),
+    error: error.message,
+    ...(env.NODE_ENV === "development" && {
+      stack: err.stack,
+      name: err.name,
+    }),
   });
 };
 

@@ -49,8 +49,11 @@ const addTeamMember = async (req, res, next) => {
 
     // Force role to be employee if not specified or invalid for this endpoint
     // (Though validation middleware should handle this, good to be safe)
+    // Allow admin role creation
     const userRole =
-      role && ["employee", "manager"].includes(role) ? role : "employee";
+      role && ["employee", "manager", "admin"].includes(role)
+        ? role
+        : "employee";
 
     const user = await User.create({
       name,
@@ -95,8 +98,8 @@ const updateTeamMember = async (req, res, next) => {
       });
     }
 
-    // Prevent updating admins via this endpoint
-    if (user.role === "admin") {
+    // Prevent non-admins from updating admins via this endpoint
+    if (user.role === "admin" && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
         error: "Cannot update admin via team management",
