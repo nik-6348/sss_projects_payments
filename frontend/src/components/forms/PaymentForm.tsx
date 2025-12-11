@@ -36,7 +36,7 @@ const PaymentForm: React.FC<{
               ? invoice.project_id
               : (invoice.project_id as any)._id || invoice.project_id.id,
           invoice_id: invoice.id,
-          amount: invoice.amount,
+          amount: invoice.amount - (invoice.paid_amount || 0),
           currency: invoice.currency || "INR",
           payment_method: invoice.payment_method || "bank_account",
           payment_date: new Date().toISOString().split("T")[0],

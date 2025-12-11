@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosResponse, AxiosError } from "axios";
-import type { Client } from "../types";
+import type { Client, PaymentMethod } from "../types";
 
 // API Response types
 export interface ApiResponse<T = any> {
@@ -113,6 +113,15 @@ export interface InvoiceClient {
 }
 
 export interface Invoice {
+  currency: "INR" | "USD" | undefined;
+  services: { description: string; amount: number }[] | undefined;
+  subtotal: number | undefined;
+  gst_percentage: number | undefined;
+  gst_amount: number | undefined;
+  total_amount: number | undefined;
+  payment_method: PaymentMethod | undefined;
+  bank_account_id: string | undefined;
+  custom_payment_details: string | undefined;
   _id: string;
   project_id:
     | string

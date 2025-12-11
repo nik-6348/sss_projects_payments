@@ -263,6 +263,8 @@ function AppContent() {
               payment_method: i.payment_method,
               bank_account_id: i.bank_account_id,
               custom_payment_details: i.custom_payment_details,
+              paid_amount: i.paid_amount,
+              balance_due: i.balance_due,
             } as Invoice)
         );
         setInvoices(transformedInvoices);
@@ -407,6 +409,8 @@ function AppContent() {
                 payment_method: i.payment_method,
                 bank_account_id: i.bank_account_id,
                 custom_payment_details: i.custom_payment_details,
+                paid_amount: i.paid_amount,
+                balance_due: i.balance_due,
               } as Invoice)
           );
           setProjectInvoices(transformedInvoices);
@@ -851,6 +855,8 @@ function AppContent() {
           payment_method: d.payment_method,
           bank_account_id: d.bank_account_id,
           custom_payment_details: d.custom_payment_details,
+          paid_amount: 0, // Duplicated invoice starts with 0 paid
+          balance_due: d.amount, // Balance due is full amount
           createdAt: d.createdAt,
           updatedAt: d.updatedAt,
         };
