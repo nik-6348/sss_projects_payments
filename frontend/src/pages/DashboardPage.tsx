@@ -50,6 +50,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = React.useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = React.useState<number | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = React.useState<string>("");
   const [availableYears, setAvailableYears] = React.useState<number[]>([
     currentYear,
   ]);
@@ -65,6 +66,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         const response = await apiClient.getDashboardStats({
           year: selectedYear,
           month: selectedMonth || undefined,
+          projectId: selectedProjectId || undefined,
         });
         if (response.success && response.data) {
           setDashboardStats(response.data);
@@ -80,7 +82,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     };
 
     fetchStats();
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, selectedProjectId]);
 
   const activeProjects = projects.filter(
     (p) => p.status === "active" || p.status === "on_hold"
@@ -147,6 +149,29 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               {MONTHS.map((month) => (
                 <option key={month.label} value={month.value ?? ""}>
                   {month.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Project Dropdown */}
+          <div className="relative">
+            <select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="appearance-none pl-4 pr-10 py-2.5 rounded-xl text-sm font-medium 
+                bg-white dark:bg-slate-800 
+                text-slate-700 dark:text-slate-200
+                border border-slate-200 dark:border-slate-700
+                shadow-sm hover:shadow-md transition-all duration-200
+                focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
+                cursor-pointer max-w-[200px] truncate"
+            >
+              <option value="">All Projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
                 </option>
               ))}
             </select>

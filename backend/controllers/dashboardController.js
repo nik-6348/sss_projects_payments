@@ -317,37 +317,73 @@ const getPaymentDashboard = async (req, res, next) => {
 // @access  Private
 const getFilteredDashboardStats = async (req, res, next) => {
   try {
+    const { year, month, projectId } = req.query; // Added projectId
     const currentYear = new Date().getFullYear();
-    const year = parseInt(req.query.year) || currentYear;
-    const month = req.query.month ? parseInt(req.query.month) : null; // null means all months
+    const selectedYear = parseInt(year) || currentYear;
 
-    // Build date range for filtering
     let startDate, endDate;
+
     if (month) {
-      // Specific month
-      startDate = new Date(year, month - 1, 1);
-      endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of month
+      // Filter by specific month
+      startDate = new Date(selectedYear, parseInt(month) - 1, 1);
+      endDate = new Date(selectedYear, parseInt(month), 0, 23, 59, 59, 999);
     } else {
-      // All months in year
-      startDate = new Date(year, 0, 1);
-      endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+      // Filter by entire year
+      startDate = new Date(selectedYear, 0, 1);
+      endDate = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
     }
 
-    // Get available years from all collections
-    const [projectYears, invoiceYears, paymentYears] = await Promise.all([
-      Project.aggregate([
-        { $match: { user_id: req.user.id } },
-        { $group: { _id: { $year: "$start_date" } } },
-        { $sort: { _id: -1 } },
-      ]),
-      Invoice.aggregate([
-        { $group: { _id: { $year: "$issue_date" } } },
-        { $sort: { _id: -1 } },
-      ]),
-      Payment.aggregate([
-        { $group: { _id: { $year: "$payment_date" } } },
-        { $sort: { _id: -1 } },
-      ]),
+    // Build Project Match Query
+    const projectMatch = {
+      user_id: req.user.id,
+      start_date: { $gte: startDate, $lte: endDate },
+    };
+    if (projectId) {
+      projectMatch._id = new mongoose.Types.ObjectId(projectId);
+    }
+
+    // Build Invoice Match Query
+    const invoiceMatch = {
+      isDeleted: { $ne: true },
+      issue_date: { $gte: startDate, $lte: endDate },
+    };
+    if (projectId) {
+      invoiceMatch.project_id = new mongoose.Types.ObjectId(projectId);
+    }
+
+    // Build Payment Match Query
+    const paymentMatch = {
+      payment_date: { $gte: startDate, $lte: endDate },
+    };
+    if (projectId) {
+      paymentMatch.project_id = new mongoose.Types.ObjectId(projectId);
+    }
+
+    // Get available years for dropdown (unchanged logic)
+    const projectYears = await Project.aggregate([
+      { $match: { user_id: req.user.id } },
+      {
+        $group: {
+          _id: { $year: "$start_date" },
+        },
+      },
+    ]);
+
+    const invoiceYears = await Invoice.aggregate([
+      { $match: { isDeleted: { $ne: true } } },
+      {
+        $group: {
+          _id: { $year: "$issue_date" },
+        },
+      },
+    ]);
+
+    const paymentYears = await Payment.aggregate([
+      {
+        $group: {
+          _id: { $year: "$payment_date" },
+        },
+      },
     ]);
 
     // Combine and deduplicate years
@@ -361,18 +397,22 @@ const getFilteredDashboardStats = async (req, res, next) => {
     const availableYears = [...allYears].filter((y) => y).sort((a, b) => b - a);
 
     // Get all active projects count (not date filtered - shows current active projects)
-    const activeProjectsCount = await Project.countDocuments({
+    // Filter active projects count by projectId if selected
+    const activeProjectsQuery = {
       user_id: req.user.id,
       status: "active",
-    });
+    };
+    if (projectId) {
+      activeProjectsQuery._id = new mongoose.Types.ObjectId(projectId);
+    }
+    const activeProjectsCount = await Project.countDocuments(
+      activeProjectsQuery
+    );
 
     // Aggregate project stats for the selected period (by start_date)
     const projectStats = await Project.aggregate([
       {
-        $match: {
-          user_id: req.user.id,
-          start_date: { $gte: startDate, $lte: endDate },
-        },
+        $match: projectMatch,
       },
       {
         $group: {
@@ -395,10 +435,7 @@ const getFilteredDashboardStats = async (req, res, next) => {
     // Aggregate invoice stats (by issue_date) - for Total Invoiced
     const invoiceStats = await Invoice.aggregate([
       {
-        $match: {
-          isDeleted: { $ne: true },
-          issue_date: { $gte: startDate, $lte: endDate },
-        },
+        $match: invoiceMatch,
       },
       {
         $group: {
@@ -437,9 +474,7 @@ const getFilteredDashboardStats = async (req, res, next) => {
     // Aggregate payment stats (by payment_date) - for Total Paid
     const paymentStats = await Payment.aggregate([
       {
-        $match: {
-          payment_date: { $gte: startDate, $lte: endDate },
-        },
+        $match: paymentMatch,
       },
       {
         $group: {

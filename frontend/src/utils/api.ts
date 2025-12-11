@@ -505,6 +505,7 @@ class ApiClient {
   async getDashboardStats(params?: {
     year?: number;
     month?: number;
+    projectId?: string;
   }): Promise<ApiResponse<DashboardStats>> {
     const response: AxiosResponse<ApiResponse<DashboardStats>> =
       await this.axiosInstance.get("/dashboard/stats", { params });
