@@ -10,6 +10,7 @@ import {
   MoreVertical,
   Search,
   Send,
+  Copy,
 } from "lucide-react";
 import type { Invoice, Project } from "../types";
 import {
@@ -38,6 +39,7 @@ interface InvoicesListPageProps {
   onAddInvoice: () => void;
   onEditInvoice?: (invoice: Invoice) => void;
   onDeleteInvoice?: (invoiceId: string) => void;
+  onDuplicateInvoice?: (invoiceId: string) => void;
   onViewPDF?: (invoiceId: string) => void;
   onUpdateStatus?: (invoice: Invoice, status: string) => void;
   onInvoiceSent?: () => void;
@@ -57,6 +59,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
   onAddInvoice,
   onEditInvoice,
   onDeleteInvoice,
+  onDuplicateInvoice,
   onViewPDF,
   onUpdateStatus,
   onInvoiceSent,
@@ -311,6 +314,19 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                                 >
                                   <Eye className="h-4 w-4" />
                                   View Invoice
+                                </button>
+                              )}
+                              {onDuplicateInvoice && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDuplicateInvoice(invoice.id);
+                                    setOpenDropdown(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                  Duplicate
                                 </button>
                               )}
                               {/* Status change options - only for non-draft invoices */}

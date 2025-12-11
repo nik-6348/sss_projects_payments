@@ -10,6 +10,7 @@ import {
   getDashboardStats,
   getDeletedInvoices,
   restoreInvoice,
+  duplicateInvoice,
 } from "../controllers/invoiceController.js";
 import { protect } from "../middleware/auth.js";
 import {
@@ -34,6 +35,9 @@ router.delete("/:id", mongoIdValidation, deleteInvoice);
 
 // Invoice status update route
 router.put("/:id/status", updateInvoiceStatusValidation, updateInvoiceStatus);
+
+// Duplicate invoice route
+router.post("/:id/duplicate", mongoIdValidation, duplicateInvoice);
 
 // Invoice PDF generation route
 router.get("/:id/pdf", mongoIdValidation, generateInvoicePDF);

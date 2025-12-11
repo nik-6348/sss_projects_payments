@@ -824,6 +824,55 @@ function AppContent() {
     }
   };
 
+  const handleDuplicateInvoice = async (invoiceId: string) => {
+    try {
+      setDataLoading(true);
+      const response = await apiClient.duplicateInvoice(invoiceId);
+      if (response.success && response.data) {
+        const d = response.data; // shortened for brevity in mapping
+        const newInvoice: Invoice = {
+          id: d._id,
+          project_id: d.project_id,
+          invoice_number: d.invoice_number,
+          amount: d.amount,
+          currency: d.currency,
+          status: d.status as InvoiceStatus,
+          issue_date: d.issue_date
+            ? new Date(d.issue_date).toISOString().split("T")[0]
+            : "",
+          due_date: d.due_date
+            ? new Date(d.due_date).toISOString().split("T")[0]
+            : "",
+          services: d.services,
+          subtotal: d.subtotal,
+          gst_percentage: d.gst_percentage,
+          gst_amount: d.gst_amount,
+          total_amount: d.total_amount,
+          payment_method: d.payment_method,
+          bank_account_id: d.bank_account_id,
+          custom_payment_details: d.custom_payment_details,
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt,
+        };
+
+        setInvoices((prev) => [newInvoice, ...prev]);
+        setProjectInvoices((prev) => [newInvoice, ...prev]);
+        toast.success("Invoice duplicated successfully!");
+      } else {
+        toast.error(response.error || "Failed to duplicate invoice");
+      }
+    } catch (err: any) {
+      // Check for specific error message or fallback
+      const msg =
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to duplicate invoice";
+      toast.error(msg);
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
   const handlePaymentSuccess = () => {
     fetchInvoices();
     fetchProjects(); // Update project stats
@@ -1237,6 +1286,7 @@ function AppContent() {
             onAddInvoice={() => openInvoiceForm()}
             onEditInvoice={(invoice) => openInvoiceForm(invoice)}
             onDeleteInvoice={handleDeleteInvoice}
+            onDuplicateInvoice={handleDuplicateInvoice}
             onUpdateStatus={handleUpdateInvoiceStatus}
             onViewPDF={handleViewPDF}
             onInvoiceSent={fetchInvoices}
@@ -1275,6 +1325,7 @@ function AppContent() {
             onDeleteProject={handleDeleteProject}
             onEditInvoice={(invoice) => openInvoiceForm(invoice)}
             onDeleteInvoice={handleDeleteInvoice}
+            onDuplicateInvoice={handleDuplicateInvoice}
             onUpdateStatus={handleUpdateInvoiceStatus}
             onDownloadInvoice={handleDownloadInvoicePDF}
             onViewPDF={handleViewPDF}

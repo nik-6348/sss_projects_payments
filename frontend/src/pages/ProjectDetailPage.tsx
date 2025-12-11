@@ -11,6 +11,7 @@ import {
   Edit2,
   Send,
   Eye,
+  Copy,
 } from "lucide-react";
 import SendInvoiceModal from "../components/modals/SendInvoiceModal";
 import type { Project, Invoice, Payment } from "../types";
@@ -27,6 +28,7 @@ interface ProjectDetailPageProps {
   onDeleteProject: (projectId: string) => void;
   onEditInvoice?: (invoice: Invoice) => void;
   onDeleteInvoice?: (invoiceId: string) => void;
+  onDuplicateInvoice?: (invoiceId: string) => void;
   onDownloadInvoice?: (invoice: Invoice) => void;
   onUpdateStatus?: (invoice: Invoice, status: string) => void;
   onViewPDF?: (invoiceId: string) => void;
@@ -42,6 +44,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   onDeleteProject,
   onEditInvoice,
   onDeleteInvoice,
+  onDuplicateInvoice,
   onDownloadInvoice,
   onUpdateStatus,
   onViewPDF,
@@ -377,6 +380,19 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                                 >
                                   <Eye className="h-4 w-4" />
                                   View Invoice
+                                </button>
+                              )}
+                              {onDuplicateInvoice && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDuplicateInvoice(invoice.id);
+                                    setOpenDropdown(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                  Duplicate
                                 </button>
                               )}
                               {onDownloadInvoice && (

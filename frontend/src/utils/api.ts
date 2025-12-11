@@ -644,6 +644,12 @@ class ApiClient {
     return response.data;
   }
 
+  async duplicateInvoice(id: string): Promise<ApiResponse<Invoice>> {
+    const response: AxiosResponse<ApiResponse<Invoice>> =
+      await this.axiosInstance.post(`/invoices/${id}/duplicate`);
+    return response.data;
+  }
+
   async downloadInvoicePDF(id: string): Promise<Blob> {
     const response = await this.axiosInstance.get(
       `/invoices/${id}/pdf/download`,
