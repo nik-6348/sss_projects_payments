@@ -2,6 +2,7 @@ import Project from "../models/Project.js";
 import Invoice from "../models/Invoice.js";
 import Payment from "../models/Payment.js";
 import User from "../models/User.js";
+import mongoose from "mongoose";
 
 // @desc    Get comprehensive dashboard statistics
 // @route   GET /api/dashboard/overview
