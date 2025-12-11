@@ -11,9 +11,13 @@ const createProjectValidation = [
     .trim()
     .isLength({ max: 500 })
     .withMessage("Description cannot exceed 500 characters"),
-  body("total_amount")
-    .isFloat({ min: 0 })
-    .withMessage("Total amount must be a positive number"),
+  body("total_amount").custom((value) => {
+    if (value === null || value === undefined || value === "") return true;
+    if (parseFloat(value) < 0) {
+      throw new Error("Total amount must be a positive number");
+    }
+    return true;
+  }),
   body("currency")
     .optional()
     .isIn(["INR", "USD"])

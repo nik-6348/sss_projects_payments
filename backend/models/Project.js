@@ -53,7 +53,11 @@ const projectSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
-        weekly_hours: {
+        monthly_hours: {
+          type: Number,
+          default: 0,
+        },
+        rate: {
           type: Number,
           default: 0,
         },
@@ -111,6 +115,11 @@ const projectSchema = new mongoose.Schema(
     estimated_hours: {
       type: Number,
       default: 0,
+    },
+    allocation_type: {
+      type: String,
+      enum: ["overall", "employee_based", ""],
+      default: "",
     },
   },
   {

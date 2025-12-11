@@ -11,6 +11,7 @@ export type ProjectType =
   | "hourly_billing"
   | "";
 export type BillingCycle = "monthly" | "quarterly" | "yearly" | "";
+export type AllocationType = "overall" | "employee_based" | "";
 
 export interface ProjectClientEmails {
   business_email?: string;
@@ -55,7 +56,8 @@ export interface TeamMember {
         avatar?: string;
       };
   role: string;
-  weekly_hours: number;
+  monthly_hours: number;
+  rate?: number;
 }
 
 export interface Project {
@@ -89,6 +91,7 @@ export interface Project {
   billing_cycle?: BillingCycle;
   hourly_rate?: number;
   estimated_hours?: number;
+  allocation_type?: AllocationType;
 }
 
 // API response type for projects
@@ -119,6 +122,7 @@ export interface ProjectApiResponse {
   billing_cycle?: BillingCycle;
   hourly_rate?: number;
   estimated_hours?: number;
+  allocation_type?: AllocationType;
 }
 
 export interface Invoice {

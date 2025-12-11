@@ -267,7 +267,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                               : "Unknown User"}
                           </p>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {member.role} • {member.weekly_hours}h/week
+                            {member.role} • {member.monthly_hours}h/month
                           </p>
                         </div>
                       </div>

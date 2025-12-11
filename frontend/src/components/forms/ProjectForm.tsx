@@ -46,6 +46,7 @@ const ProjectForm: React.FC<{
           billing_cycle: project.billing_cycle || "",
           hourly_rate: project.hourly_rate || 0,
           estimated_hours: project.estimated_hours || 0,
+          allocation_type: project.allocation_type || "",
         }
       : {
           name: "",
@@ -68,6 +69,7 @@ const ProjectForm: React.FC<{
           },
           // Project Type
           project_type: "",
+          allocation_type: "",
           contract_amount: 0,
           contract_length: 0,
           monthly_fee: 0,
@@ -122,7 +124,23 @@ const ProjectForm: React.FC<{
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Form Data:", formData);
-    onSave(formData);
+    const dataToSend = { ...formData };
+
+    // For auto-calculated types, clear the total_amount so backend always recalculates it
+    // This ensures updates to rates/dates are reflected in the total
+    if (
+      dataToSend.project_type === "monthly_retainer" ||
+      dataToSend.project_type === "hourly_billing"
+    ) {
+      // @ts-ignore
+      delete dataToSend.total_amount;
+    } else if (!dataToSend.total_amount) {
+      // For fixed contract, only delete if empty (though validation handles custom check)
+      // @ts-ignore
+      delete dataToSend.total_amount;
+    }
+
+    onSave(dataToSend);
   };
 
   return (
@@ -171,166 +189,367 @@ const ProjectForm: React.FC<{
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Project Type Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-600 pb-2">
+          Project Type
+        </h3>
         <FormSelect
-          label="Currency"
-          name="currency"
-          value={formData.currency as string}
+          label="Select Project Type"
+          name="project_type"
+          value={(formData.project_type as string) || ""}
           onChange={handleChange}
+          required
           options={[
-            { value: "INR", label: "INR (₹)" },
-            { value: "USD", label: "USD ($)" },
+            { value: "", label: "Select Type" },
+            { value: "fixed_contract", label: "Fixed Contract" },
+            { value: "monthly_retainer", label: "Monthly Retainer" },
+            { value: "hourly_billing", label: "Hourly Billing" },
           ]}
         />
-        <FormSelect
-          label="Status"
-          name="status"
-          value={formData.status as string}
-          onChange={handleChange}
-          options={[
-            { value: "active", label: "Active" },
-            { value: "on_hold", label: "On Hold" },
-            { value: "completed", label: "Completed" },
-            { value: "cancelled", label: "Cancelled" },
-          ]}
-        />
+
+        {(formData.project_type === "monthly_retainer" ||
+          formData.project_type === "hourly_billing") && (
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              Allocation Type
+            </label>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="allocation_type"
+                  value="overall"
+                  checked={formData.allocation_type === "overall"}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      allocation_type: "overall",
+                      team_members: [], // Clear team members when switching to Overall
+                    }))
+                  }
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span className="text-sm text-slate-700 dark:text-slate-300">
+                  Overall
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="allocation_type"
+                  value="employee_based"
+                  checked={formData.allocation_type === "employee_based"}
+                  onChange={handleChange}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span className="text-sm text-slate-700 dark:text-slate-300">
+                  Employee Based
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Fixed Contract Fields */}
+        {formData.project_type === "fixed_contract" && (
+          <div className="p-4 rounded-lg">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              Fixed Contract Amount ({formData.currency === "USD" ? "$" : "₹"})
+            </label>
+            <FormInput
+              label=""
+              type="number"
+              name="total_amount"
+              value={formData.total_amount as string}
+              onChange={handleChange}
+              required
+              placeholder="Enter fixed contract amount"
+            />
+          </div>
+        )}
+
+        {/* Monthly Retainer Fields */}
+        {formData.project_type === "monthly_retainer" &&
+          formData.allocation_type === "overall" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <FormInput
+                label={`Monthly Fee (${
+                  formData.currency === "USD" ? "$" : "₹"
+                })`}
+                type="number"
+                name="monthly_fee"
+                value={(formData.monthly_fee as number)?.toString() || "0"}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    monthly_fee: Number(e.target.value),
+                  }))
+                }
+              />
+              <div className="flex flex-col justify-center">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Project Duration
+                </label>
+                <div className="text-sm font-semibold text-slate-900 dark:text-white px-3 py-2 bg-white dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg">
+                  {formData.start_date && formData.end_date ? (
+                    (() => {
+                      const start = new Date(formData.start_date as string);
+                      const end = new Date(formData.end_date as string);
+                      const diffTime = Math.abs(
+                        end.getTime() - start.getTime()
+                      );
+                      const diffDays = Math.ceil(
+                        diffTime / (1000 * 60 * 60 * 24)
+                      );
+                      const months = Math.floor(diffDays / 30);
+                      const days = diffDays % 30;
+                      return `${months} Month${
+                        months !== 1 ? "s" : ""
+                      } ${days} Day${days !== 1 ? "s" : ""}`;
+                    })()
+                  ) : (
+                    <span className="text-slate-400 italic">
+                      Select start and end dates
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+        {/* Hourly Billing Fields */}
+        {formData.project_type === "hourly_billing" &&
+          formData.allocation_type === "overall" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <FormInput
+                label={`Hourly Rate (${
+                  formData.currency === "USD" ? "$" : "₹"
+                })`}
+                type="number"
+                name="hourly_rate"
+                value={(formData.hourly_rate as number)?.toString() || "0"}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    hourly_rate: Number(e.target.value),
+                  }))
+                }
+              />
+              <FormInput
+                label="Estimated Hours"
+                type="number"
+                name="estimated_hours"
+                value={(formData.estimated_hours as number)?.toString() || "0"}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    estimated_hours: Number(e.target.value),
+                  }))
+                }
+              />
+            </div>
+          )}
       </div>
 
       {/* Team Allocation Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-600 pb-2 flex justify-between items-center">
-          <span>Team Allocation</span>
-          <button
-            type="button"
-            onClick={() => {
-              const newTeamMembers = [...(formData.team_members || [])];
-              newTeamMembers.push({ user_id: "", role: "", weekly_hours: 0 });
-              setFormData((prev) => ({
-                ...prev,
-                team_members: newTeamMembers,
-              }));
-            }}
-            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-          >
-            + Add Member
-          </button>
-        </h3>
-
-        {formData.team_members?.map((member, index) => (
-          <div
-            key={index}
-            className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg"
-          >
-            <div className="sm:col-span-5">
-              <FormSelect
-                label="Team Member"
-                name={`member_${index}`}
-                value={
-                  typeof member.user_id === "object"
-                    ? member.user_id._id
-                    : member.user_id
-                }
-                onChange={(e) => {
-                  const newTeamMembers = [...(formData.team_members || [])];
-                  newTeamMembers[index].user_id = e.target.value;
-                  setFormData((prev) => ({
-                    ...prev,
-                    team_members: newTeamMembers,
-                  }));
-                }}
-                options={[
-                  { value: "", label: "Select Member" },
-                  ...employees
-                    .filter((emp) => {
-                      // Get current member's user_id for this row
-                      const currentUserId =
-                        typeof member.user_id === "object"
-                          ? member.user_id._id
-                          : member.user_id;
-                      // Allow if this is the currently selected member for this row
-                      if (emp._id === currentUserId) return true;
-                      // Filter out members already selected in other rows
-                      const alreadySelected = formData.team_members?.some(
-                        (tm, idx) => {
-                          if (idx === index) return false; // Skip current row
-                          const selectedId =
-                            typeof tm.user_id === "object"
-                              ? tm.user_id._id
-                              : tm.user_id;
-                          return selectedId === emp._id;
-                        }
-                      );
-                      return !alreadySelected;
-                    })
-                    .map((e) => ({ value: e._id, label: e.name })),
-                ]}
-              />
-            </div>
-            <div className="sm:col-span-4">
-              <FormInput
-                label="Role"
-                name={`role_${index}`}
-                value={member.role}
-                onChange={(e) => {
-                  const newTeamMembers = [...(formData.team_members || [])];
-                  newTeamMembers[index].role = e.target.value;
-                  setFormData((prev) => ({
-                    ...prev,
-                    team_members: newTeamMembers,
-                  }));
-                }}
-                placeholder="e.g. Developer"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <FormInput
-                label="Hours/Week"
-                type="number"
-                name={`hours_${index}`}
-                value={member.weekly_hours.toString()}
-                onChange={(e) => {
-                  const newTeamMembers = [...(formData.team_members || [])];
-                  newTeamMembers[index].weekly_hours = Number(e.target.value);
-                  setFormData((prev) => ({
-                    ...prev,
-                    team_members: newTeamMembers,
-                  }));
-                }}
-              />
-            </div>
-            <div className="sm:col-span-1 flex items-end">
+      {(formData.project_type === "monthly_retainer" ||
+        formData.project_type === "hourly_billing") &&
+        formData.allocation_type === "employee_based" && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-600 pb-2 flex justify-between items-center">
+              <span>Team Allocation</span>
               <button
                 type="button"
                 onClick={() => {
                   const newTeamMembers = [...(formData.team_members || [])];
-                  newTeamMembers.splice(index, 1);
+                  newTeamMembers.push({
+                    user_id: "",
+                    role: "",
+                    monthly_hours: 0,
+                  });
                   setFormData((prev) => ({
                     ...prev,
                     team_members: newTeamMembers,
                   }));
                 }}
-                className="w-full p-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                title="Remove team member"
+                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
               >
-                <Trash2 className="h-5 w-5 mx-auto" />
+                + Add Member
               </button>
-            </div>
-          </div>
-        ))}
-        {(!formData.team_members || formData.team_members.length === 0) && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-            No team members assigned yet.
-          </p>
-        )}
-      </div>
+            </h3>
 
-      {/* GST Settings Section */}
+            <div className="space-y-3">
+              {formData.team_members?.map((member, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg"
+                >
+                  <div className="sm:col-span-4">
+                    <FormSelect
+                      label="Team Member"
+                      name={`member_${index}`}
+                      value={
+                        typeof member.user_id === "object"
+                          ? member.user_id._id
+                          : member.user_id
+                      }
+                      onChange={(e) => {
+                        const newTeamMembers = [
+                          ...(formData.team_members || []),
+                        ];
+                        newTeamMembers[index].user_id = e.target.value;
+                        setFormData((prev) => ({
+                          ...prev,
+                          team_members: newTeamMembers,
+                        }));
+                      }}
+                      options={[
+                        { value: "", label: "Select Member" },
+                        ...employees
+                          .filter((emp) => {
+                            const currentUserId =
+                              typeof member.user_id === "object"
+                                ? member.user_id._id
+                                : member.user_id;
+                            if (emp._id === currentUserId) return true;
+                            const alreadySelected = formData.team_members?.some(
+                              (tm, idx) => {
+                                if (idx === index) return false;
+                                const selectedId =
+                                  typeof tm.user_id === "object"
+                                    ? tm.user_id._id
+                                    : tm.user_id;
+                                return selectedId === emp._id;
+                              }
+                            );
+                            return !alreadySelected;
+                          })
+                          .map((e) => ({ value: e._id, label: e.name })),
+                      ]}
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <FormInput
+                      label="Role"
+                      name={`role_${index}`}
+                      value={member.role}
+                      onChange={(e) => {
+                        const newTeamMembers = [
+                          ...(formData.team_members || []),
+                        ];
+                        newTeamMembers[index].role = e.target.value;
+                        setFormData((prev) => ({
+                          ...prev,
+                          team_members: newTeamMembers,
+                        }));
+                      }}
+                      placeholder="e.g. Developer"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FormInput
+                      label={
+                        formData.project_type === "hourly_billing"
+                          ? "Hourly Rate"
+                          : "Monthly Fee"
+                      }
+                      type="number"
+                      name={`rate_${index}`}
+                      value={(member.rate || 0).toString()}
+                      onChange={(e) => {
+                        const newTeamMembers = [
+                          ...(formData.team_members || []),
+                        ];
+                        newTeamMembers[index].rate = Number(e.target.value);
+                        setFormData((prev) => ({
+                          ...prev,
+                          team_members: newTeamMembers,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FormInput
+                      label="Hours/Month"
+                      type="number"
+                      name={`hours_${index}`}
+                      value={member.monthly_hours.toString()}
+                      onChange={(e) => {
+                        const newTeamMembers = [
+                          ...(formData.team_members || []),
+                        ];
+                        newTeamMembers[index].monthly_hours = Number(
+                          e.target.value
+                        );
+                        setFormData((prev) => ({
+                          ...prev,
+                          team_members: newTeamMembers,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className="sm:col-span-1 flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newTeamMembers = [
+                          ...(formData.team_members || []),
+                        ];
+                        newTeamMembers.splice(index, 1);
+                        setFormData((prev) => ({
+                          ...prev,
+                          team_members: newTeamMembers,
+                        }));
+                      }}
+                      className="w-full h-[42px] flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors border border-red-200 dark:border-red-900/30"
+                      title="Remove team member"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {(!formData.team_members || formData.team_members.length === 0) && (
+              <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                No team members assigned yet.
+              </p>
+            )}
+          </div>
+        )}
+
+      {/* Payment Settings Section */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-600 pb-2">
-          GST Settings
+          Payment Settings
         </h3>
         <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-          <div className="flex items-center gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormSelect
+              label="Currency"
+              name="currency"
+              value={formData.currency as string}
+              onChange={handleChange}
+              options={[
+                { value: "INR", label: "INR (₹)" },
+                { value: "USD", label: "USD ($)" },
+              ]}
+            />
+            <FormSelect
+              label="Status"
+              name="status"
+              value={formData.status as string}
+              onChange={handleChange}
+              options={[
+                { value: "active", label: "Active" },
+                { value: "on_hold", label: "On Hold" },
+                { value: "completed", label: "Completed" },
+                { value: "cancelled", label: "Cancelled" },
+              ]}
+            />
+          </div>
+          <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
             <input
               type="checkbox"
               id="include_gst"
@@ -359,105 +578,6 @@ const ProjectForm: React.FC<{
             GST rate ({formData.gst_percentage}%) is from system settings
           </p>
         </div>
-      </div>
-
-      {/* Project Type Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-600 pb-2">
-          Project Type <span className="text-red-500">*</span>
-        </h3>
-        <FormSelect
-          label="Select Project Type"
-          name="project_type"
-          value={(formData.project_type as string) || ""}
-          onChange={handleChange}
-          required
-          options={[
-            { value: "", label: "Select Type" },
-            { value: "fixed_contract", label: "Fixed Contract" },
-            { value: "monthly_retainer", label: "Monthly Retainer" },
-            { value: "hourly_billing", label: "Hourly Billing" },
-          ]}
-        />
-
-        {/* Fixed Contract Fields */}
-        {formData.project_type === "fixed_contract" && (
-          <div className="p-4 rounded-lg">
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              Fixed Contract Amount ({formData.currency === "USD" ? "$" : "₹"})
-            </label>
-            <FormInput
-              label=""
-              type="number"
-              name="total_amount"
-              value={formData.total_amount as string}
-              onChange={handleChange}
-              required
-              placeholder="Enter fixed contract amount"
-            />
-          </div>
-        )}
-
-        {/* Monthly Retainer Fields */}
-        {formData.project_type === "monthly_retainer" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-            <FormInput
-              label={`Monthly Fee (${formData.currency === "USD" ? "$" : "₹"})`}
-              type="number"
-              name="monthly_fee"
-              value={(formData.monthly_fee as number)?.toString() || "0"}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  monthly_fee: Number(e.target.value),
-                }))
-              }
-            />
-            <FormInput
-              label="Estimated Months"
-              type="number"
-              name="contract_length"
-              value={(formData.contract_length as number)?.toString() || "0"}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  contract_length: Number(e.target.value),
-                }))
-              }
-              placeholder="How many months?"
-            />
-          </div>
-        )}
-
-        {/* Hourly Billing Fields */}
-        {formData.project_type === "hourly_billing" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-            <FormInput
-              label={`Hourly Rate (${formData.currency === "USD" ? "$" : "₹"})`}
-              type="number"
-              name="hourly_rate"
-              value={(formData.hourly_rate as number)?.toString() || "0"}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  hourly_rate: Number(e.target.value),
-                }))
-              }
-            />
-            <FormInput
-              label="Estimated Hours"
-              type="number"
-              name="estimated_hours"
-              value={(formData.estimated_hours as number)?.toString() || "0"}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  estimated_hours: Number(e.target.value),
-                }))
-              }
-            />
-          </div>
-        )}
       </div>
 
       {/* Additional Details Section */}
