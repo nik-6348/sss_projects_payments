@@ -221,7 +221,7 @@ const ProjectForm: React.FC<{
                   name="allocation_type"
                   value="overall"
                   checked={formData.allocation_type === "overall"}
-                  onChange={(e) =>
+                  onChange={() =>
                     setFormData((prev) => ({
                       ...prev,
                       allocation_type: "overall",
