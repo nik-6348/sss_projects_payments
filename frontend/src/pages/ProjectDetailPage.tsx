@@ -306,7 +306,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                   <tr>
                     <th className="px-6 py-3 whitespace-nowrap">Invoice #</th>
                     <th className="px-6 py-3 whitespace-nowrap">
-                      Total Amount
+                      Amount (Ex GST)
                     </th>
                     <th className="px-6 py-3 whitespace-nowrap">Due Date</th>
                     <th className="px-6 py-3 whitespace-nowrap">Status</th>
@@ -325,10 +325,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         {invoice.invoice_number}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                        {formatCurrency(
-                          invoice.total_amount || invoice.amount,
-                          invoice.currency
-                        )}
+                        {formatCurrency(invoice.amount, invoice.currency)}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(invoice.due_date)}

@@ -450,9 +450,11 @@ const getFilteredDashboardStats = async (req, res, next) => {
       },
     ]);
 
-    // Calculate totals
-    const totalInvoiced = invoiceStats[0]?.totalAmount || 0;
-    const totalPaid = paymentStats[0]?.totalAmount || 0;
+    // Calculate totals - ensuring Ex-GST basis
+    const totalInvoiced = invoiceStats[0]?.totalAmount || 0; // Ex-GST (Subtotal)
+    // Use the calculated paid amount from invoices (Ex-GST) instead of raw payments (Inc-GST)
+    // This ensures consistency with the user request to exclude GST from paid amounts
+    const totalPaid = invoiceStats[0]?.paidAmount || 0;
     const totalDue = totalInvoiced - totalPaid;
 
     res.status(200).json({
@@ -475,11 +477,11 @@ const getFilteredDashboardStats = async (req, res, next) => {
             pending: invoiceStats[0]?.pending || 0,
             overdue: invoiceStats[0]?.overdue || 0,
             totalAmount: totalInvoiced,
-            paidAmount: invoiceStats[0]?.paidAmount || 0,
+            paidAmount: totalPaid,
           },
           payments: {
             total: paymentStats[0]?.total || 0,
-            totalAmount: totalPaid,
+            totalAmount: totalPaid, // Show Ex-GST Paid Amount here too for consistency in Dashboard
           },
           summary: {
             totalRevenue: totalInvoiced,

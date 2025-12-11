@@ -184,7 +184,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
               <tr>
                 <th className="px-6 py-3">Invoice #</th>
                 <th className="px-6 py-3">Project</th>
-                <th className="px-6 py-3">Amount</th>
+                <th className="px-6 py-3">Amount (Ex GST)</th>
                 <th className="px-6 py-3">Issue Date</th>
                 <th className="px-6 py-3">Due Date</th>
                 <th className="px-6 py-3">Status</th>
