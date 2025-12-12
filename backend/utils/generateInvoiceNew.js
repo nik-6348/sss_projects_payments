@@ -77,12 +77,17 @@ const drawStatusRibbon = (doc, pageWidth, status = "UNPAID") => {
 
   // Text
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(14);
   doc.setTextColor(255, 255, 255);
-  doc.text(statusUpper, pageWidth - width / 2, yPos + height / 2 + 1.5, {
-    align: "center",
-    baseline: "middle",
-  });
+  doc.text(
+    statusUpper,
+    pageWidth - (width + arrowDepth) / 2,
+    yPos + height / 2,
+    {
+      align: "center",
+      baseline: "middle",
+    }
+  );
 
   doc.restoreGraphicsState();
 };
@@ -102,7 +107,8 @@ const getColumns = (invoiceData) => {
     allocation_type === "employee_based"
   ) {
     columns = [
-      { header: "Role / Description", dataKey: "description" },
+      { header: "Role", dataKey: "team_role" },
+      { header: "Description", dataKey: "description" },
       { header: "Hours", dataKey: "hours" },
       { header: "Rate", dataKey: "rate" },
       { header: "Amount", dataKey: "amount" },
@@ -124,9 +130,8 @@ const getTableData = (invoiceData, currencySymbol) => {
     };
 
     if (isEmployeeBased) {
-      row.description = service.team_role
-        ? `${service.team_role} - ${service.description}`
-        : service.description;
+      row.team_role = service.team_role || "-";
+      row.description = service.description || "-";
       row.hours = service.hours || 0;
       row.rate = service.rate
         ? `${currencySymbol}${Number(service.rate).toFixed(2)}`
@@ -295,7 +300,7 @@ const generateInvoicePDF = (
     body: bodyData,
     theme: "plain",
     headStyles: {
-      fillColor: COLORS.primary,
+      fillColor: false, // Disable default fill to use roundedRect in willDrawCell
       textColor: 255,
       fontStyle: "bold",
       halign: "center",
@@ -307,6 +312,7 @@ const generateInvoicePDF = (
       minCellHeight: 10,
     },
     columnStyles: {
+      team_role: { halign: "left" },
       description: { halign: "left" },
       amount: { halign: "right", fontStyle: "bold" },
       hours: { halign: "center" },
@@ -417,7 +423,7 @@ const generateInvoicePDF = (
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14); // Keeping user's font size
   doc.setTextColor(...COLORS.primary);
-  doc.text("Payment Details:", marginX, footerY);
+  doc.text("Bank Details:", marginX, footerY);
 
   let leftY = footerY + 6;
 

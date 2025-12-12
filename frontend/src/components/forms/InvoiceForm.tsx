@@ -54,11 +54,17 @@ const InvoiceForm: React.FC<{
         }
   );
   const [services, setServices] = React.useState<
-    Array<{ description: string; amount: number }>
+    Array<{
+      description: string;
+      amount: number;
+      team_role?: string;
+      hours?: number;
+      rate?: number;
+    }>
   >(
     invoice?.services && invoice.services.length > 0
       ? invoice.services
-      : [{ description: "", amount: 0 }]
+      : [{ description: "", amount: 0, team_role: "", hours: 0, rate: 0 }]
   );
   const [includeGst, setIncludeGst] = React.useState(
     invoice?.include_gst !== undefined ? invoice.include_gst : true
@@ -74,6 +80,7 @@ const InvoiceForm: React.FC<{
     currency: "INR" | "USD";
     gst_percentage: number;
     include_gst: boolean;
+    allocation_type?: string;
   } | null>(null);
 
   // Fetch bank accounts and settings
@@ -138,6 +145,7 @@ const InvoiceForm: React.FC<{
           currency: selectedProject.currency || "INR",
           gst_percentage: selectedProject.gst_percentage ?? 18,
           include_gst: selectedProject.include_gst ?? true,
+          allocation_type: selectedProject.allocation_type,
         });
 
         // Update form data with project's currency
@@ -208,11 +216,24 @@ const InvoiceForm: React.FC<{
 
   const updateService = (
     index: number,
-    field: "description" | "amount",
+    field: "description" | "amount" | "team_role" | "hours" | "rate",
     value: string | number
   ) => {
     const updated = [...services];
+    // @ts-ignore
     updated[index] = { ...updated[index], [field]: value };
+
+    // Auto-calculate amount if employee-based
+    if (
+      projectSettings?.allocation_type === "employee_based" &&
+      (field === "hours" || field === "rate")
+    ) {
+      const hours =
+        field === "hours" ? Number(value) : updated[index].hours || 0;
+      const rate = field === "rate" ? Number(value) : updated[index].rate || 0;
+      updated[index].amount = hours * rate;
+    }
+
     setServices(updated);
   };
 
@@ -249,32 +270,89 @@ const InvoiceForm: React.FC<{
             Services
           </label>
           {services.map((service, index) => (
-            <div key={index} className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Description"
-                value={service.description}
-                onChange={(e) =>
-                  updateService(index, "description", e.target.value)
-                }
-                className="flex-1 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
-                required
-              />
-              <input
-                type="number"
-                placeholder="Amount"
-                value={service.amount || ""}
-                onChange={(e) =>
-                  updateService(
-                    index,
-                    "amount",
-                    e.target.value === "" ? 0 : Number(e.target.value)
-                  )
-                }
-                className="w-32 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
-                required
-                min="0"
-              />
+            <div key={index} className="flex gap-2 flex-wrap sm:flex-nowrap">
+              {projectSettings?.allocation_type === "employee_based" ? (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Role"
+                    value={(service as any).team_role || ""}
+                    onChange={(e) =>
+                      updateService(index, "team_role", e.target.value)
+                    }
+                    className="w-32 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Description"
+                    value={service.description}
+                    onChange={(e) =>
+                      updateService(index, "description", e.target.value)
+                    }
+                    className="flex-1 min-w-[150px] px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Hrs"
+                    value={(service as any).hours || ""}
+                    onChange={(e) =>
+                      updateService(
+                        index,
+                        "hours",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                    className="w-20 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
+                    min="0"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Rate"
+                    value={(service as any).rate || ""}
+                    onChange={(e) =>
+                      updateService(
+                        index,
+                        "rate",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                    className="w-24 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
+                    min="0"
+                  />
+                  <div className="w-28 px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-right">
+                    {(service.amount || 0).toFixed(2)}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Description"
+                    value={service.description}
+                    onChange={(e) =>
+                      updateService(index, "description", e.target.value)
+                    }
+                    className="flex-1 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Amount"
+                    value={service.amount || ""}
+                    onChange={(e) =>
+                      updateService(
+                        index,
+                        "amount",
+                        e.target.value === "" ? 0 : Number(e.target.value)
+                      )
+                    }
+                    className="w-32 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
+                    required
+                    min="0"
+                  />
+                </>
+              )}
               {services.length > 1 && (
                 <button
                   type="button"
