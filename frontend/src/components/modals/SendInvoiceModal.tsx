@@ -177,6 +177,121 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
         return "";
       };
 
+      const generateInvoiceTableHtml = () => {
+        const { project_type, allocation_type } =
+          (invoice.project_id as any) || {};
+
+        const currencySymbol =
+          invoice.currency || settings.currency === "USD" ? "$" : "Rs.";
+        const isEmployeeBased =
+          project_type === "hourly_billing" &&
+          allocation_type === "employee_based";
+
+        const thStyle =
+          "background-color: #f8fafc; padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 600; border-bottom: 2px solid #e2e8f0;";
+        const tdStyle =
+          "padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155;";
+        const tdNumStyle =
+          "padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; text-align: right;";
+        const trFooterStyle = "background-color: #f8fafc;";
+
+        let headers = "";
+        if (isEmployeeBased) {
+          headers = `
+            <tr>
+              <th style="${thStyle} width: 40%">Role / Description</th>
+              <th style="${thStyle} width: 15%; text-align: center">Hours</th>
+              <th style="${thStyle} width: 20%; text-align: right">Rate</th>
+              <th style="${thStyle} width: 25%; text-align: right">Amount</th>
+            </tr>`;
+        } else {
+          headers = `
+            <tr>
+              <th style="${thStyle} width: 70%">Description</th>
+              <th style="${thStyle} width: 30%; text-align: right">Amount</th>
+            </tr>`;
+        }
+
+        const rows = invoice.services
+          .map((service: any) => {
+            const amountFormatted = `${currencySymbol} ${Number(
+              service.amount
+            ).toFixed(2)}`;
+            if (isEmployeeBased) {
+              const roleDesc = service.team_role
+                ? `${service.team_role} - ${service.description}`
+                : service.description;
+              const rateFormatted = service.rate
+                ? `${currencySymbol} ${Number(service.rate).toFixed(2)}`
+                : "-";
+              const hours = service.hours || 0;
+              return `
+              <tr>
+                <td style="${tdStyle}">${roleDesc}</td>
+                <td style="${tdStyle} text-align: center">${hours}</td>
+                <td style="${tdNumStyle}">${rateFormatted}</td>
+                <td style="${tdNumStyle} font-weight: 600;">${amountFormatted}</td>
+              </tr>`;
+            } else {
+              const desc = service.description || "Service";
+              return `
+              <tr>
+                <td style="${tdStyle}">${desc}</td>
+                <td style="${tdNumStyle} font-weight: 600;">${amountFormatted}</td>
+              </tr>`;
+            }
+          })
+          .join("");
+
+        // Footer Rows (Subtotal, Tax, Total)
+        const colspanLabel = isEmployeeBased ? 3 : 1;
+
+        let footerRows = "";
+
+        // Subtotal
+        footerRows += `
+          <tr>
+            <td colspan="${colspanLabel}" style="${tdStyle} text-align: right; font-weight: 600; color: #64748b;">Sub Total</td>
+            <td style="${tdNumStyle} font-weight: 600;">${currencySymbol} ${Number(
+          invoice.subtotal
+        ).toFixed(2)}</td>
+          </tr>
+        `;
+
+        // Tax
+        if (invoice.gst_amount > 0) {
+          footerRows += `
+          <tr>
+            <td colspan="${colspanLabel}" style="${tdStyle} text-align: right; font-weight: 600; color: #64748b;">GST (${
+            invoice.gst_percentage
+          }%)</td>
+            <td style="${tdNumStyle} font-weight: 600;">${currencySymbol} ${Number(
+            invoice.gst_amount
+          ).toFixed(2)}</td>
+          </tr>
+        `;
+        }
+
+        // Total
+        footerRows += `
+          <tr style="${trFooterStyle}">
+            <td colspan="${colspanLabel}" style="${tdStyle} text-align: right; font-weight: 700; color: #334155; font-size: 16px;">Total Payable</td>
+            <td style="${tdNumStyle} font-weight: 700; color: #2563eb; font-size: 16px;">${currencySymbol} ${Number(
+          invoice.total_amount
+        ).toFixed(2)}</td>
+          </tr>
+        `;
+
+        return `
+          <div style="margin-bottom: 32px; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>${headers}</thead>
+              <tbody>${rows}${footerRows}</tbody>
+            </table>
+          </div>
+        `;
+      };
+
       const replaceVars = (text: string) => {
         return text
           .replace(
@@ -206,7 +321,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
             /{currency}/g,
             invoice.currency || settings.currency || "INR"
           )
-          .replace(/{deletion_remark}/g, getCancellationRemark());
+          .replace(/{deletion_remark}/g, getCancellationRemark())
+          .replace(/{table_details}/g, generateInvoiceTableHtml());
       };
 
       setFormData({

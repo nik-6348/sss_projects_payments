@@ -82,6 +82,18 @@ const invoiceSchema = new mongoose.Schema(
           required: true,
           min: 0,
         },
+        hours: {
+          type: Number,
+          default: 0,
+        },
+        rate: {
+          type: Number,
+          default: 0,
+        },
+        team_role: {
+          type: String,
+          trim: true,
+        },
       },
     ],
     subtotal: {

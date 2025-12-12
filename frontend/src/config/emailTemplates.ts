@@ -56,24 +56,7 @@ export const emailTemplates = {
       <p style="font-size: 16px; margin-bottom: 24px;">Dear <strong>{client_name}</strong>,</p>
       <p style="margin-bottom: 24px;">Please find attached the invoice <strong>{invoice_number}</strong> from {company_name}. We appreciate your business.</p>
       
-      <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #e2e8f0;">
-        <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; color: #64748b; letter-spacing: 1px;">Summary</h3>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-          <span style="color: #64748b;">Invoice Number</span>
-          <span style="font-weight: 600; color: #334155;">{invoice_number}</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-          <span style="color: #64748b;">Due Date</span>
-          <span style="font-weight: 600; color: #334155;">{due_date}</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px;">
-          <span style="color: #64748b;">Total Amount</span>
-          <span style="font-size: 20px; font-weight: 700; color: #2563eb;">{amount}</span>
-        </div>
-      </div>
+{table_details}
 
       <p style="margin-bottom: 0;">If you have any questions, please reply to this email.</p>
       <p style="margin-top: 8px;">Regards,<br><strong>{company_name}</strong></p>
@@ -94,20 +77,7 @@ export const emailTemplates = {
         <p style="margin: 0; color: #b91c1c; font-weight: 500;">Reason: {deletion_remark}</p>
       </div>
 
-      <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #e2e8f0;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
-          <span style="color: #64748b;">Invoice Number</span>
-          <span style="font-weight: 600;">{invoice_number}</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
-          <span style="color: #64748b;">Project</span>
-          <span style="font-weight: 600;">{project_name}</span>
-        </div>
-         <div style="display: flex; justify-content: space-between;">
-          <span style="color: #64748b;">Amount</span>
-          <span style="font-weight: 600; color: #94a3b8; text-decoration: line-through;">{amount}</span>
-        </div>
-      </div>
+{table_details}
       
       <p style="margin-bottom: 0;">If you have any questions, please contact us.</p>
        <p style="margin-top: 8px;">Regards,<br><strong>{company_name}</strong></p>
@@ -124,29 +94,7 @@ export const emailTemplates = {
       <p style="font-size: 16px; margin-bottom: 24px;">Dear <strong>{client_name}</strong>,</p>
       <p style="margin-bottom: 24px;">This is a friendly reminder that invoice <strong>{invoice_number}</strong> is now overdue. We kindly request you to process the payment as soon as possible.</p>
       
-      <div style="background-color: #fff7ed; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #ffedd5;">
-         <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; color: #9a3412; letter-spacing: 1px;">Invoice Details</h3>
-         
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #fed7aa;">
-          <span style="color: #9a3412;">Invoice Number</span>
-          <span style="font-weight: 600; color: #431407;">{invoice_number}</span>
-        </div>
-        
-         <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #fed7aa;">
-          <span style="color: #9a3412;">Project</span>
-          <span style="font-weight: 600; color: #431407;">{project_name}</span>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #fed7aa;">
-          <span style="color: #9a3412;">Due Date</span>
-          <span style="font-weight: 600; color: #c2410c;">{due_date}</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px;">
-          <span style="color: #9a3412;">Amount Due</span>
-          <span style="font-size: 20px; font-weight: 700; color: #ea580c;">{amount}</span>
-        </div>
-      </div>
+{table_details}
       
       <p style="margin-bottom: 0;">If you have already made this payment, please disregard this notice.</p>
       <p style="margin-top: 8px;">Regards,<br><strong>{company_name}</strong></p>
@@ -166,24 +114,7 @@ export const emailTemplates = {
       </div>
       <p style="margin-bottom: 24px; text-align: center;">Thank you! We have received your payment for invoice <strong>{invoice_number}</strong>.</p>
       
-      <div style="background-color: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 32px; border: 1px solid #e2e8f0;">
-        <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; color: #64748b; letter-spacing: 1px;">Transaction Details</h3>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-          <span style="color: #64748b;">Invoice Number</span>
-          <span style="font-weight: 600; color: #334155;">{invoice_number}</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-          <span style="color: #64748b;">Payment Date</span>
-          <span style="font-weight: 600; color: #334155;">{paid_date}</span>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px;">
-          <span style="color: #64748b;">Amount Paid</span>
-          <span style="font-size: 20px; font-weight: 700; color: #16a34a;">{amount}</span>
-        </div>
-      </div>
+{table_details}
 
       <p style="margin-bottom: 0;">We appreciate your prompt payment.</p>
       <p style="margin-top: 8px;">Regards,<br><strong>{company_name}</strong></p>

@@ -609,7 +609,7 @@ const updateInvoiceStatus = async (req, res, next) => {
   }
 };
 
-import { generateInvoicePDF as generatePDF } from "../utils/generatePDF.js";
+import { generateInvoicePDF as generatePDF } from "../utils/generateInvoiceNew.js";
 import BankDetails from "../models/BankDetails.js";
 import companyDetails from "../config/companyDetails.js";
 

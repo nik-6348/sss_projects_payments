@@ -8,20 +8,7 @@ export const emailTemplates = {
       <p>Dear {client_name},</p>
       <p>Please find attached the invoice {invoice_number} from {company_name}.</p>
       
-      <div class="details">
-        <div class="details-row">
-          <span><strong>Invoice Number:</strong></span>
-          <span>{invoice_number}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Amount:</strong></span>
-          <span>{amount}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Due Date:</strong></span>
-          <span>{due_date}</span>
-        </div>
-      </div>
+{table_details}
 
       <p>We appreciate your business.</p>
       <p>Regards,<br><strong>{company_name}</strong></p>
@@ -36,20 +23,7 @@ export const emailTemplates = {
       
       <p><strong>Reason for Cancellation:</strong> {deletion_remark}</p>
 
-      <div class="details">
-        <div class="details-row">
-          <span><strong>Invoice Number:</strong></span>
-          <span>{invoice_number}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Project:</strong></span>
-          <span>{project_name}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Amount:</strong></span>
-          <span>{amount}</span>
-        </div>
-      </div>
+{table_details}
       
       <p>If you have any questions regarding this cancellation, please don't hesitate to contact us.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>
@@ -67,24 +41,7 @@ export const emailTemplates = {
       
       <p>This is a friendly reminder that payment for the following invoice is past due. Please arrange payment at your earliest convenience to avoid any service interruptions.</p>
       
-      <div class="details">
-        <div class="details-row">
-          <span><strong>Invoice Number:</strong></span>
-          <span>{invoice_number}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Project:</strong></span>
-          <span>{project_name}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Amount Due:</strong></span>
-          <span style="color: #dc2626; font-weight: bold;">{amount}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Due Date:</strong></span>
-          <span style="color: #dc2626;">{due_date}</span>
-        </div>
-      </div>
+{table_details}
       
       <p>If you have already made this payment, please disregard this notice.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>
@@ -102,24 +59,7 @@ export const emailTemplates = {
       
       <p>This email confirms that your payment has been successfully processed.</p>
       
-      <div class="details">
-        <div class="details-row">
-          <span><strong>Invoice Number:</strong></span>
-          <span>{invoice_number}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Project:</strong></span>
-          <span>{project_name}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Amount Paid:</strong></span>
-          <span style="color: #059669; font-weight: bold;">{amount}</span>
-        </div>
-        <div class="details-row">
-          <span><strong>Payment Date:</strong></span>
-          <span>{paid_date}</span>
-        </div>
-      </div>
+{table_details}
       
       <p>We appreciate your prompt payment and continued business.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>

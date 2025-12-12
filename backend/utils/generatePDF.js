@@ -22,7 +22,7 @@ const generateInvoicePDF = (
   // Logo
   doc.addImage(logoBase64, "PNG", 10, 15, 75, 15);
 
-  // Company Header
+  // Company Header 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text(companyDetails.name || "", 200, 15, { align: "right" });
