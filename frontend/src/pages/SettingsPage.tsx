@@ -899,7 +899,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   {deletedInvoices.length > 0 ? (
                     deletedInvoices.map((invoice) => (
                       <tr
-                        key={invoice.id}
+                        key={invoice._id}
                         className="border-b border-slate-200 dark:border-slate-700"
                       >
                         <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-100">
@@ -916,7 +916,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <button
-                            onClick={() => handleRestoreInvoice(invoice.id)}
+                            onClick={() => handleRestoreInvoice(invoice._id)}
                             className="flex items-center gap-1 ml-auto text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
                             title="Restore Invoice"
                           >

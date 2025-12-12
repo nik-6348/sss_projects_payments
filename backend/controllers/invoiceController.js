@@ -3,6 +3,7 @@ import Project from "../models/Project.js";
 import { validationResult } from "express-validator";
 import mongoose from "mongoose";
 import { sendInvoiceStatusEmail } from "./emailController.js";
+import { generateInvoiceNumber } from "../utils/invoiceUtils.js";
 
 // @desc    Get all invoices
 // @route   GET /api/invoices
@@ -270,8 +271,11 @@ const createInvoice = async (req, res, next) => {
       });
     }
 
+    const invoice_number = await generateInvoiceNumber();
+
     const invoice = await Invoice.create({
       ...req.body,
+      invoice_number,
       services,
       subtotal,
       gst_percentage,

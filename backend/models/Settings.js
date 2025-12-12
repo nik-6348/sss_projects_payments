@@ -15,7 +15,7 @@ const settingsSchema = new mongoose.Schema(
     invoice_settings: {
       format: {
         type: String,
-        default: "INV-{YYYY}-{SEQ}",
+        default: "INV-{FY}/{SEQ}",
         trim: true,
       },
       current_sequence: {

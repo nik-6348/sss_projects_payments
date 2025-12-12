@@ -58,8 +58,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             });
 
             if (response.success) {
-                toast.success('Login successful!');
-                // Call the parent's onLogin to handle navigation
                 onLogin(formData.email, formData.password);
             } else {
                 throw new Error(response.error || 'Login failed');

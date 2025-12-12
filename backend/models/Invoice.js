@@ -13,13 +13,7 @@ const invoiceSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       uppercase: true,
-      default: function () {
-        const year = new Date().getFullYear();
-        const random = Math.floor(Math.random() * 1000)
-          .toString()
-          .padStart(3, "0");
-        return `INV-${year}-${random}`;
-      },
+      // default: generated in controller via settings
     },
     amount: {
       type: Number,
