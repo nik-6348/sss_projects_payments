@@ -385,7 +385,13 @@ const ProjectForm: React.FC<{
                   key={index}
                   className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg"
                 >
-                  <div className="sm:col-span-4">
+                  <div
+                    className={
+                      formData.project_type === "hourly_billing"
+                        ? "sm:col-span-4"
+                        : "sm:col-span-5"
+                    }
+                  >
                     <FormSelect
                       label="Team Member"
                       name={`member_${index}`}
@@ -429,7 +435,13 @@ const ProjectForm: React.FC<{
                       ]}
                     />
                   </div>
-                  <div className="sm:col-span-3">
+                  <div
+                    className={
+                      formData.project_type === "hourly_billing"
+                        ? "sm:col-span-3"
+                        : "sm:col-span-4"
+                    }
+                  >
                     <FormInput
                       label="Role"
                       name={`role_${index}`}
@@ -469,26 +481,28 @@ const ProjectForm: React.FC<{
                       }}
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <FormInput
-                      label="Hours/Month"
-                      type="number"
-                      name={`hours_${index}`}
-                      value={member.monthly_hours.toString()}
-                      onChange={(e) => {
-                        const newTeamMembers = [
-                          ...(formData.team_members || []),
-                        ];
-                        newTeamMembers[index].monthly_hours = Number(
-                          e.target.value
-                        );
-                        setFormData((prev) => ({
-                          ...prev,
-                          team_members: newTeamMembers,
-                        }));
-                      }}
-                    />
-                  </div>
+                  {formData.project_type === "hourly_billing" && (
+                    <div className="sm:col-span-2">
+                      <FormInput
+                        label="Hours/Month"
+                        type="number"
+                        name={`hours_${index}`}
+                        value={member.monthly_hours.toString()}
+                        onChange={(e) => {
+                          const newTeamMembers = [
+                            ...(formData.team_members || []),
+                          ];
+                          newTeamMembers[index].monthly_hours = Number(
+                            e.target.value
+                          );
+                          setFormData((prev) => ({
+                            ...prev,
+                            team_members: newTeamMembers,
+                          }));
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="sm:col-span-1 flex items-end">
                     <button
                       type="button"

@@ -81,6 +81,7 @@ const InvoiceForm: React.FC<{
     gst_percentage: number;
     include_gst: boolean;
     allocation_type?: string;
+    project_type?: string;
   } | null>(null);
 
   // Fetch bank accounts and settings
@@ -146,6 +147,7 @@ const InvoiceForm: React.FC<{
           gst_percentage: selectedProject.gst_percentage ?? 18,
           include_gst: selectedProject.include_gst ?? true,
           allocation_type: selectedProject.allocation_type,
+          project_type: selectedProject.project_type,
         });
 
         // Update form data with project's currency
@@ -305,11 +307,18 @@ const InvoiceForm: React.FC<{
       projectSettings?.allocation_type === "employee_based" &&
       (field === "hours" || field === "rate")
     ) {
-      const hours =
-        field === "hours" ? Number(value) : (updated[index] as any).hours || 0;
-      const rate =
-        field === "rate" ? Number(value) : (updated[index] as any).rate || 0;
-      updated[index].amount = hours * rate;
+      if (projectSettings.project_type === "hourly_billing") {
+        const hours =
+          field === "hours"
+            ? Number(value)
+            : (updated[index] as any).hours || 0;
+        const rate =
+          field === "rate" ? Number(value) : (updated[index] as any).rate || 0;
+        updated[index].amount = hours * rate;
+      } else if (field === "rate") {
+        // For monthly, rate is the monthly fee, so amount = rate
+        updated[index].amount = Number(value);
+      }
     }
 
     setServices(updated);
@@ -370,23 +379,29 @@ const InvoiceForm: React.FC<{
                     className="flex-1 min-w-[150px] px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
                     required
                   />
+                  {projectSettings.project_type === "hourly_billing" && (
+                    <input
+                      type="number"
+                      placeholder="Hrs"
+                      value={(service as any).hours || ""}
+                      onChange={(e) =>
+                        updateService(
+                          index,
+                          "hours",
+                          e.target.value === "" ? 0 : Number(e.target.value)
+                        )
+                      }
+                      className="w-20 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
+                      min="0"
+                    />
+                  )}
                   <input
                     type="number"
-                    placeholder="Hrs"
-                    value={(service as any).hours || ""}
-                    onChange={(e) =>
-                      updateService(
-                        index,
-                        "hours",
-                        e.target.value === "" ? 0 : Number(e.target.value)
-                      )
+                    placeholder={
+                      projectSettings.project_type === "hourly_billing"
+                        ? "Rate"
+                        : "Monthly Fee"
                     }
-                    className="w-20 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
-                    min="0"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Rate"
                     value={(service as any).rate || ""}
                     onChange={(e) =>
                       updateService(
