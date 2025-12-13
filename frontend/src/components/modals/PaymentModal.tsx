@@ -74,7 +74,73 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         onSave={handleSavePayment}
         onCancel={onClose}
       />
+
+      {/* Email Preview Section */}
+      <div className="mt-4 border-t pt-4">
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between font-medium text-slate-700 dark:text-slate-200">
+            <span>Preview Email Notification</span>
+            <span className="transition group-open:rotate-180">
+              <svg
+                fill="none"
+                height="24"
+                shapeRendering="geometricPrecision"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                viewBox="0 0 24 24"
+                width="24"
+              >
+                <path d="M6 9l6 6 6-6"></path>
+              </svg>
+            </span>
+          </summary>
+          <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            <EmailPreview invoice={invoice} status="paid" />
+          </div>
+        </details>
+      </div>
     </Modal>
+  );
+};
+
+// Simple internal component/helper for preview (avoids unnecessary re-fetching if we moved state up, but keeping it simple here)
+import { ApiClient } from "../../utils/api";
+import { replaceEmailVars } from "../../utils/invoiceUtils";
+
+const EmailPreview = ({
+  invoice,
+  status,
+}: {
+  invoice: Invoice;
+  status: string;
+}) => {
+  const [content, setContent] = useState<string>("Loading template...");
+
+  React.useEffect(() => {
+    const fetchTpl = async () => {
+      try {
+        const apiClient = new ApiClient();
+        const res = await apiClient.getEmailTemplate(status);
+        if (res.success && res.data) {
+          const body = replaceEmailVars(res.data.body, invoice);
+          setContent(body);
+        } else {
+          setContent("Failed to load email template.");
+        }
+      } catch (e) {
+        setContent("Error loading template.");
+      }
+    };
+    fetchTpl();
+  }, [status, invoice]);
+
+  return (
+    <div
+      className="p-4 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700 max-h-60 overflow-y-auto"
+      dangerouslySetInnerHTML={{ __html: content }}
+    />
   );
 };
 

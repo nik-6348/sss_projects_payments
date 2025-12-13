@@ -315,7 +315,7 @@ export interface InvoiceStats {
 }
 
 // API Client class
-class ApiClient {
+export class ApiClient {
   public axiosInstance: AxiosInstance;
 
   constructor() {

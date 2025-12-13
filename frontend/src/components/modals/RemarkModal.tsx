@@ -70,38 +70,54 @@ export const RemarkModal: React.FC<RemarkModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {message && (
-            <p className="text-slate-600 dark:text-slate-300">{message}</p>
-          )}
-
-          <div className="space-y-2">
-            <label
-              htmlFor="remark"
-              className="block text-sm font-medium text-slate-700 dark:text-slate-300"
-            >
-              Remark {required && <span className="text-red-500">*</span>}
-            </label>
-            <textarea
-              id="remark"
-              value={remark}
-              onChange={(e) => {
-                setRemark(e.target.value);
-                if (error) setError("");
-              }}
-              rows={3}
-              className={`w-full px-4 py-2 rounded-xl border ${
-                error
-                  ? "border-red-500 focus:ring-red-500"
-                  : "border-slate-300 dark:border-slate-600 focus:ring-blue-500"
-              } bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 transition-all resize-none`}
-              placeholder={
-                required ? "Enter a reason..." : "Optional remark..."
-              }
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                remark {required && <span className="text-red-500">*</span>}
+              </label>
+              <textarea
+                value={remark}
+                onChange={(e) => setRemark(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                placeholder={
+                  required ? "Enter a reason..." : "Optional remark..."
+                }
+              />
+            </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          {/* Email Preview Section */}
+          <div className="border-t pt-4">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between font-medium text-slate-700 dark:text-slate-200">
+                <span>Preview Email Notification</span>
+                <span className="transition group-open:rotate-180">
+                  <svg
+                    fill="none"
+                    height="24"
+                    shapeRendering="geometricPrecision"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.5"
+                    viewBox="0 0 24 24"
+                    width="24"
+                  >
+                    <path d="M6 9l6 6 6-6"></path>
+                  </svg>
+                </span>
+              </summary>
+              <div className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+                {/* Note: In a real app we might need to fetch the full invoice if only ID passed, but for now assuming invoice prop has enough data or this is acceptable */}
+                <p className="text-xs text-slate-400 mb-2">
+                  Preview only available if full invoice data is present.
+                </p>
+              </div>
+            </details>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-6">
             <button
               type="button"
               onClick={onClose}
@@ -121,3 +137,5 @@ export const RemarkModal: React.FC<RemarkModalProps> = ({
     </div>
   );
 };
+
+export default RemarkModal;

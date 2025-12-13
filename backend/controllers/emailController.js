@@ -83,10 +83,69 @@ export const testSMTP = async (req, res) => {
       },
     });
 
+    // Generate Dummy PDF for testing using the same generator
+    // Mock Data
+    const mockInvoice = {
+      invoice_number: "TEST-001",
+      status: "sent",
+      due_date: new Date(),
+      subtotal: 1000,
+      gst_percentage: 18,
+      gst_amount: 180,
+      total_amount: 1180,
+      currency: "INR",
+      project_id: {
+        name: "Test Project",
+        project_type: "fixed",
+        allocation_type: "overall",
+      },
+      services: [{ description: "Test Service 1", amount: 1000 }],
+    };
+    const mockClient = {
+      name: "Test Client",
+      email: user, // Send to self? Or just use for name
+      address: { street: "123 Test St", city: "Test City" },
+    };
+    const mockBank = {
+      bankName: "Test Bank",
+      accountNumber: "1234567890",
+      ifscCode: "TEST0001",
+    };
+    const mockCompany = {
+      name: "Your Company",
+      email: user,
+    };
+
+    const pdfBase64 = generateInvoicePDF(
+      mockInvoice,
+      mockClient,
+      mockBank,
+      mockCompany
+    );
+    const pdfBuffer = Buffer.from(pdfBase64, "base64");
+
+    const mailOptions = {
+      from: `Test <${user}>`,
+      to: user, // Send test email to the sender
+      subject: "SMTP Test Email (with Attachment)",
+      html: "<p>This is a test email to verify your SMTP settings. Find attached a sample invoice PDF.</p>",
+      attachments: [
+        {
+          filename: "Test-Invoice.pdf",
+          content: pdfBuffer,
+        },
+      ],
+    };
+
     await transporter.verify();
+    await transporter.sendMail(mailOptions);
+
     res
       .status(200)
-      .json({ success: true, message: "SMTP Connection Successful" });
+      .json({
+        success: true,
+        message: "SMTP Connection Successful. Test email sent.",
+      });
   } catch (error) {
     console.error("SMTP Test Error:", error);
     res.status(400).json({ success: false, error: error.message });
@@ -292,11 +351,11 @@ export const sendInvoiceStatusEmail = async (
         allocation_type === "employee_based";
 
       const thStyle =
-        "background-color: #f8fafc; padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 600; border-bottom: 2px solid #e2e8f0;";
+        "background-color: #f8fafc; padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 600; border-bottom: 2px solid #e2e8f0; white-space: nowrap;";
       const tdStyle =
         "padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155;";
       const tdNumStyle =
-        "padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; text-align: right;";
+        "padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #334155; text-align: right; white-space: nowrap;";
       const trFooterStyle = "background-color: #f8fafc;";
 
       let headers = "";
@@ -385,9 +444,10 @@ export const sendInvoiceStatusEmail = async (
         </tr>
       `;
 
+      // Wrapping in responsive div
       return `
-        <div style="margin-bottom: 32px; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 8px;">
-          <table style="width: 100%; border-collapse: collapse;">
+        <div style="margin-bottom: 32px; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
             <thead>${headers}</thead>
             <tbody>${rows}${footerRows}</tbody>
           </table>

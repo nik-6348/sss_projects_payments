@@ -143,6 +143,7 @@ const getInvoices = async (req, res, next) => {
               // Reconstruct project_id as populated object
               project_id: {
                 _id: "$project._id",
+                name: "$project.name",
                 client_id: "$project.client_id",
                 client_name: "$client.name",
                 project_type: "$project.project_type",
