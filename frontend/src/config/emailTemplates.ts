@@ -110,7 +110,7 @@ export const emailTemplates = {
       `
       <p style="font-size: 16px; margin-bottom: 24px;">Dear <strong>{client_name}</strong>,</p>
       <div style="text-align: center; margin-bottom: 24px;">
-        <span style="display: inline-block; background-color: #dcfce7; color: #15803d; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 14px;">PASID IN FULL</span>
+        <span style="display: inline-block; background-color: #dcfce7; color: #15803d; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 14px;">PAID IN FULL</span>
       </div>
       <p style="margin-bottom: 24px; text-align: center;">Thank you! We have received your payment for invoice <strong>{invoice_number}</strong>.</p>
       

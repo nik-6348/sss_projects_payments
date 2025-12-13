@@ -5,7 +5,7 @@ import Invoice from "../models/Invoice.js";
 import Client from "../models/Client.js";
 import BankDetails from "../models/BankDetails.js";
 import Project from "../models/Project.js";
-import { generateInvoicePDF } from "../utils/generatePDF.js";
+import { generateInvoicePDF } from "../utils/generateInvoiceNew.js";
 
 import { wrapEmailBody } from "../config/emailBaseTemplate.js";
 import emailTemplates from "../config/emailTemplates.js";
@@ -115,22 +115,18 @@ export const sendInvoiceEmail = async (req, res) => {
     const settings = await Settings.findOne();
     const companyDetails = settings?.company_details || {};
 
-    // Generate PDF or use existing
-    let pdfBase64 = invoice.pdf_base64;
+    // Always Regenerate PDF to ensure it matches current data
+    const pdfBase64 = generateInvoicePDF(
+      invoice,
+      client,
+      bankDetails,
+      companyDetails
+    );
 
-    if (!pdfBase64) {
-      pdfBase64 = generateInvoicePDF(
-        invoice,
-        client,
-        bankDetails,
-        companyDetails
-      );
-
-      // Save generated PDF to invoice
-      invoice.pdf_base64 = pdfBase64;
-      invoice.pdf_generated_at = new Date();
-      await invoice.save();
-    }
+    // Update the saved PDF in DB
+    invoice.pdf_base64 = pdfBase64;
+    invoice.pdf_generated_at = new Date();
+    await invoice.save();
 
     const pdfBuffer = Buffer.from(pdfBase64, "base64");
 
@@ -290,7 +286,7 @@ export const sendInvoiceStatusEmail = async (
     const generateInvoiceTableHtml = (inv) => {
       const { project_type, allocation_type } = inv.project_id || {};
       const currencySymbol =
-        inv.currency || settings.currency === "USD" ? "$" : "Rs.";
+        inv.currency === "USD" ? "$" : inv.currency === "INR" ? "₹" : "₹"; // Default to ₹ if undefined or other
       const isEmployeeBased =
         project_type === "hourly_billing" &&
         allocation_type === "employee_based";
@@ -402,24 +398,30 @@ export const sendInvoiceStatusEmail = async (
     // Replace placeholders in template
     const replaceVars = (text) => {
       if (!text) return "";
-      const currency = invoice.currency || "INR";
+      const currencyCode = invoice.currency || "INR";
+      const currencySymbol =
+        currencyCode === "USD" ? "$" : currencyCode === "INR" ? "₹" : "₹";
+
       return text
         .replace(/{client_name}/g, client?.name || "Client")
         .replace(/{invoice_number}/g, invoice.invoice_number)
         .replace(/{company_name}/g, companyDetails.name || "Company")
         .replace(
           /{amount}/g,
-          `${currency} ${invoice.total_amount || invoice.amount}`
+          `${currencySymbol} ${invoice.total_amount || invoice.amount}`
         )
         .replace(
           /{total_amount}/g,
-          `${currency} ${invoice.total_amount || invoice.amount}`
+          `${currencySymbol} ${invoice.total_amount || invoice.amount}`
         )
         .replace(
           /{paid_now}/g,
-          `${currency} ${extraData.amount || invoice.paid_amount || 0}`
+          `${currencySymbol} ${extraData.amount || invoice.paid_amount || 0}`
         )
-        .replace(/{balance_due}/g, `${currency} ${invoice.balance_due || 0}`)
+        .replace(
+          /{balance_due}/g,
+          `${currencySymbol} ${invoice.balance_due || 0}`
+        )
         .replace(/{due_date}/g, new Date(invoice.due_date).toLocaleDateString())
         .replace(/{paid_date}/g, new Date().toLocaleDateString())
         .replace(/{project_name}/g, invoice.project_id?.name || "Project")
@@ -452,6 +454,34 @@ export const sendInvoiceStatusEmail = async (
   } catch (error) {
     console.error("Send Status Email Error:", error);
     return { success: false, error: error.message };
+  }
+};
+
+// Get Email Template
+export const getEmailTemplate = async (req, res) => {
+  try {
+    const { type } = req.body; // e.g., 'invoice_default', 'paid', 'overdue'
+
+    // Use hardcoded templates from config
+    let template = emailTemplates[type];
+
+    // Fallback if not exact match (optional, or just return default)
+    if (!template && type === "default")
+      template = emailTemplates["invoice_default"];
+
+    if (!template) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Template not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: template,
+    });
+  } catch (error) {
+    console.error("Get Template Error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 

@@ -157,6 +157,69 @@ const InvoiceForm: React.FC<{
         // Update GST settings from project
         setGstPercentage(selectedProject.gst_percentage ?? 18);
         setIncludeGst(selectedProject.include_gst ?? true);
+
+        // Auto-populate services for employee-based projects (only for new invoices)
+        if (
+          !invoice &&
+          selectedProject.allocation_type === "employee_based" &&
+          selectedProject.team_members &&
+          selectedProject.team_members.length > 0
+        ) {
+          const mappedServices = selectedProject.team_members.map((member) => {
+            const memberName =
+              typeof member.user_id === "object"
+                ? member.user_id.name
+                : "Team Member";
+            return {
+              team_role: member.role || "Developer",
+              description: `Services by ${memberName}`,
+              hours: 0, // Default to 0, let user fill
+              rate: member.rate || 0,
+              amount: 0,
+            };
+          });
+          setServices(mappedServices);
+        } else if (!invoice) {
+          // Reset to default if not employee based/no members and is new invoice
+          if (
+            services.length === 1 &&
+            services[0].description === "" &&
+            services[0].amount === 0
+          ) {
+            setServices([
+              { description: "", amount: 0, team_role: "", hours: 0, rate: 0 },
+            ]);
+          }
+        }
+
+        // Auto-populate services for employee-based projects (only for new invoices)
+        if (
+          !invoice &&
+          selectedProject.allocation_type === "employee_based" &&
+          selectedProject.team_members &&
+          selectedProject.team_members.length > 0
+        ) {
+          const mappedServices = selectedProject.team_members.map((member) => {
+            const memberName =
+              typeof member.user_id === "object"
+                ? member.user_id.name
+                : "Team Member";
+            return {
+              team_role: member.role || "Developer",
+              description: `Services by ${memberName}`,
+              hours: 0, // Default to 0, let user fill
+              rate: member.rate || 0,
+              amount: 0,
+            };
+          });
+          setServices(mappedServices);
+        } else if (!invoice) {
+          // Reset to default if not employee based/no members and is new invoice (optional, maybe keep existing input if user typed?)
+          // Ideally we only overwrite if we haven't touched it, but for now strict switch is safer for "on project select" behavior
+          setServices([
+            { description: "", amount: 0, team_role: "", hours: 0, rate: 0 },
+          ]);
+        }
       }
     };
 
@@ -165,6 +228,20 @@ const InvoiceForm: React.FC<{
       fetchProjectSettings();
     }
   }, [formData.project_id, projects, invoice]);
+
+  // Debug Logger
+  React.useEffect(() => {
+    console.log("Current Project Set:", projectSettings);
+    console.log("Selected Project ID:", formData.project_id);
+    const p = projects.find(
+      (p) =>
+        p.id ===
+        (typeof formData.project_id === "string"
+          ? formData.project_id
+          : (formData.project_id as any)?.id)
+    );
+    console.log("Found Project Object:", p);
+  }, [projectSettings, formData.project_id, projects]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -229,8 +306,9 @@ const InvoiceForm: React.FC<{
       (field === "hours" || field === "rate")
     ) {
       const hours =
-        field === "hours" ? Number(value) : updated[index].hours || 0;
-      const rate = field === "rate" ? Number(value) : updated[index].rate || 0;
+        field === "hours" ? Number(value) : (updated[index] as any).hours || 0;
+      const rate =
+        field === "rate" ? Number(value) : (updated[index] as any).rate || 0;
       updated[index].amount = hours * rate;
     }
 
@@ -280,7 +358,7 @@ const InvoiceForm: React.FC<{
                     onChange={(e) =>
                       updateService(index, "team_role", e.target.value)
                     }
-                    className="w-32 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
+                    className="w-32 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"
                   />
                   <input
                     type="text"

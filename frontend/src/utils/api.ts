@@ -801,6 +801,23 @@ class ApiClient {
     return response.data;
   }
 
+  async getEmailTemplate(
+    type: string
+  ): Promise<ApiResponse<{ subject: string; body: string }>> {
+    const response: AxiosResponse<
+      ApiResponse<{ subject: string; body: string }>
+    > = await this.axiosInstance.post("/email/template", { type });
+    return response.data;
+  }
+
+  async regenerateInvoicePDF(
+    id: string
+  ): Promise<ApiResponse<{ pdf_base64: string }>> {
+    const response: AxiosResponse<ApiResponse<{ pdf_base64: string }>> =
+      await this.axiosInstance.get(`/invoices/${id}/pdf`);
+    return response.data;
+  }
+
   async sendWhatsAppMessage(
     id: string,
     data: { to: string }

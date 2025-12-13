@@ -1,7 +1,7 @@
 import Invoice from "../models/Invoice.js";
 import Client from "../models/Client.js";
 import BankDetails from "../models/BankDetails.js";
-import { generateInvoicePDF } from "../utils/generatePDF.js";
+import { generateInvoicePDF } from "../utils/generateInvoiceNew.js";
 
 import Settings from "../models/Settings.js";
 

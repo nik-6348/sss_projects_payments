@@ -207,6 +207,19 @@ function AppContent() {
               created_at: p.createdAt,
               user_id: p.user_id,
               team_members: p.team_members,
+              // New fields
+              currency: p.currency,
+              gst_percentage: p.gst_percentage,
+              include_gst: p.include_gst,
+              project_type: p.project_type,
+              allocation_type: p.allocation_type,
+              contract_amount: p.contract_amount,
+              contract_length: p.contract_length,
+              monthly_fee: p.monthly_fee,
+              billing_cycle: p.billing_cycle,
+              hourly_rate: p.hourly_rate,
+              estimated_hours: p.estimated_hours,
+              client_emails: p.client_emails,
             } as Project)
         );
         setProjects(transformedProjects);
@@ -369,6 +382,19 @@ function AppContent() {
             created_at: p.createdAt,
             user_id: p.user_id,
             team_members: p.team_members,
+            // New fields
+            currency: p.currency,
+            gst_percentage: p.gst_percentage,
+            include_gst: p.include_gst,
+            project_type: p.project_type,
+            allocation_type: p.allocation_type,
+            contract_amount: p.contract_amount,
+            contract_length: p.contract_length,
+            monthly_fee: p.monthly_fee,
+            billing_cycle: p.billing_cycle,
+            hourly_rate: p.hourly_rate,
+            estimated_hours: p.estimated_hours,
+            client_emails: p.client_emails,
           };
 
           setProjects((prevProjects) => {
@@ -932,7 +958,9 @@ function AppContent() {
     if (!pdfViewer.invoiceId) return;
     try {
       setIsRegeneratingPDF(true);
-      const response = await apiClient.viewInvoicePDF(pdfViewer.invoiceId);
+      const response = await apiClient.regenerateInvoicePDF(
+        pdfViewer.invoiceId
+      );
       if (response.success && response.data?.pdf_base64) {
         setPdfViewer((prev) => ({
           ...prev,

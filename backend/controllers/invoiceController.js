@@ -4,6 +4,11 @@ import { validationResult } from "express-validator";
 import mongoose from "mongoose";
 import { sendInvoiceStatusEmail } from "./emailController.js";
 import { generateInvoiceNumber } from "../utils/invoiceUtils.js";
+import { generateInvoicePDF as generatePDF } from "../utils/generateInvoiceNew.js";
+import BankDetails from "../models/BankDetails.js";
+import companyDetails from "../config/companyDetails.js";
+// Client is already imported if needed, or import here
+import Client from "../models/Client.js";
 
 // @desc    Get all invoices
 // @route   GET /api/invoices
@@ -138,9 +143,10 @@ const getInvoices = async (req, res, next) => {
               // Reconstruct project_id as populated object
               project_id: {
                 _id: "$project._id",
-                name: "$project.name",
                 client_id: "$project.client_id",
                 client_name: "$client.name",
+                project_type: "$project.project_type",
+                allocation_type: "$project.allocation_type",
               },
             },
           },
@@ -180,7 +186,7 @@ const getInvoice = async (req, res, next) => {
   try {
     const invoice = await Invoice.findById(req.params.id).populate({
       path: "project_id",
-      select: "name user_id",
+      select: "name user_id project_type allocation_type",
       populate: {
         path: "client_id",
         select: "name email",
@@ -204,6 +210,8 @@ const getInvoice = async (req, res, next) => {
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
         client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
+        project_type: invoice.project_id.project_type,
+        allocation_type: invoice.project_id.allocation_type,
       },
     };
 
@@ -288,7 +296,7 @@ const createInvoice = async (req, res, next) => {
 
     await invoice.populate({
       path: "project_id",
-      select: "name user_id",
+      select: "name user_id project_type allocation_type",
       populate: {
         path: "client_id",
         select: "name email",
@@ -305,6 +313,8 @@ const createInvoice = async (req, res, next) => {
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
         client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
+        project_type: invoice.project_id.project_type,
+        allocation_type: invoice.project_id.allocation_type,
       },
     };
 
@@ -377,6 +387,8 @@ const updateInvoice = async (req, res, next) => {
         include_gst,
         total_amount,
         amount: subtotal, // Save Subtotal as Amount
+        pdf_base64: null, // Clear cached PDF on update
+        pdf_generated_at: null,
       };
 
       // Check project budget if amount changed
@@ -409,12 +421,54 @@ const updateInvoice = async (req, res, next) => {
       runValidators: true,
     }).populate({
       path: "project_id",
-      select: "name user_id",
+      select: "name user_id project_type allocation_type",
       populate: {
         path: "client_id",
-        select: "name email",
+        select:
+          "name email business_email finance_email support_email phone address gst_number",
       },
     });
+
+    // --- IMMEDIATE PDF REGENERATION START ---
+    try {
+      // Fetch fresh bank details (default or specific)
+      let bankDetails;
+      if (invoice.bank_account_id) {
+        bankDetails = await BankDetails.findById(invoice.bank_account_id);
+      }
+      if (!bankDetails) {
+        const banks = await BankDetails.find();
+        if (banks.length > 0) bankDetails = banks[0];
+      }
+
+      // Identify Client
+      // Note: populate might have returned a lean object or specialized doc, ensure we have what we need
+      // We essentially need the client object.
+      // invoice.project_id.client_id should be populated above.
+
+      if (bankDetails && invoice.project_id?.client_id) {
+        const invoiceData = invoice.toObject();
+        const clientData = invoiceData.project_id.client_id;
+
+        const pdfBase64 = generateInvoicePDF(
+          invoiceData,
+          clientData,
+          bankDetails,
+          companyDetails
+        );
+
+        // Update immediately
+        invoice.pdf_base64 = pdfBase64;
+        invoice.pdf_generated_at = new Date();
+        await invoice.save();
+      }
+    } catch (pdfError) {
+      console.error("Auto-Regeneration Failed:", pdfError);
+      // We don't fail the request, just log it. The cache will be null anyway from the update above if we removed the null setting,
+      // but wait, we effectively want to REPLACEMENT the null setting with THIS.
+      // Actually, since we are doing this AFTER the update which returns `new: true`, we should re-save.
+    }
+    // --- IMMEDIATE PDF REGENERATION END ---
 
     // Transform data for frontend compatibility
     const transformedInvoice = {
@@ -426,6 +480,8 @@ const updateInvoice = async (req, res, next) => {
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
         client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
+        project_type: invoice.project_id.project_type,
+        allocation_type: invoice.project_id.allocation_type,
       },
     };
 
@@ -518,7 +574,11 @@ const updateInvoiceStatus = async (req, res, next) => {
       });
     }
 
-    const updateData = { status };
+    const updateData = {
+      status,
+      pdf_base64: null, // Clear cached PDF on status change
+      pdf_generated_at: null,
+    };
 
     // If marking as paid, add paid date and update amounts
     if (status === "paid") {
@@ -569,12 +629,44 @@ const updateInvoiceStatus = async (req, res, next) => {
       }
     ).populate({
       path: "project_id",
-      select: "name user_id",
+      select: "name user_id project_type allocation_type",
       populate: {
         path: "client_id",
-        select: "name email",
+        select:
+          "name email business_email finance_email support_email phone address gst_number",
       },
     });
+
+    // --- IMMEDIATE PDF REGENERATION START (STATUS) ---
+    try {
+      let bankDetails;
+      if (invoice.bank_account_id) {
+        bankDetails = await BankDetails.findById(invoice.bank_account_id);
+      }
+      if (!bankDetails) {
+        const banks = await BankDetails.find();
+        if (banks.length > 0) bankDetails = banks[0];
+      }
+
+      if (bankDetails && invoice.project_id?.client_id) {
+        const invoiceData = invoice.toObject();
+        const clientData = invoiceData.project_id.client_id;
+
+        const pdfBase64 = generatePDF(
+          invoiceData,
+          clientData,
+          bankDetails,
+          companyDetails
+        );
+
+        invoice.pdf_base64 = pdfBase64;
+        invoice.pdf_generated_at = new Date();
+        await invoice.save();
+      }
+    } catch (pdfError) {
+      console.error("Auto-Regeneration (Status) Failed:", pdfError);
+    }
+    // --- IMMEDIATE PDF REGENERATION END (STATUS) ---
 
     // Transform data for frontend compatibility
     const transformedInvoice = {
@@ -586,6 +678,8 @@ const updateInvoiceStatus = async (req, res, next) => {
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
         client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
+        project_type: invoice.project_id.project_type,
+        allocation_type: invoice.project_id.allocation_type,
       },
     };
 
@@ -609,9 +703,11 @@ const updateInvoiceStatus = async (req, res, next) => {
   }
 };
 
-import { generateInvoicePDF as generatePDF } from "../utils/generateInvoiceNew.js";
-import BankDetails from "../models/BankDetails.js";
-import companyDetails from "../config/companyDetails.js";
+// Imports moved to top
+// import { generateInvoicePDF as generatePDF } from "../utils/generateInvoiceNew.js";
+// import BankDetails from "../models/BankDetails.js";
+// import companyDetails from "../config/companyDetails.js";
+// import Client from "../models/Client.js";
 
 // ... (keep existing imports)
 
@@ -664,6 +760,11 @@ const generateInvoicePDF = async (req, res, next) => {
       bankDetails,
       companyDetails
     );
+
+    // Save generated PDF to invoice (Manual Regeneration Persistence)
+    invoice.pdf_base64 = pdfBase64;
+    invoice.pdf_generated_at = new Date();
+    await invoice.save();
 
     res.status(200).json({
       success: true,
@@ -743,6 +844,8 @@ const getDeletedInvoices = async (req, res, next) => {
         client_name: invoice.project_id.client_id?.name || "Unknown Client",
         client_id: invoice.project_id.client_id,
         id: invoice.project_id._id,
+        project_type: invoice.project_id.project_type,
+        allocation_type: invoice.project_id.allocation_type,
       },
     }));
 
@@ -825,7 +928,7 @@ const duplicateInvoice = async (req, res, next) => {
 
     // Clean up fields to ensure new unique creation
     delete newInvoiceData._id;
-    delete newInvoiceData.invoice_number; // Will be auto-generated by model default
+    newInvoiceData.invoice_number = await generateInvoiceNumber(); // Explicitly generate new number
     delete newInvoiceData.createdAt;
     delete newInvoiceData.updatedAt;
     delete newInvoiceData.__v;
@@ -856,7 +959,7 @@ const duplicateInvoice = async (req, res, next) => {
 
     await newInvoice.populate({
       path: "project_id",
-      select: "name user_id",
+      select: "name user_id project_type allocation_type",
       populate: {
         path: "client_id",
         select: "name email",
@@ -873,6 +976,8 @@ const duplicateInvoice = async (req, res, next) => {
         client_name: newInvoice.project_id.client_id?.name || "Unknown Client",
         client_id: newInvoice.project_id.client_id,
         id: newInvoice.project_id._id,
+        project_type: newInvoice.project_id.project_type,
+        allocation_type: newInvoice.project_id.allocation_type,
       },
     };
 

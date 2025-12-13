@@ -14,6 +14,14 @@ export const wrapEmailBody = (content, companyDetails = {}) => {
     address = "",
   } = companyDetails;
 
+  // Check if content is already a full HTML document
+  if (
+    content.trim().startsWith("<!DOCTYPE html>") ||
+    content.trim().startsWith("<html>")
+  ) {
+    return content;
+  }
+
   // Convert newlines to breaks if content doesn't look like HTML
   const formattedContent =
     content.trim().startsWith("<") || content.includes("<br")

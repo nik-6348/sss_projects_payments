@@ -5,7 +5,7 @@ import apiClient from "../../utils/api";
 import { PrimaryButton } from "../ui";
 import { FormInput } from "../forms";
 import { generateEmailPreview } from "../../utils/emailPreview";
-import { emailTemplates } from "../../config/emailTemplates";
+// import { emailTemplates } from "../../config/emailTemplates"; // Removed in favor of backend
 
 interface SendInvoiceModalProps {
   isOpen: boolean;
@@ -152,14 +152,28 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
         }
       }
 
-      // Use hardcoded template
-      const template = emailTemplates.invoice_default;
+      // Fetch template from backend
+      let template = {
+        subject: "Invoice {invoice_number} from {company_name}",
+        body: "Please find attached the invoice {invoice_number}...",
+      };
+
+      try {
+        const templateResponse = await apiClient.getEmailTemplate(
+          "invoice_default"
+        );
+        if (templateResponse.success && templateResponse.data) {
+          template = templateResponse.data;
+        }
+      } catch (err) {
+        console.error("Failed to fetch template from backend, using fallback");
+      }
+
       const emailSettings = settings.email_settings || {
         default_cc: "",
         default_bcc: "",
       };
 
-      // internal helper to get cancellation remark
       const getCancellationRemark = () => {
         if (invoice.status !== "cancelled") return "";
         // Try top level if exists, otherwise check history
@@ -177,12 +191,13 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
         return "";
       };
 
+      const currencyCode = invoice.currency || settings.currency || "INR";
+      const currencySymbol = currencyCode === "USD" ? "$" : "₹";
+
       const generateInvoiceTableHtml = () => {
         const { project_type, allocation_type } =
           (invoice.project_id as any) || {};
 
-        const currencySymbol =
-          invoice.currency || settings.currency === "USD" ? "$" : "Rs.";
         const isEmployeeBased =
           project_type === "hourly_billing" &&
           allocation_type === "employee_based";
@@ -305,9 +320,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
           )
           .replace(
             /{amount}/g,
-            `${settings.currency || "INR"} ${
-              invoice.total_amount || invoice.amount
-            }`
+            `${currencySymbol} ${invoice.total_amount || invoice.amount}`
           )
           .replace(
             /{due_date}/g,
@@ -318,9 +331,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
             (invoice.project_id as any)?.name || "Project"
           )
           .replace(
-            /{currency}/g,
-            invoice.currency || settings.currency || "INR"
+            /{due_date}/g,
+            new Date(invoice.due_date).toLocaleDateString()
           )
+          .replace(/{currency}/g, currencySymbol)
           .replace(/{deletion_remark}/g, getCancellationRemark())
           .replace(/{table_details}/g, generateInvoiceTableHtml());
       };

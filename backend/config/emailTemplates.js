@@ -9,6 +9,9 @@ export const emailTemplates = {
       <p>Please find attached the invoice {invoice_number} from {company_name}.</p>
       
 {table_details}
+      
+      <p><strong>Project:</strong> {project_name}<br />
+      <strong>Due Date:</strong> {due_date}</p>
 
       <p>We appreciate your business.</p>
       <p>Regards,<br><strong>{company_name}</strong></p>
@@ -24,6 +27,8 @@ export const emailTemplates = {
       <p><strong>Reason for Cancellation:</strong> {deletion_remark}</p>
 
 {table_details}
+
+      <p><strong>Project:</strong> {project_name}</p>
       
       <p>If you have any questions regarding this cancellation, please don't hesitate to contact us.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>
@@ -43,6 +48,9 @@ export const emailTemplates = {
       
 {table_details}
       
+      <p><strong>Project:</strong> {project_name}<br />
+      <strong>Due Date:</strong> {due_date}</p>
+
       <p>If you have already made this payment, please disregard this notice.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>
     `,
@@ -60,6 +68,8 @@ export const emailTemplates = {
       <p>This email confirms that your payment has been successfully processed.</p>
       
 {table_details}
+
+      <p><strong>Project:</strong> {project_name}</p>
       
       <p>We appreciate your prompt payment and continued business.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>
