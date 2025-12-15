@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { FormInput, FormTextarea } from "./index";
+import { FormInput, FormTextarea, FormSelect } from "./index";
+import { Country, State } from "country-state-city";
 import { PrimaryButton } from "../ui";
 
 interface ClientFormProps {
@@ -38,6 +39,21 @@ const ClientForm: React.FC<ClientFormProps> = ({
     e.preventDefault();
     onSubmit(formData);
   };
+
+  const countries = Country.getAllCountries().map((country) => ({
+    value: country.name,
+    label: country.name,
+    isoCode: country.isoCode,
+  }));
+
+  const selectedCountryCode =
+    countries.find((c) => c.value === formData.address.country)?.isoCode ||
+    "IN";
+
+  const states = State.getStatesOfCountry(selectedCountryCode).map((state) => ({
+    value: state.name,
+    label: state.name,
+  }));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -108,6 +124,32 @@ const ClientForm: React.FC<ClientFormProps> = ({
         }
       />
       <div className="grid grid-cols-2 gap-4">
+        <FormSelect
+          label="Country"
+          value={formData.address.country}
+          options={countries}
+          onChange={(e) => {
+            const newCountry = e.target.value;
+            // Reset state when country changes
+            setFormData({
+              ...formData,
+              address: { ...formData.address, country: newCountry, state: "" },
+            });
+          }}
+        />
+        <FormSelect
+          label="State"
+          value={formData.address.state}
+          options={states}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              address: { ...formData.address, state: e.target.value },
+            })
+          }
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
         <FormInput
           label="City"
           value={formData.address.city}
@@ -119,18 +161,6 @@ const ClientForm: React.FC<ClientFormProps> = ({
           }
         />
         <FormInput
-          label="State"
-          value={formData.address.state}
-          onChange={(e) =>
-            setFormData({
-              ...formData,
-              address: { ...formData.address, state: e.target.value },
-            })
-          }
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <FormInput
           label="Pincode"
           value={formData.address.pincode}
           onChange={(e) =>
@@ -140,28 +170,29 @@ const ClientForm: React.FC<ClientFormProps> = ({
             })
           }
         />
-        <div className="grid grid-cols-2 gap-4">
-          <FormInput
-            label="GST Number"
-            value={formData.gst_number}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                gst_number: e.target.value.toUpperCase(),
-              })
-            }
-          />
-          <FormInput
-            label="PAN Number"
-            value={formData.pan_number}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                pan_number: e.target.value.toUpperCase(),
-              })
-            }
-          />
-        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <FormInput
+          label="GST Number"
+          value={formData.gst_number}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              gst_number: e.target.value.toUpperCase(),
+            })
+          }
+        />
+        <FormInput
+          label="PAN Number"
+          value={formData.pan_number}
+          onChange={(e) =>
+            setFormData({
+              ...formData,
+              pan_number: e.target.value.toUpperCase(),
+            })
+          }
+        />
       </div>
       <div className="flex gap-4">
         <PrimaryButton type="submit" loading={loading}>
