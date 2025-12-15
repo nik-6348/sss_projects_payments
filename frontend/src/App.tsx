@@ -34,6 +34,7 @@ import {
   ProjectDetailPage,
   LoginPage,
   SettingsPage,
+  ResetPasswordPage,
 } from "./pages";
 import ClientsListPage from "./pages/ClientsListPage";
 
@@ -45,6 +46,10 @@ function AppContent() {
     id?: string;
     params?: any;
   }>(() => {
+    // Check for reset password URL first
+    if (window.location.pathname.startsWith("/reset-password/")) {
+      return { view: "reset-password" };
+    }
     const saved = localStorage.getItem("currentView");
     return saved ? JSON.parse(saved) : { view: "dashboard" };
   });
@@ -1429,6 +1434,8 @@ function AppContent() {
             onInvoiceSent={fetchProjectDetails}
           />
         );
+      case "reset-password":
+        return <ResetPasswordPage onNavigate={navigateTo} />;
       default:
         if (isAuthenticated) {
           return (

@@ -384,6 +384,22 @@ export class ApiClient {
     return response.data;
   }
 
+  async forgotPassword(email: string): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.post(
+      "/auth/forgotpassword",
+      { email }
+    );
+    return response.data;
+  }
+
+  async resetPassword(token: string, password: string): Promise<ApiResponse> {
+    const response: AxiosResponse<ApiResponse> = await this.axiosInstance.put(
+      `/auth/resetpassword/${token}`,
+      { password }
+    );
+    return response.data;
+  }
+
   async updateProfile(userData: any): Promise<ApiResponse<User>> {
     const response: AxiosResponse<ApiResponse<User>> =
       await this.axiosInstance.put("/auth/profile", userData);

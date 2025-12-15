@@ -20,7 +20,7 @@ interface SettingsPageProps {
   // No props needed for now
 }
 
-const SettingsPage: React.FC<SettingsPageProps> = () => {
+export const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [activeTab, setActiveTab] = React.useState<
     "general" | "team" | "bank" | "email" | "deleted_invoices"
   >("general");
@@ -1338,5 +1338,3 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     </div>
   );
 };
-
-export default SettingsPage;

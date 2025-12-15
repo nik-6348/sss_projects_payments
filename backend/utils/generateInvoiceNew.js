@@ -305,7 +305,7 @@ const generateInvoicePDF = (
 
   addMetaRow("INVOICE NO:", invoiceData.invoice_number);
   addMetaRow("DUE DATE:", formatDate(invoiceData.due_date));
-  addMetaRow("PROJECT:", invoiceData.project_id?.name || "-");
+  addMetaRow("PROJECT:", invoiceData.project_id?.name || "Test Project");
 
   // Align content start for table
   cursorY = Math.max(cursorY, rightY) + 4;

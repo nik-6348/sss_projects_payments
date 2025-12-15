@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 const userSchema = new mongoose.Schema(
   {
@@ -53,6 +54,8 @@ const userSchema = new mongoose.Schema(
     lastLogin: {
       type: Date,
     },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
   },
   {
     timestamps: true,
@@ -76,8 +79,7 @@ userSchema.pre("save", async function (next) {
 
 // Instance method to check password
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return true;
-  // return await bcrypt.compare(candidatePassword, this.password);
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Instance method to generate JWT payload
@@ -88,10 +90,29 @@ userSchema.methods.getJWTPayload = function () {
   };
 };
 
+// Generate Password Reset Token
+userSchema.methods.getResetPasswordToken = function () {
+  // Generate token
+  const resetToken = crypto.randomBytes(20).toString("hex");
+
+  // Hash token and set to resetPasswordToken field
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  // Set expire (10 minutes)
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
+};
+
 // Remove password from JSON output
 userSchema.methods.toJSON = function () {
   const userObject = this.toObject();
   delete userObject.password;
+  delete userObject.resetPasswordToken;
+  delete userObject.resetPasswordExpire;
   return userObject;
 };
 
