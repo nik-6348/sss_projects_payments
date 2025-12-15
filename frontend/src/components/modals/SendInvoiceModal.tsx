@@ -50,7 +50,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
   const [bccList, setBccList] = useState<string[]>([]);
   const [newCc, setNewCc] = useState("");
   const [newBcc, setNewBcc] = useState("");
-  const [attachInvoice, setAttachInvoice] = useState(true);
+  // const [attachInvoice, setAttachInvoice] = useState(true); // Fixed: Unused state setter
+  const attachInvoice = true; // Hardcoded as per UI behavior
   const [companyDetails, setCompanyDetails] = useState<any>({});
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
