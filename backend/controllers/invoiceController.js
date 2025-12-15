@@ -26,6 +26,8 @@ const getInvoices = async (req, res, next) => {
       dueDateFrom,
       dueDateTo,
       deleted, // 'true' or 'false'
+      project_type,
+      allocation_type,
     } = req.query;
 
     const pageNum = parseInt(page);
@@ -65,6 +67,15 @@ const getInvoices = async (req, res, next) => {
       if (dueDateTo) matchStage.due_date.$lte = new Date(dueDateTo);
     }
 
+    // Build Project Match Stage (for filtering by project fields)
+    const projectMatchStage = {};
+    if (project_type) {
+      projectMatchStage["project.project_type"] = project_type;
+    }
+    if (allocation_type) {
+      projectMatchStage["project.allocation_type"] = allocation_type;
+    }
+
     // Aggregation pipeline
     const pipeline = [
       // 1. Lookup Project
@@ -77,6 +88,9 @@ const getInvoices = async (req, res, next) => {
         },
       },
       { $unwind: { path: "$project", preserveNullAndEmptyArrays: true } },
+
+      // Match Project Fields (if any filters provided)
+      { $match: projectMatchStage },
 
       // 2. Lookup Client (via Project)
       {
@@ -284,6 +298,7 @@ const createInvoice = async (req, res, next) => {
 
     const invoice = await Invoice.create({
       ...req.body,
+      currency: req.body.currency || project.currency || "INR",
       invoice_number,
       services,
       subtotal,
@@ -291,8 +306,8 @@ const createInvoice = async (req, res, next) => {
       gst_amount,
       include_gst,
       total_amount,
-      amount: subtotal, // Save Subtotal as the main Amount (for Analytics/Project Value)
-      balance_due: subtotal, // Initial balance is Principal Amount (Excl GST)
+      amount: total_amount, // Save Total Amount (Inc GST) as the main Amount for display/payment
+      balance_due: total_amount, // Initial balance is Total Amount (Inc GST)
     });
 
     await invoice.populate({

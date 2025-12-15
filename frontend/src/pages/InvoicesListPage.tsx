@@ -46,7 +46,14 @@ interface InvoicesListPageProps {
   initialTab?: string;
 }
 
-type TabType = "all" | "overdue" | "paid";
+type TabType =
+  | "all"
+  | "draft"
+  | "sent"
+  | "overdue"
+  | "paid"
+  | "cancelled"
+  | "deleted";
 
 export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
   invoices,
@@ -69,6 +76,10 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
     (initialTab as TabType) || "all"
   );
   const [searchQuery, setSearchQuery] = React.useState("");
+
+  // Additional Filters State
+  const [projectTypeFilter, setProjectTypeFilter] = React.useState("");
+  const [allocationTypeFilter, setAllocationTypeFilter] = React.useState("");
 
   // Effect to handle initialTab changes
   React.useEffect(() => {
@@ -108,22 +119,64 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
   });
 
   const tabs = [
-    {
-      id: "all" as TabType,
-      label: "All Invoices",
-      icon: FileText,
-    },
-    {
-      id: "overdue" as TabType,
-      label: "Overdue",
-      icon: AlertCircle,
-    },
-    {
-      id: "paid" as TabType,
-      label: "Paid",
-      icon: CheckCircle,
-    },
+    { id: "all" as TabType, label: "All", icon: FileText },
+    { id: "draft" as TabType, label: "Draft", icon: Edit2 },
+    { id: "sent" as TabType, label: "Sent", icon: Send },
+    { id: "overdue" as TabType, label: "Overdue", icon: AlertCircle },
+    { id: "paid" as TabType, label: "Paid", icon: CheckCircle },
+    { id: "cancelled" as TabType, label: "Cancelled", icon: Trash2 },
+    { id: "deleted" as TabType, label: "Deleted", icon: Trash2 },
   ];
+
+  // Helper to safely get project type info
+  const getProjectTypeInfo = (invoice: Invoice) => {
+    // Check if project_id is populated object
+    if (typeof invoice.project_id === "object" && invoice.project_id !== null) {
+      // @ts-ignore
+      return {
+        // @ts-ignore
+        projectType: invoice.project_id.project_type,
+        // @ts-ignore
+        allocationType: invoice.project_id.allocation_type,
+      };
+    }
+    // Fallback to finding in projects list if available
+    const project = projects?.find(
+      (p) =>
+        p.id ===
+        (typeof invoice.project_id === "string"
+          ? invoice.project_id
+          : invoice.project_id.id)
+    );
+    return {
+      projectType: project?.project_type,
+      allocationType: project?.allocation_type,
+    };
+  };
+
+  const getProjectTypeLabel = (type: string) => {
+    switch (type) {
+      case "fixed_contract":
+        return "Fixed";
+      case "monthly_retainer":
+        return "Monthly";
+      case "hourly_billing":
+        return "Hourly";
+      default:
+        return type || "-";
+    }
+  };
+
+  const getAllocationTypeLabel = (type: string) => {
+    switch (type) {
+      case "overall":
+        return "Overall";
+      case "employee_based":
+        return "Emp. Based";
+      default:
+        return type ? type : "-";
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -142,30 +195,70 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl backdrop-blur-sm border border-white/20 dark:border-slate-700/30">
-        {/* Tabs */}
-        <div className="flex space-x-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg w-full md:w-auto">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-600/50"
-                }`}
-              >
-                <Icon className="h-3 w-3" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl backdrop-blur-sm border border-white/20 dark:border-slate-700/30">
+        <div className="flex flex-col lg:flex-row gap-4 w-full xl:w-auto">
+          {/* Tabs */}
+          <div className="flex flex-wrap gap-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg w-full lg:w-auto overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md font-semibold text-xs transition-all duration-200 whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                      : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-600/50"
+                  }`}
+                >
+                  <Icon className="h-3 w-3" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-2">
+            <select
+              className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={projectTypeFilter}
+              onChange={(e) => {
+                setProjectTypeFilter(e.target.value);
+                if ((window as any).handleInvoiceFilterChange) {
+                  (window as any).handleInvoiceFilterChange({
+                    project_type: e.target.value,
+                  });
+                }
+              }}
+            >
+              <option value="">All Types</option>
+              <option value="fixed_contract">Fixed Contract</option>
+              <option value="monthly_retainer">Monthly Retainer</option>
+              <option value="hourly_billing">Hourly Billing</option>
+            </select>
+
+            <select
+              className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={allocationTypeFilter}
+              onChange={(e) => {
+                setAllocationTypeFilter(e.target.value);
+                if ((window as any).handleInvoiceFilterChange) {
+                  (window as any).handleInvoiceFilterChange({
+                    allocation_type: e.target.value,
+                  });
+                }
+              }}
+            >
+              <option value="">All Allocations</option>
+              <option value="overall">Overall</option>
+              <option value="employee_based">Employee Based</option>
+            </select>
+          </div>
         </div>
 
         {/* Search */}
-        <div className="relative w-full md:w-64">
+        <div className="relative w-full xl:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
@@ -184,7 +277,9 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
               <tr>
                 <th className="px-6 py-3">Invoice #</th>
                 <th className="px-6 py-3">Project</th>
-                <th className="px-6 py-3">Amount (Ex GST)</th>
+                <th className="px-6 py-3">Type</th>
+                <th className="px-6 py-3">Allocation</th>
+                <th className="px-6 py-3">Amount</th>
                 <th className="px-6 py-3">Issue Date</th>
                 <th className="px-6 py-3">Due Date</th>
                 <th className="px-6 py-3">Status</th>
@@ -206,6 +301,12 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                       <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div>
                     </td>
                     <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
+                    </td>
+                    <td className="px-6 py-4">
                       <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div>
                     </td>
                     <td className="px-6 py-4">
@@ -225,7 +326,7 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
               ) : invoices.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="px-6 py-12 text-center text-slate-500 dark:text-slate-400"
                   >
                     <div className="flex flex-col items-center gap-3">
@@ -247,6 +348,9 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                       ? projects?.find((p) => p.id === invoice.project_id)
                       : invoice.project_id;
 
+                  const { projectType, allocationType } =
+                    getProjectTypeInfo(invoice);
+
                   return (
                     <tr
                       key={invoice.id}
@@ -259,7 +363,28 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
                         {project?.name || "N/A"}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                        {formatCurrency(invoice.amount, invoice.currency)}
+                        {projectType ? (
+                          <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs font-medium whitespace-nowrap">
+                            {getProjectTypeLabel(projectType)}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                        {allocationType ? (
+                          <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs font-medium whitespace-nowrap">
+                            {getAllocationTypeLabel(allocationType)}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                        {formatCurrency(
+                          invoice.total_amount ?? invoice.amount,
+                          invoice.currency
+                        )}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(invoice.issue_date)}

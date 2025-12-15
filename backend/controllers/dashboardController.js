@@ -318,13 +318,17 @@ const getPaymentDashboard = async (req, res, next) => {
 // @access  Private
 const getFilteredDashboardStats = async (req, res, next) => {
   try {
-    const { year, month, projectId } = req.query; // Added projectId
+    const { year, month, projectId, allTime } = req.query; // Added projectId and allTime
     const currentYear = new Date().getFullYear();
     const selectedYear = parseInt(year) || currentYear;
 
     let startDate, endDate;
 
-    if (month) {
+    if (allTime === "true") {
+      // Filter for all time (wide range)
+      startDate = new Date(2000, 0, 1);
+      endDate = new Date(2100, 11, 31, 23, 59, 59, 999);
+    } else if (month) {
       // Filter by specific month
       startDate = new Date(selectedYear, parseInt(month) - 1, 1);
       endDate = new Date(selectedYear, parseInt(month), 0, 23, 59, 59, 999);

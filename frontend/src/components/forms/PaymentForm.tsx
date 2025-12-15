@@ -36,7 +36,9 @@ const PaymentForm: React.FC<{
               ? invoice.project_id
               : (invoice.project_id as any)._id || invoice.project_id.id,
           invoice_id: invoice.id,
-          amount: invoice.amount - (invoice.paid_amount || 0),
+          amount:
+            (invoice.total_amount ?? invoice.amount) -
+            (invoice.paid_amount || 0),
           currency: invoice.currency || "INR",
           payment_method: invoice.payment_method || "bank_account",
           payment_date: new Date().toISOString().split("T")[0],
@@ -160,7 +162,10 @@ const PaymentForm: React.FC<{
             </span>
             <span className="font-semibold text-slate-800 dark:text-slate-200">
               {invoice.currency === "USD" ? "$" : "₹"}
-              {(invoice.amount - (invoice.paid_amount || 0)).toLocaleString()}
+              {(
+                (invoice.total_amount ?? invoice.amount) -
+                (invoice.paid_amount || 0)
+              ).toLocaleString()}
             </span>
           </div>
           <div className="flex justify-between items-center mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
@@ -169,7 +174,7 @@ const PaymentForm: React.FC<{
             </span>
             <span
               className={`text-lg font-bold ${
-                invoice.amount -
+                (invoice.total_amount ?? invoice.amount) -
                   (invoice.paid_amount || 0) -
                   Number(formData.amount) <
                 0
@@ -180,7 +185,7 @@ const PaymentForm: React.FC<{
               {invoice.currency === "USD" ? "$" : "₹"}
               {Math.max(
                 0,
-                invoice.amount -
+                (invoice.total_amount ?? invoice.amount) -
                   (invoice.paid_amount || 0) -
                   Number(formData.amount)
               ).toLocaleString()}

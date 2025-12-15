@@ -48,6 +48,10 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 500);
 
+  // Additional Filters State
+  const [projectTypeFilter, setProjectTypeFilter] = useState("");
+  const [allocationTypeFilter, setAllocationTypeFilter] = useState("");
+
   // Effect for search debounce
   useEffect(() => {
     if (onSearch) {
@@ -58,7 +62,47 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     if (onFilterChange) {
+      // We'll pass the status as usual. New filters are passed via separate props/context or handled by parent if it reads from local state?
+      // Wait, standardizing: parent App.tsx needs to know about these new filters.
+      // For now, let's assume onFilterChange handles status, and we trigger a re-fetch or parent update for others.
+      // But props interface doesn't have onTypeChange etc.
+      // Simplest: just update local state and let parent read? No, parent passes props.
+      // Ideally App.tsx should pass handle functions for types.
+      // Let's assume we modify App.tsx first or standardizing calls here.
+      // Since I can't change props signature easily without App.tsx, I will use a custom event or callback if available?
+      // No, let's update App.tsx first or changing the interface here.
+      // Just exposing the local state via a useEffect that calls a new prop?
+      // Actually, I'll update interface but App.tsx will complain.
+      // Let's implement local UI here and assume parent will be updated next.
+      // Wait, I need to bubble up the changes.
+      // Standard: onFilterChange(status, type, allocation) ??
       onFilterChange(tab === "all" ? "" : tab);
+    }
+  };
+
+  // Determine Project Type Label
+  const getProjectTypeLabel = (type: string) => {
+    switch (type) {
+      case "fixed_contract":
+        return "Fixed Contract";
+      case "monthly_retainer":
+        return "Monthly Retainer";
+      case "hourly_billing":
+        return "Hourly Billing";
+      default:
+        return type || "N/A";
+    }
+  };
+
+  // Determine Allocation Type Label
+  const getAllocationTypeLabel = (type: string) => {
+    switch (type) {
+      case "overall":
+        return "Overall";
+      case "employee_based":
+        return "Emp. Based";
+      default:
+        return type ? type : "-";
     }
   };
 
@@ -86,23 +130,69 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
 
       {/* Controls */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white/50 dark:bg-slate-800/50 p-4 rounded-xl backdrop-blur-sm border border-white/20 dark:border-slate-700/30">
-        {/* Tabs */}
-        <div className="flex space-x-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg w-full md:w-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 ${
-                activeTab === tab.id
-                  ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-600/50"
-              }`}
-            >
-              {tab.id === "active" && <Clock className="h-3 w-3" />}
-              {tab.id === "completed" && <CheckCircle className="h-3 w-3" />}
-              <span>{tab.label}</span>
-            </button>
-          ))}
+        {/* Left Side: Tabs + Filters */}
+        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+          {/* Tabs */}
+          <div className="flex space-x-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md font-semibold text-xs sm:text-sm transition-all duration-200 ${
+                  activeTab === tab.id
+                    ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-600/50"
+                }`}
+              >
+                {tab.id === "active" && <Clock className="h-3 w-3" />}
+                {tab.id === "completed" && <CheckCircle className="h-3 w-3" />}
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Filters */}
+          <select
+            className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={projectTypeFilter}
+            onChange={(e) => {
+              setProjectTypeFilter(e.target.value);
+              // We'll need to bubble this up. For now sticking to this structure, assuming parent handles or we add prop later.
+              // Using a custom event as a quick hack or prefer updating interface?
+              // Let's emit a custom event on window for now or better yet, assume 'onFilterChange' can handle object?
+              // No, sticking to 'onFilterChange' string signature means I can't pass it easily.
+              // I will update the interface in the next step.
+              // For now, I'll dispatch a custom event that App.tsx can listen to if I modify it,
+              // OR I'll add a new prop to the interface in this file right now.
+              if ((window as any).handleProjectFilterChange) {
+                (window as any).handleProjectFilterChange({
+                  project_type: e.target.value,
+                });
+              }
+            }}
+          >
+            <option value="">All Types</option>
+            <option value="fixed_contract">Fixed Contract</option>
+            <option value="monthly_retainer">Monthly Retainer</option>
+            <option value="hourly_billing">Hourly Billing</option>
+          </select>
+
+          <select
+            className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={allocationTypeFilter}
+            onChange={(e) => {
+              setAllocationTypeFilter(e.target.value);
+              if ((window as any).handleProjectFilterChange) {
+                (window as any).handleProjectFilterChange({
+                  allocation_type: e.target.value,
+                });
+              }
+            }}
+          >
+            <option value="">All Allocations</option>
+            <option value="overall">Overall</option>
+            <option value="employee_based">Employee Based</option>
+          </select>
         </div>
 
         {/* Search */}
@@ -131,9 +221,10 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
               <tr>
                 <th className="px-6 py-3">Project Name</th>
                 <th className="px-6 py-3">Client</th>
+                <th className="px-6 py-3">Type</th>
+                <th className="px-6 py-3">Allocation</th>
                 <th className="px-6 py-3">Total Amount</th>
                 <th className="px-6 py-3">Start Date</th>
-                <th className="px-6 py-3">End Date</th>
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3 text-right">Actions</th>
               </tr>
@@ -142,7 +233,7 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
               {projects.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-6 py-12 text-center text-slate-500 dark:text-slate-400"
                   >
                     <div className="flex flex-col items-center gap-3">
@@ -170,13 +261,28 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
                       {project.client_name}
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                      {formatCurrency(project.total_amount, project.currency)}
+                      <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs font-medium">
+                        {getProjectTypeLabel(project.project_type || "")}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                      {project.allocation_type ? (
+                        <span className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs font-medium">
+                          {getAllocationTypeLabel(project.allocation_type)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                      {formatCurrency(
+                        project.total_amount *
+                          (1 + (project.gst_percentage || 0) / 100),
+                        project.currency
+                      )}
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       {formatDate(project.start_date)}
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                      {formatDate(project.end_date)}
                     </td>
                     <td className="px-6 py-4">
                       <StatusChip status={project.status} />

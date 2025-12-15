@@ -48,7 +48,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onNavigate,
 }) => {
   const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = React.useState<number>(currentYear);
+  const [selectedYear, setSelectedYear] = React.useState<number | "all">(
+    currentYear
+  );
   const [selectedMonth, setSelectedMonth] = React.useState<number | null>(null);
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>("");
   const [availableYears, setAvailableYears] = React.useState<number[]>([
@@ -64,9 +66,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       try {
         setLoading(true);
         const response = await apiClient.getDashboardStats({
-          year: selectedYear,
+          year: selectedYear === "all" ? undefined : selectedYear,
           month: selectedMonth || undefined,
           projectId: selectedProjectId || undefined,
+          allTime: selectedYear === "all", // Pass a flag for all time
         });
         if (response.success && response.data) {
           setDashboardStats(response.data);
@@ -111,7 +114,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           <div className="relative">
             <select
               value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedYear(val === "all" ? "all" : parseInt(val));
+              }}
               className="appearance-none pl-4 pr-10 py-2.5 rounded-xl text-sm font-medium 
                 bg-white dark:bg-slate-800 
                 text-slate-700 dark:text-slate-200
@@ -120,6 +126,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
                 cursor-pointer"
             >
+              <option value="all">All Sessions</option>
               {availableYears.map((year) => (
                 <option key={year} value={year}>
                   Session-{year}

@@ -140,12 +140,10 @@ export const testSMTP = async (req, res) => {
     await transporter.verify();
     await transporter.sendMail(mailOptions);
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "SMTP Connection Successful. Test email sent.",
-      });
+    res.status(200).json({
+      success: true,
+      message: "SMTP Connection Successful. Test email sent.",
+    });
   } catch (error) {
     console.error("SMTP Test Error:", error);
     res.status(400).json({ success: false, error: error.message });
@@ -174,9 +172,23 @@ export const sendInvoiceEmail = async (req, res) => {
     const settings = await Settings.findOne();
     const companyDetails = settings?.company_details || {};
 
-    // Always Regenerate PDF to ensure it matches current data
+    // Update invoice status if needed (Update BEFORE sending to ensure PDF has correct status)
+    if (invoice.status === "draft") {
+      invoice.status = "sent";
+    }
+
+    // Prepare Invoice Data for PDF Generation
+    // User wants "UNPAID" status on PDF when sent, not "SENT"
+    const pdfInvoiceData = invoice.toObject
+      ? invoice.toObject()
+      : { ...invoice };
+    if (pdfInvoiceData.status === "sent") {
+      pdfInvoiceData.status = "UNPAID";
+    }
+
+    // Always Regenerate PDF to ensure it matches current data AND status
     const pdfBase64 = generateInvoicePDF(
-      invoice,
+      pdfInvoiceData,
       client,
       bankDetails,
       companyDetails
@@ -185,7 +197,7 @@ export const sendInvoiceEmail = async (req, res) => {
     // Update the saved PDF in DB
     invoice.pdf_base64 = pdfBase64;
     invoice.pdf_generated_at = new Date();
-    await invoice.save();
+    await invoice.save(); // Save status and PDF
 
     const pdfBuffer = Buffer.from(pdfBase64, "base64");
 
@@ -248,12 +260,6 @@ export const sendInvoiceEmail = async (req, res) => {
     }
 
     await transporter.sendMail(mailOptions);
-
-    // Update invoice status if needed (optional)
-    if (invoice.status === "draft") {
-      invoice.status = "sent";
-      await invoice.save();
-    }
 
     res
       .status(200)
@@ -444,8 +450,16 @@ export const sendInvoiceStatusEmail = async (
         </tr>
       `;
 
-      // Wrapping in responsive div
+      // Wrapping in responsive div with header info
       return `
+        <div style="margin-bottom: 24px; font-size: 14px; color: #334155;">
+          <p style="margin: 0 0 8px 0;"><strong>Project:</strong> ${
+            inv.project_id?.name || "-"
+          }</p>
+          <p style="margin: 0;"><strong>Due Date:</strong> ${new Date(
+            inv.due_date
+          ).toLocaleDateString()}</p>
+        </div>
         <div style="margin-bottom: 32px; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
           <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
             <thead>${headers}</thead>

@@ -172,12 +172,13 @@ const InvoiceForm: React.FC<{
               typeof member.user_id === "object"
                 ? member.user_id.name
                 : "Team Member";
+            const isHourly = selectedProject.project_type === "hourly_billing";
             return {
               team_role: member.role || "Developer",
               description: `Services by ${memberName}`,
               hours: 0, // Default to 0, let user fill
               rate: member.rate || 0,
-              amount: 0,
+              amount: isHourly ? 0 : member.rate || 0,
             };
           });
           setServices(mappedServices);
@@ -195,33 +196,6 @@ const InvoiceForm: React.FC<{
         }
 
         // Auto-populate services for employee-based projects (only for new invoices)
-        if (
-          !invoice &&
-          selectedProject.allocation_type === "employee_based" &&
-          selectedProject.team_members &&
-          selectedProject.team_members.length > 0
-        ) {
-          const mappedServices = selectedProject.team_members.map((member) => {
-            const memberName =
-              typeof member.user_id === "object"
-                ? member.user_id.name
-                : "Team Member";
-            return {
-              team_role: member.role || "Developer",
-              description: `Services by ${memberName}`,
-              hours: 0, // Default to 0, let user fill
-              rate: member.rate || 0,
-              amount: 0,
-            };
-          });
-          setServices(mappedServices);
-        } else if (!invoice) {
-          // Reset to default if not employee based/no members and is new invoice (optional, maybe keep existing input if user typed?)
-          // Ideally we only overwrite if we haven't touched it, but for now strict switch is safer for "on project select" behavior
-          setServices([
-            { description: "", amount: 0, team_role: "", hours: 0, rate: 0 },
-          ]);
-        }
       }
     };
 
@@ -413,7 +387,15 @@ const InvoiceForm: React.FC<{
                     className="w-24 px-4 py-2 bg-white/50 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 rounded-lg"
                     min="0"
                   />
-                  <div className="w-28 px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-right">
+                  <div
+                    className="w-28 px-4 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-right"
+                    style={{
+                      display:
+                        projectSettings.project_type === "hourly_billing"
+                          ? "block"
+                          : "none",
+                    }}
+                  >
                     {(service.amount || 0).toFixed(2)}
                   </div>
                 </>

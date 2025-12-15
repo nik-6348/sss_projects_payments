@@ -42,7 +42,7 @@ const formatDate = (dateString) => {
 const getCurrencySymbol = (currency) => {
   if (currency === "USD") return "$";
   if (currency === "INR") return "Rs.";
-  return "Rs."; // Default fallback as per user request
+  return "Rs."; // Default fallback
 };
 
 const drawStatusRibbon = (doc, pageWidth, status = "UNPAID") => {
@@ -129,8 +129,7 @@ const getColumns = (invoiceData) => {
     columns = [
       { header: "Role", dataKey: "team_role" },
       { header: "Description", dataKey: "description" },
-      { header: "Monthly Fee", dataKey: "rate" },
-      { header: "Amount", dataKey: "amount" },
+      { header: "Monthly Fee", dataKey: "amount" },
     ];
   }
 
@@ -306,6 +305,7 @@ const generateInvoicePDF = (
 
   addMetaRow("INVOICE NO:", invoiceData.invoice_number);
   addMetaRow("DUE DATE:", formatDate(invoiceData.due_date));
+  addMetaRow("PROJECT:", invoiceData.project_id?.name || "-");
 
   // Align content start for table
   cursorY = Math.max(cursorY, rightY) + 4;

@@ -69,6 +69,10 @@ function AppContent() {
     search: "",
     status: "",
   });
+  // Additional Invoice Filters
+  const [invoiceTypeFilter, setInvoiceTypeFilter] = React.useState("");
+  const [invoiceAllocationFilter, setInvoiceAllocationFilter] =
+    React.useState("");
 
   // Project Pagination & Filters
   const [projectPagination, setProjectPagination] = React.useState({
@@ -80,6 +84,10 @@ function AppContent() {
     search: "",
     status: "",
   });
+  // Additional Project Filters
+  const [projectTypeFilter, setProjectTypeFilter] = React.useState("");
+  const [projectAllocationFilter, setProjectAllocationFilter] =
+    React.useState("");
 
   const [modal, setModal] = React.useState<{
     isOpen: boolean;
@@ -173,12 +181,17 @@ function AppContent() {
   const fetchProjects = React.useCallback(async () => {
     if (!isAuthenticated) return;
     try {
-      const response = await apiClient.getProjects({
+      const params: any = {
         page: projectPagination.currentPage,
         limit: 10,
         search: projectFilters.search,
         status: projectFilters.status,
-      });
+      };
+      if (projectTypeFilter) params.project_type = projectTypeFilter;
+      if (projectAllocationFilter)
+        params.allocation_type = projectAllocationFilter;
+
+      const response = await apiClient.getProjects(params);
 
       if (response.success && response.data) {
         const transformedProjects = response.data.map(
@@ -236,7 +249,13 @@ function AppContent() {
       console.error("Error fetching projects:", err);
       toast.error("Failed to fetch projects");
     }
-  }, [isAuthenticated, projectPagination.currentPage, projectFilters]);
+  }, [
+    isAuthenticated,
+    projectPagination.currentPage,
+    projectFilters,
+    projectTypeFilter,
+    projectAllocationFilter,
+  ]);
 
   // Fetch Invoices with Pagination & Filters
   const fetchInvoices = React.useCallback(async () => {
@@ -245,12 +264,24 @@ function AppContent() {
       // Don't set global loading here to avoid full screen spinner on filter change
       // setDataLoading(true);
 
-      const response = await apiClient.getInvoices({
+      const params: any = {
         page: invoicePagination.currentPage,
         limit: 10,
         search: invoiceFilters.search,
-        status: invoiceFilters.status,
-      });
+      };
+
+      // Handle Deleted status specially
+      if (invoiceFilters.status === "deleted") {
+        params.deleted = "true";
+      } else if (invoiceFilters.status) {
+        params.status = invoiceFilters.status;
+      }
+
+      if (invoiceTypeFilter) params.project_type = invoiceTypeFilter;
+      if (invoiceAllocationFilter)
+        params.allocation_type = invoiceAllocationFilter;
+
+      const response = await apiClient.getInvoices(params);
 
       if (response.success && response.data) {
         const transformedInvoices = response.data.map(
@@ -294,7 +325,38 @@ function AppContent() {
       console.error("Error fetching invoices:", err);
       toast.error("Failed to fetch invoices");
     }
-  }, [isAuthenticated, invoicePagination.currentPage, invoiceFilters]);
+  }, [
+    isAuthenticated,
+    invoicePagination.currentPage,
+    invoiceFilters,
+    invoiceTypeFilter,
+    invoiceAllocationFilter,
+  ]);
+
+  // Setup Event Listeners for Filters (Bridge from Children)
+  React.useEffect(() => {
+    const handleProjectFilter = (event: any) => {
+      const { project_type, allocation_type } = event.detail || event;
+      if (project_type !== undefined) setProjectTypeFilter(project_type);
+      if (allocation_type !== undefined)
+        setProjectAllocationFilter(allocation_type);
+    };
+
+    const handleInvoiceFilter = (event: any) => {
+      const { project_type, allocation_type } = event.detail || event;
+      if (project_type !== undefined) setInvoiceTypeFilter(project_type);
+      if (allocation_type !== undefined)
+        setInvoiceAllocationFilter(allocation_type);
+    };
+
+    (window as any).handleProjectFilterChange = handleProjectFilter;
+    (window as any).handleInvoiceFilterChange = handleInvoiceFilter;
+
+    return () => {
+      delete (window as any).handleProjectFilterChange;
+      delete (window as any).handleInvoiceFilterChange;
+    };
+  }, []);
 
   // Initial Data Fetch
   React.useEffect(() => {
@@ -552,6 +614,7 @@ function AppContent() {
         client_emails: projectData.client_emails || {},
         // Project Type
         project_type: projectData.project_type || "",
+        allocation_type: projectData.allocation_type || "",
         contract_amount: projectData.contract_amount || 0,
         contract_length: projectData.contract_length || 0,
         monthly_fee: projectData.monthly_fee || 0,

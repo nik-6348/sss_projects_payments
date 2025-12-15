@@ -68,21 +68,34 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     invoice: null,
   });
 
-  const paidAmount = React.useMemo(() => {
+  const { paidAmountIncGST, paidAmountExGST } = React.useMemo(() => {
     // Calculate from actual payments if available
-    const paymentAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+    const paymentTotal = payments.reduce((sum, p) => sum + p.amount, 0);
+    const gstRate = (project.gst_percentage || 0) / 100;
 
-    // If no payments but invoices are marked as paid, calculate from paid invoices
-    if (paymentAmount === 0) {
-      return invoices
-        .filter((i) => i.status === "paid")
-        .reduce((sum, i) => sum + i.amount, 0);
+    if (paymentTotal > 0) {
+      return {
+        paidAmountIncGST: paymentTotal,
+        paidAmountExGST: paymentTotal / (1 + gstRate),
+      };
     }
 
-    return paymentAmount;
-  }, [payments, invoices]);
+    // If no payments but invoices are marked as paid, calculate from paid invoices
+    const paidInvoices = invoices.filter((i) => i.status === "paid");
+    if (paidInvoices.length > 0) {
+      return {
+        paidAmountIncGST: paidInvoices.reduce(
+          (sum, i) => sum + (i.total_amount || i.amount),
+          0
+        ),
+        paidAmountExGST: paidInvoices.reduce((sum, i) => sum + i.amount, 0),
+      };
+    }
 
-  const { calculatedTotal, totalLabel } = React.useMemo(() => {
+    return { paidAmountIncGST: 0, paidAmountExGST: 0 };
+  }, [payments, invoices, project.gst_percentage]);
+
+  const { baseTotal, displayTotal, totalLabel } = React.useMemo(() => {
     let total = project.total_amount || 0;
     let label = "Total Value";
 
@@ -102,15 +115,28 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       label = `Contract Value (${project.contract_length}mo x ${project.monthly_fee})`;
     }
 
-    return { calculatedTotal: total, totalLabel: label };
+    // Calculate with GST
+    const gstRate = (project.gst_percentage || 0) / 100;
+    const withTax = total * (1 + gstRate);
+
+    return {
+      baseTotal: total,
+      displayTotal: withTax,
+      totalLabel: label,
+    };
   }, [project]);
 
   const progress =
-    calculatedTotal > 0
-      ? Math.min((paidAmount / calculatedTotal) * 100, 100)
-      : 0;
+    baseTotal > 0 ? Math.min((paidAmountExGST / baseTotal) * 100, 100) : 0;
 
-  const dueAmount = calculatedTotal - paidAmount;
+  const dueAmount = displayTotal - paidAmountIncGST;
+
+  // Calculate total invoiced amount (Ex-GST) to check if budget exceeded
+  const totalInvoicedExGST = React.useMemo(() => {
+    return invoices.reduce((sum, i) => sum + (i.subtotal ?? i.amount), 0);
+  }, [invoices]);
+
+  const isBudgetExceeded = totalInvoicedExGST > baseTotal;
 
   const TabButton: React.FC<{
     tabName: "details" | "invoices";
@@ -146,6 +172,24 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         <StatusChip status={project.status} />
       </div>
 
+      {isBudgetExceeded && (
+        <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-200">
+              Project Budget Exceeded
+            </h3>
+            <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+              The total invoiced amount (
+              {formatCurrency(totalInvoicedExGST, project.currency)}) has
+              exceeded the project budget (
+              {formatCurrency(baseTotal, project.currency)}). Calculated based
+              on amounts excluding GST.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <GlassCard className="!p-4">
@@ -153,7 +197,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             {totalLabel}
           </div>
           <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-            {formatCurrency(calculatedTotal, project.currency)}
+            {formatCurrency(displayTotal, project.currency)}
           </div>
         </GlassCard>
         <GlassCard className="!p-4">
@@ -161,7 +205,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             Total Paid
           </div>
           <div className="text-2xl font-bold text-green-700 dark:text-green-400">
-            {formatCurrency(paidAmount, project.currency)}
+            {formatCurrency(paidAmountIncGST, project.currency)}
           </div>
         </GlassCard>
         <GlassCard className="!p-4">
@@ -305,9 +349,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                 <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
                   <tr>
                     <th className="px-6 py-3 whitespace-nowrap">Invoice #</th>
-                    <th className="px-6 py-3 whitespace-nowrap">
-                      Amount (Ex GST)
-                    </th>
+                    <th className="px-6 py-3 whitespace-nowrap">Amount</th>
                     <th className="px-6 py-3 whitespace-nowrap">Due Date</th>
                     <th className="px-6 py-3 whitespace-nowrap">Status</th>
                     <th className="px-6 py-3 text-right whitespace-nowrap">
@@ -325,7 +367,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         {invoice.invoice_number}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                        {formatCurrency(invoice.amount, invoice.currency)}
+                        {formatCurrency(
+                          invoice.total_amount ?? invoice.amount,
+                          invoice.currency || project.currency
+                        )}
                       </td>
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(invoice.due_date)}

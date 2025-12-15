@@ -9,12 +9,20 @@ const getProjects = async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const startIndex = (page - 1) * limit;
-    const { search, status } = req.query;
+    const { search, status, project_type, allocation_type } = req.query;
 
     const query = { user_id: req.user.id };
 
     if (status) {
       query.status = status;
+    }
+
+    if (project_type) {
+      query.project_type = project_type;
+    }
+
+    if (allocation_type) {
+      query.allocation_type = allocation_type;
     }
 
     if (search) {

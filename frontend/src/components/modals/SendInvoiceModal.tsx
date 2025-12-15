@@ -1,15 +1,27 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Mail, MessageCircle, Send, Paperclip, Plus } from "lucide-react";
 import { toast } from "react-toastify";
-import { ApiClient } from "../../utils/api";
+import apiClient, { ApiClient } from "../../utils/api";
 import { replaceEmailVars } from "../../utils/invoiceUtils";
 import { PrimaryButton } from "../ui";
 import { FormInput } from "../forms";
 import { generateEmailPreview } from "../../utils/emailPreview";
 
 // Helper to handle var replacement wrapper
-const processTemplate = (text: string, invoice: any) => {
-  return replaceEmailVars(text, invoice);
+const processTemplate = (
+  text: string,
+  invoice: any,
+  companySettings: any = {}
+) => {
+  // Inject company name into invoice object temporarily for replacement if missing?
+  // replaceEmailVars reads from localStorage, but we can try to override or ensure localStorage is set?
+  // Actually, replaceEmailVars reads localStorage inside.
+  // We should modify replaceEmailVars in invoiceUtils to accept settings!
+  // But for now, let's rely on the fact that we fetch settings and valid 'companyDetails' in modal.
+  // We can pass it if we update the util.
+  // Let's assume we update the UTIL first (next step) or allow the util to take args.
+  // I will update this call signature, but the implementation of replaceEmailVars needs update too.
+  return replaceEmailVars(text, invoice, companySettings);
 };
 // import { emailTemplates } from "../../config/emailTemplates"; // Removed in favor of backend
 
@@ -84,6 +96,46 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
         }
       } else {
         isInternalUpdate.current = false;
+      }
+
+      // Explicitly update Company Details in Header/Footer if they exist in DOM
+      // This fixes the issue where async fetched details weren't reflecting because we only updated body
+      const headerTitle = doc.querySelector(".header h1");
+
+      if (headerTitle && companyDetails.name) {
+        headerTitle.textContent = companyDetails.name;
+      }
+      // If logo logic was dynamic we'd update that too, but currently it regenerates if missing
+      // Re-writing the whole doc would lose cursor, so we just patch up the text if needed.
+      // Ideally, if it's the FIRST load of company details, we might want to re-render.
+      // But since we write fullHtml on first mount (empty details), and then update.
+      // If companyDetails changed significantly, we might want to reload.
+      // Let's try to just re-write if the header name doesn't match to be safe?
+      // No, that loses cursor position if typing.
+      // Patching is better.
+    }
+    // Force re-render if companyDetails just arrived and doc looked empty/default?
+    // Actually, if we just check if the header content matches current company name.
+    if (
+      companyDetails.name &&
+      doc.body.innerText.includes("Company Name") &&
+      companyDetails.name !== "Company Name"
+    ) {
+      // Likely specific default placeholder -> Real Data transition.
+      // Safe to rewrite? Maybe.
+      // safeguard:
+      doc.open();
+      doc.write(fullHtml);
+      doc.close();
+      // Re-attach listeners
+      const newContentDiv = doc.querySelector(".content");
+      if (newContentDiv) {
+        newContentDiv.setAttribute("contenteditable", "true");
+        (newContentDiv as HTMLElement).style.outline = "none";
+        newContentDiv.addEventListener("input", (e: any) => {
+          isInternalUpdate.current = true;
+          setFormData((prev) => ({ ...prev, body: e.target.innerHTML }));
+        });
       }
     }
   }, [formData.body, companyDetails]);
@@ -186,8 +238,8 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
 
       setFormData({
         to: clientEmail,
-        subject: processTemplate(template.subject, invoice),
-        body: processTemplate(template.body, invoice),
+        subject: processTemplate(template.subject, invoice, settings),
+        body: processTemplate(template.body, invoice, settings),
       });
 
       setCompanyDetails(settings.company_details || {});
@@ -248,6 +300,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
 
     try {
       setLoading(true);
+      const apiClient = new ApiClient();
 
       if (method === "whatsapp") {
         const response = await apiClient.sendWhatsAppMessage(
@@ -476,11 +529,10 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
 
               <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 p-3 rounded-lg">
                 <input
-                  type="checkbox"
                   id="attachInvoice"
-                  checked={attachInvoice}
-                  onChange={(e) => setAttachInvoice(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  checked={true}
+                  disabled={true}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 opacity-70 cursor-not-allowed"
                 />
                 <label
                   htmlFor="attachInvoice"

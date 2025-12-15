@@ -506,6 +506,7 @@ export class ApiClient {
     year?: number;
     month?: number;
     projectId?: string;
+    allTime?: boolean;
   }): Promise<ApiResponse<DashboardStats>> {
     const response: AxiosResponse<ApiResponse<DashboardStats>> =
       await this.axiosInstance.get("/dashboard/stats", { params });

@@ -128,6 +128,14 @@ export const generateInvoiceTableHtml = (invoice: Invoice): string => {
 
   // Wrapping in a responsive div
   return `
+    <div style="margin-bottom: 24px; font-size: 14px; color: #334155;">
+      <p style="margin: 0 0 8px 0;"><strong>Project:</strong> ${
+        (invoice.project_id as any)?.name || "-"
+      }</p>
+      <p style="margin: 0;"><strong>Due Date:</strong> ${new Date(
+        invoice.due_date
+      ).toLocaleDateString()}</p>
+    </div>
     <div style="margin-bottom: 32px; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
       <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
         <thead>${headers}</thead>
@@ -137,8 +145,15 @@ export const generateInvoiceTableHtml = (invoice: Invoice): string => {
   `;
 };
 
-export const replaceEmailVars = (text: string, invoice: Invoice): string => {
-  const settings = JSON.parse(localStorage.getItem("settings") || "{}");
+export const replaceEmailVars = (
+  text: string,
+  invoice: Invoice,
+  companySettings: any = {}
+): string => {
+  const localSettings = JSON.parse(localStorage.getItem("settings") || "{}");
+  const settings = { ...localSettings, ...companySettings }; // Merge passed settings
+  const companyDetails = settings.company_details || {};
+
   const currencyCode = invoice.currency || settings.currency || "INR";
   const currencySymbol = getCurrencySymbol(currencyCode);
 
@@ -162,7 +177,7 @@ export const replaceEmailVars = (text: string, invoice: Invoice): string => {
       (invoice.project_id as any)?.client_name || "Client"
     )
     .replace(/{invoice_number}/g, invoice.invoice_number)
-    .replace(/{company_name}/g, settings?.company_details?.name || "Company")
+    .replace(/{company_name}/g, companyDetails.name || "Company")
     .replace(/{project_name}/g, (invoice.project_id as any)?.name || "Project")
     .replace(/{due_date}/g, new Date(invoice.due_date).toLocaleDateString())
     .replace(/{currency}/g, currencySymbol)
