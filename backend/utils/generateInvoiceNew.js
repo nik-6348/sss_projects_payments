@@ -452,31 +452,54 @@ const generateInvoicePDF = (
     footerY = 20;
   }
 
-  // --- LEFT: Bank Info ---
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14); // Keeping user's font size
-  doc.setTextColor(...COLORS.primary);
-  doc.text("Bank Details:", marginX, footerY);
-
+  // --- LEFT: Payment Info (Bank or Other) ---
   let leftY = footerY + 6;
-
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...COLORS.secondary);
 
-  const bankLines = [
-    `Bank: ${bankDetails.bankName || "-"}`,
-    `Account Type: ${bankDetails.accountType || "-"}`,
-    `A/C No: ${bankDetails.accountNumber || "-"}`,
-    `IFSC: ${bankDetails.ifscCode || "-"}`,
-    bankDetails.swiftCode ? `Swift: ${bankDetails.swiftCode}` : null,
-    `Holder: ${bankDetails.accountHolderName || "-"}`,
-  ].filter(Boolean);
+  if (invoiceData.payment_method === "other") {
+    // Show Custom Payment Details
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...COLORS.primary);
+    doc.text("Payment Details:", marginX, footerY);
 
-  bankLines.forEach((line) => {
-    doc.text(line, marginX, leftY);
-    leftY += 4.5;
-  });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...COLORS.secondary);
+
+    const detailLines = doc.splitTextToSize(
+      invoiceData.custom_payment_details || "Contact for payment info.",
+      80
+    );
+    doc.text(detailLines, marginX, leftY);
+    leftY += detailLines.length * 4.5;
+  } else {
+    // Show Bank Details
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...COLORS.primary);
+    doc.text("Bank Details:", marginX, footerY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...COLORS.secondary);
+
+    const bankLines = [
+      `Bank: ${bankDetails.bankName || "-"}`,
+      `Account Type: ${bankDetails.accountType || "-"}`,
+      `A/C No: ${bankDetails.accountNumber || "-"}`,
+      `IFSC: ${bankDetails.ifscCode || "-"}`,
+      bankDetails.swiftCode ? `Swift: ${bankDetails.swiftCode}` : null,
+      `Holder: ${bankDetails.accountHolderName || "-"}`,
+    ].filter(Boolean);
+
+    bankLines.forEach((line) => {
+      doc.text(line, marginX, leftY);
+      leftY += 4.5;
+    });
+  }
 
   // --- RIGHT: Signature ---
   // Start at the same Y as Bank Info Header
