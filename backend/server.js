@@ -48,7 +48,7 @@ app.use(limiter);
 // CORS configuration
 app.use(
   cors({
-    origin: "*",
+    origin: env.CLIENT_URL,
     credentials: true,
   })
 );
@@ -59,30 +59,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
 connectDB();
-
-// Create test user if it doesn't exist (for development)
-import User from "./models/User.js";
-const createTestUser = async () => {
-  try {
-    const existingUser = await User.findOne({ email: "test@example.com" });
-    if (!existingUser) {
-      await User.create({
-        name: "Test User",
-        email: "test@example.com",
-        password: "password123",
-        role: "admin",
-      });
-      console.log("Test user created: test@example.com / password123");
-    }
-  } catch (error) {
-    console.error("Error creating test user:", error);
-  }
-};
-
-// Create test user in development
-if (env.NODE_ENV !== "production") {
-  createTestUser();
-}
 
 import emailRoutes from "./routes/emailRoutes.js";
 import whatsappRoutes from "./routes/whatsappRoutes.js";

@@ -36,7 +36,7 @@ const addTeamMember = async (req, res, next) => {
       });
     }
 
-    const { name, email, password, role, phone, designation } = req.body;
+    const { name, email, password, role, phone } = req.body;
 
     // Check if user exists
     const userExists = await User.findOne({ email });
@@ -58,15 +58,8 @@ const addTeamMember = async (req, res, next) => {
     const user = await User.create({
       name,
       email,
-      password,
       role: userRole,
       phone,
-      // designation field might need to be added to User model if strictly required,
-      // but for now we'll stick to standard User fields or add it if requested.
-      // Assuming 'designation' might be stored in a profile or just mapped to role for now.
-      // If the user explicitly asked for designation, I'd add it to the model.
-      // For now, I'll omit it from creation if it's not in the schema, or put it in a 'profile' object if I were extending it further.
-      // Let's stick to the existing User schema for now to avoid scope creep unless necessary.
     });
 
     res.status(201).json({

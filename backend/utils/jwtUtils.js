@@ -28,14 +28,14 @@ const parseDurationToMs = (durationStr) => {
 // Generate JWT token
 const generateToken = (payload) => {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN || "30d",
+    expiresIn: env.JWT_EXPIRES_IN,
   });
 };
 
 // Generate refresh token
 const generateRefreshToken = (payload) => {
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRE || "7d",
+    expiresIn: env.JWT_REFRESH_EXPIRES_IN,
   });
 };
 
@@ -54,7 +54,7 @@ const generateTokenResponse = (user, statusCode, res, message = "Success") => {
   const token = generateToken(user.getJWTPayload());
 
   const options = {
-    expires: new Date(Date.now() + parseDurationToMs(env.JWT_COOKIE_EXPIRE)),
+    expires: new Date(Date.now() + parseDurationToMs(env.JWT_COOKIE_EXPIRES_IN)),
     httpOnly: true,
     secure: env.NODE_ENV === "production",
     sameSite: "strict",

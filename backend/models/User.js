@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import env from "../config/env.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -23,8 +24,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters"],
+      default: env.LOGIN_PASSWORD,
       select: false, // Don't include password in queries by default
     },
     role: {

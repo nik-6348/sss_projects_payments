@@ -657,24 +657,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
                 ]}
               />
             </div>
-            <FormInput
-              label="Invoice Format"
-              value={settings.invoice_settings?.format || "INV-{YYYY}-{SEQ}"}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  invoice_settings: {
-                    ...settings.invoice_settings,
-                    format: e.target.value,
-                  },
-                })
-              }
-              placeholder="e.g. INV-{YYYY}-{SEQ}"
-            />
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Use &#123;YYYY&#125; for year, &#123;MM&#125; for month,
-              &#123;SEQ&#125; for sequence number
-            </p>
             <div className="pt-4">
               <PrimaryButton type="submit" disabled={loading}>
                 <Save className="h-4 w-4 mr-2" />
@@ -1155,19 +1137,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
                   setNewMember({ ...newMember, email: e.target.value })
                 }
                 required
-              />
-              <FormInput
-                label={
-                  editingMember
-                    ? "New Password (leave blank to keep current)"
-                    : "Password"
-                }
-                type="password"
-                value={newMember.password}
-                onChange={(e) =>
-                  setNewMember({ ...newMember, password: e.target.value })
-                }
-                required={!editingMember}
               />
               <FormSelect
                 label="Role"

@@ -7,7 +7,7 @@ import env from "../config/env.js";
 
 // Helper to check domain
 const isValidDomain = (email) => {
-  return email.endsWith("@singaji.in");
+  return email.endsWith(env.DOMAIN);
 };
 
 // @desc    Register user
@@ -30,7 +30,7 @@ const register = async (req, res, next) => {
     if (!isValidDomain(email)) {
       return res.status(400).json({
         success: false,
-        error: "Registration is restricted to @singaji.in emails only",
+        error: `Registration is restricted to internal users only`,
       });
     }
 
@@ -77,7 +77,7 @@ const login = async (req, res, next) => {
     if (!isValidDomain(email)) {
       return res.status(400).json({
         success: false,
-        error: "Login is restricted to @singaji.in emails only",
+        error: `Login is restricted to internal users only`,
       });
     }
 
@@ -103,6 +103,13 @@ const login = async (req, res, next) => {
 
     // Get user without password
     const userData = await User.findById(user._id).select("-password");
+
+    if (userData.role !== env.LOGIN_ROLE) {
+      return res.status(401).json({
+        success: false,
+        error: `This Account is not allowed to login`,
+      });
+    }
 
     generateTokenResponse(userData, 200, res, "Login successful");
   } catch (error) {
