@@ -287,20 +287,28 @@ const generateInvoicePDF = (
     doc.text(`GSTIN: ${clientData.gst_number}`, marginX, cursorY);
   }
 
-  // Invoice Details (Right Aligned)
+  // Invoice Details (Right Aligned Block)
   let rightY = sectionStartY + 14;
-  const labelX = pageWidth - 60;
-  const valueX = pageWidth - marginX;
+
+  // Define positions for Left-Aligned Label and Value pair
+  // Shifted further right as per user request (was -80)
+  const labelX = pageWidth - 70;
+  const valueX = labelX + 25; // Values start 25 units after label start
+  const maxValueWidth = pageWidth - marginX - valueX; // Remainder of page width
 
   const addMetaRow = (label, value) => {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...COLORS.primary);
-    doc.text(label, labelX, rightY, { align: "right" });
+    doc.text(label, labelX, rightY, { align: "left" });
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0);
-    doc.text(value, valueX, rightY, { align: "right" });
-    rightY += 6;
+
+    // Wrap text
+    const wrappedValue = doc.splitTextToSize(value, maxValueWidth);
+    doc.text(wrappedValue, valueX, rightY, { align: "left" });
+
+    rightY += Math.max(6, wrappedValue.length * 5);
   };
 
   addMetaRow("INVOICE NO:", invoiceData.invoice_number);

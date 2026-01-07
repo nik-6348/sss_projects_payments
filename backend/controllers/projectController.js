@@ -11,7 +11,7 @@ const getProjects = async (req, res, next) => {
     const startIndex = (page - 1) * limit;
     const { search, status, project_type, allocation_type } = req.query;
 
-    const query = { user_id: req.user.id };
+    const query = {};
 
     if (status) {
       query.status = status;
@@ -83,12 +83,12 @@ const getProject = async (req, res, next) => {
     }
 
     // Check if user owns this project
-    if (project.user_id.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        error: "Not authorized to access this project",
-      });
-    }
+    // if (project.user_id.toString() !== req.user.id) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error: "Not authorized to access this project",
+    //   });
+    // }
 
     // Transform data to include client_name for frontend compatibility
     const transformedProject = {
@@ -261,12 +261,12 @@ const updateProject = async (req, res, next) => {
     }
 
     // Check if user owns this project
-    if (project.user_id.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        error: "Not authorized to update this project",
-      });
-    }
+    // if (project.user_id.toString() !== req.user.id) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error: "Not authorized to update this project",
+    //   });
+    // }
 
     // Check for auto-calculation needs
     const projectData = { ...req.body };
@@ -400,12 +400,12 @@ const deleteProject = async (req, res, next) => {
     }
 
     // Check if user owns this project
-    if (project.user_id.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        error: "Not authorized to delete this project",
-      });
-    }
+    // if (project.user_id.toString() !== req.user.id) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error: "Not authorized to delete this project",
+    //   });
+    // }
 
     await Project.findByIdAndDelete(req.params.id);
 
@@ -443,12 +443,13 @@ const updateProjectStatus = async (req, res, next) => {
     }
 
     // Check if user owns this project
-    if (project.user_id.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        error: "Not authorized to update this project",
-      });
-    }
+    // Check if user owns this project
+    // if (project.user_id.toString() !== req.user.id) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error: "Not authorized to update this project",
+    //   });
+    // }
 
     // Validate status
     const validStatuses = [
@@ -499,19 +500,15 @@ const updateProjectStatus = async (req, res, next) => {
 // @access  Private
 const getDashboardStats = async (req, res, next) => {
   try {
-    const totalProjects = await Project.countDocuments({
-      user_id: req.user.id,
-    });
+    const totalProjects = await Project.countDocuments({});
     const activeProjects = await Project.countDocuments({
-      user_id: req.user.id,
       status: "active",
     });
     const completedProjects = await Project.countDocuments({
-      user_id: req.user.id,
       status: "completed",
     });
     const totalAmount = await Project.aggregate([
-      { $match: { user_id: req.user.id } },
+      // { $match: { user_id: req.user.id } }, // Removed match
       { $group: { _id: null, total: { $sum: "$total_amount" } } },
     ]);
 

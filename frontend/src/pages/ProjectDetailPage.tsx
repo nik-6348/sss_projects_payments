@@ -68,15 +68,13 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     invoice: null,
   });
 
-  const { paidAmountIncGST, paidAmountExGST } = React.useMemo(() => {
+  const { paidAmountIncGST } = React.useMemo(() => {
     // Calculate from actual payments if available
     const paymentTotal = payments.reduce((sum, p) => sum + p.amount, 0);
-    const gstRate = (project.gst_percentage || 0) / 100;
 
     if (paymentTotal > 0) {
       return {
         paidAmountIncGST: paymentTotal,
-        paidAmountExGST: paymentTotal / (1 + gstRate),
       };
     }
 
@@ -88,14 +86,13 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           (sum, i) => sum + (i.total_amount || i.amount),
           0
         ),
-        paidAmountExGST: paidInvoices.reduce((sum, i) => sum + i.amount, 0),
       };
     }
 
-    return { paidAmountIncGST: 0, paidAmountExGST: 0 };
-  }, [payments, invoices, project.gst_percentage]);
+    return { paidAmountIncGST: 0 };
+  }, [payments, invoices]);
 
-  const { baseTotal, displayTotal, totalLabel } = React.useMemo(() => {
+  const { displayTotal, totalLabel } = React.useMemo(() => {
     let total = project.total_amount || 0;
     let label = "Total Value";
 
@@ -120,23 +117,25 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     const withTax = total * (1 + gstRate);
 
     return {
-      baseTotal: total,
       displayTotal: withTax,
       totalLabel: label,
     };
   }, [project]);
 
+  // Use GST-inclusive amounts for progress calculation
   const progress =
-    baseTotal > 0 ? Math.min((paidAmountExGST / baseTotal) * 100, 100) : 0;
+    displayTotal > 0
+      ? Math.min((paidAmountIncGST / displayTotal) * 100, 100)
+      : 0;
 
   const dueAmount = displayTotal - paidAmountIncGST;
 
-  // Calculate total invoiced amount (Ex-GST) to check if budget exceeded
-  const totalInvoicedExGST = React.useMemo(() => {
-    return invoices.reduce((sum, i) => sum + (i.subtotal ?? i.amount), 0);
+  // Calculate total invoiced amount (Inc-GST) to check if budget exceeded
+  const totalInvoicedIncGST = React.useMemo(() => {
+    return invoices.reduce((sum, i) => sum + (i.total_amount ?? i.amount), 0);
   }, [invoices]);
 
-  const isBudgetExceeded = totalInvoicedExGST > baseTotal;
+  const isBudgetExceeded = totalInvoicedIncGST > displayTotal;
 
   const TabButton: React.FC<{
     tabName: "details" | "invoices";
@@ -144,11 +143,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   }> = ({ tabName, label }) => (
     <button
       onClick={() => setActiveTab(tabName)}
-      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${
-        activeTab === tabName
-          ? "bg-white/60 dark:bg-slate-700/60 text-slate-800 dark:text-slate-100 shadow"
-          : "text-slate-600 dark:text-slate-300 hover:bg-white/30 dark:hover:bg-slate-600/30"
-      }`}
+      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${activeTab === tabName
+        ? "bg-white/60 dark:bg-slate-700/60 text-slate-800 dark:text-slate-100 shadow"
+        : "text-slate-600 dark:text-slate-300 hover:bg-white/30 dark:hover:bg-slate-600/30"
+        }`}
     >
       {label}
     </button>
@@ -181,10 +179,9 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             </h3>
             <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
               The total invoiced amount (
-              {formatCurrency(totalInvoicedExGST, project.currency)}) has
+              {formatCurrency(totalInvoicedIncGST, project.currency)}) has
               exceeded the project budget (
-              {formatCurrency(baseTotal, project.currency)}). Calculated based
-              on amounts excluding GST.
+              {formatCurrency(displayTotal, project.currency)}).
             </p>
           </div>
         </div>
@@ -229,8 +226,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
               {project.project_type === "hourly_billing"
                 ? "Based on estimated hours"
                 : project.project_type === "monthly_retainer"
-                ? "Based on contract length"
-                : "Based on fixed contract value"}
+                  ? "Based on contract length"
+                  : "Based on fixed contract value"}
             </p>
           </div>
           <div className="text-right">

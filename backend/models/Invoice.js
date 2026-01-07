@@ -27,7 +27,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "sent", "paid", "partial", "overdue", "cancelled"],
+      enum: ["draft", "sent", "unpaid", "paid", "partial", "overdue", "cancelled"],
       default: "draft",
     },
     paid_amount: {
@@ -58,7 +58,7 @@ const invoiceSchema = new mongoose.Schema(
         status: {
           type: String,
           required: true,
-          enum: ["draft", "sent", "paid", "partial", "overdue", "cancelled"],
+          enum: ["draft", "sent", "unpaid", "paid", "partial", "overdue", "cancelled"],
         },
         remark: {
           type: String,

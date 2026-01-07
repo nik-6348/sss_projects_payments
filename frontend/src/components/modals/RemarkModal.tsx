@@ -10,6 +10,7 @@ interface RemarkModalProps {
   required?: boolean;
   confirmText?: string;
   type?: "danger" | "warning" | "info";
+  isLoading?: boolean;
 }
 
 export const RemarkModal: React.FC<RemarkModalProps> = ({
@@ -21,6 +22,7 @@ export const RemarkModal: React.FC<RemarkModalProps> = ({
   required = false,
   confirmText = "Confirm",
   type = "info",
+  isLoading = false,
 }) => {
   const [remark, setRemark] = React.useState("");
   const [error, setError] = React.useState("");
@@ -63,7 +65,8 @@ export const RemarkModal: React.FC<RemarkModalProps> = ({
           </h3>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300 transition-colors"
+            disabled={isLoading}
+            className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
@@ -78,12 +81,13 @@ export const RemarkModal: React.FC<RemarkModalProps> = ({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                remark {required && <span className="text-red-500">*</span>}
+                Remark {required && <span className="text-red-500">*</span>}
               </label>
               <textarea
                 value={remark}
                 onChange={(e) => setRemark(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                disabled={isLoading}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] disabled:opacity-50"
                 placeholder={
                   required ? "Enter a reason..." : "Optional remark..."
                 }
@@ -126,15 +130,22 @@ export const RemarkModal: React.FC<RemarkModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors font-medium"
+              disabled={isLoading}
+              className="px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors font-medium disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className={`px-4 py-2 text-white rounded-xl transition-all shadow-lg hover:shadow-xl font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${getTypeStyles()}`}
+              disabled={isLoading}
+              className={`flex items-center gap-2 px-4 py-2 text-white rounded-xl transition-all shadow-lg hover:shadow-xl font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-slate-800 disabled:opacity-70 disabled:cursor-not-allowed ${getTypeStyles()}`}
             >
-              {confirmText}
+              {isLoading && (
+                <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              )}
+              {isLoading
+                ? "Processing..."
+                : confirmText}
             </button>
           </div>
         </form>

@@ -45,17 +45,13 @@ const getDashboardOverview = async (req, res, next) => {
       recentPayments,
     ] = await Promise.all([
       // Project stats
-      Project.countDocuments({ user_id: req.user.id }),
-      Project.countDocuments({ user_id: req.user.id, status: "active" }),
-      Project.countDocuments({ user_id: req.user.id, status: "completed" }),
+      Project.countDocuments(),
+      Project.countDocuments({ status: "active" }),
+      Project.countDocuments({ status: "completed" }),
       Project.aggregate([
-        { $match: { user_id: req.user.id } },
-        { $group: { _id: "$status", count: { $sum: 1 } } },
-      ]),
-      Project.aggregate([
-        { $match: { user_id: req.user.id } },
         { $group: { _id: null, total: { $sum: "$total_amount" } } },
       ]),
+      Project.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
 
       // Invoice stats
       Invoice.countDocuments(),
@@ -67,11 +63,17 @@ const getDashboardOverview = async (req, res, next) => {
       }),
       Invoice.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
       Invoice.aggregate([
-        { $group: { _id: null, total: { $sum: "$amount" } } },
+        { $group: { _id: null, total: { $sum: "$total_amount" } } },
       ]),
       Invoice.aggregate([
         { $match: { status: "paid" } },
-        { $group: { _id: null, total: { $sum: "$amount" } } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: "$total_amount" },
+            totalGST: { $sum: "$gst_amount" },
+          },
+        },
       ]),
 
       // Payment stats
@@ -82,7 +84,7 @@ const getDashboardOverview = async (req, res, next) => {
 
       // Trends
       Project.aggregate([
-        { $match: { user_id: req.user.id, createdAt: { $gte: sixMonthsAgo } } },
+        { $match: { createdAt: { $gte: sixMonthsAgo } } },
         {
           $group: {
             _id: {
@@ -125,7 +127,7 @@ const getDashboardOverview = async (req, res, next) => {
       ]),
 
       // Recent activities
-      Project.find({ user_id: req.user.id })
+      Project.find({})
         .sort({ createdAt: -1 })
         .limit(5)
         .select("name status createdAt"),
@@ -174,6 +176,7 @@ const getDashboardOverview = async (req, res, next) => {
           statusBreakdown: invoiceStatusStats,
           totalAmount: totalInvoiceAmount[0]?.total || 0,
           paidAmount: paidInvoiceAmount[0]?.total || 0,
+          paidGST: paidInvoiceAmount[0]?.totalGST || 0,
         },
         payments: {
           total: totalPayments,
@@ -340,7 +343,6 @@ const getFilteredDashboardStats = async (req, res, next) => {
 
     // Build Project Match Query
     const projectMatch = {
-      user_id: req.user.id,
       start_date: { $gte: startDate, $lte: endDate },
     };
     if (projectId) {
@@ -364,9 +366,9 @@ const getFilteredDashboardStats = async (req, res, next) => {
       paymentMatch.project_id = new mongoose.Types.ObjectId(projectId);
     }
 
-    // Get available years for dropdown (unchanged logic)
+    // Get available years for dropdown
     const projectYears = await Project.aggregate([
-      { $match: { user_id: req.user.id } },
+      // { $match: { user_id: req.user.id } }, // REMOVED USER FILTER
       {
         $group: {
           _id: { $year: "$start_date" },
@@ -404,7 +406,7 @@ const getFilteredDashboardStats = async (req, res, next) => {
     // Get all active projects count (not date filtered - shows current active projects)
     // Filter active projects count by projectId if selected
     const activeProjectsQuery = {
-      user_id: req.user.id,
+      // user_id: req.user.id, // REMOVED USER FILTER
       status: "active",
     };
     if (projectId) {
@@ -466,11 +468,11 @@ const getFilteredDashboardStats = async (req, res, next) => {
               ],
             },
           },
-          totalAmount: { $sum: "$amount" },
-          paidAmount: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "paid"] }, "$amount", 0],
-            },
+          totalAmount: { $sum: "$total_amount" }, // Total Invoiced (Inc GST)
+          totalGST: { $sum: "$gst_amount" },
+          paidAmount: { $sum: "$paid_amount" }, // Total Paid (Inc GST)
+          paidGST: {
+            $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$gst_amount", 0] },
           },
         },
       },
@@ -490,10 +492,9 @@ const getFilteredDashboardStats = async (req, res, next) => {
       },
     ]);
 
-    // Calculate totals - ensuring Ex-GST basis
-    const totalInvoiced = invoiceStats[0]?.totalAmount || 0; // Ex-GST (Subtotal)
-    // Use the calculated paid amount from invoices (Ex-GST) instead of raw payments (Inc-GST)
-    // This ensures consistency with the user request to exclude GST from paid amounts
+    // Calculate totals - ensuring Inc-GST basis
+    const totalInvoiced = invoiceStats[0]?.totalAmount || 0;
+    const totalGST = invoiceStats[0]?.totalGST || 0;
     const totalPaid = invoiceStats[0]?.paidAmount || 0;
     const totalDue = totalInvoiced - totalPaid;
 
@@ -521,11 +522,13 @@ const getFilteredDashboardStats = async (req, res, next) => {
           },
           payments: {
             total: paymentStats[0]?.total || 0,
-            totalAmount: totalPaid, // Show Ex-GST Paid Amount here too for consistency in Dashboard
+            totalAmount: totalPaid, // Show Inc-GST Paid Amount
           },
           summary: {
             totalRevenue: totalInvoiced,
+            totalGST: totalGST,
             totalPaid: totalPaid,
+            totalPaidGST: invoiceStats[0]?.paidGST || 0,
             totalDue: totalDue > 0 ? totalDue : 0,
           },
         },

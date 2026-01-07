@@ -4,7 +4,7 @@ export type ProjectStatus =
   | "completed"
   | "cancelled"
   | "draft";
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
+export type InvoiceStatus = "draft" | "sent" | "unpaid" | "paid" | "overdue" | "cancelled";
 export type ProjectType =
   | "fixed_contract"
   | "monthly_retainer"
@@ -47,14 +47,14 @@ export interface Client {
 
 export interface TeamMember {
   user_id:
-    | string
-    | {
-        _id: string;
-        name: string;
-        email: string;
-        role: string;
-        avatar?: string;
-      };
+  | string
+  | {
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+    avatar?: string;
+  };
   role: string;
   monthly_hours: number;
   rate?: number;
@@ -129,14 +129,14 @@ export interface Invoice {
   _id?: string;
   id: string;
   project_id:
-    | string
-    | {
-        _id: string;
-        name: string;
-        client_name: string;
-        client_id?: string | { _id: string; name: string; email: string };
-        id: string;
-      };
+  | string
+  | {
+    _id: string;
+    name: string;
+    client_name: string;
+    client_id?: string | { _id: string; name: string; email: string };
+    id: string;
+  };
   invoice_number: string;
   amount: number;
   currency?: "INR" | "USD";

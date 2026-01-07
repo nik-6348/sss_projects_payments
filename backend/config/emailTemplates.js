@@ -10,8 +10,7 @@ export const emailTemplates = {
       
 {table_details}
       
-      <p><strong>Project:</strong> {project_name}<br />
-      <strong>Due Date:</strong> {due_date}</p>
+
 
       <p>We appreciate your business.</p>
       <p>Regards,<br><strong>{company_name}</strong></p>
@@ -28,7 +27,7 @@ export const emailTemplates = {
 
 {table_details}
 
-      <p><strong>Project:</strong> {project_name}</p>
+
       
       <p>If you have any questions regarding this cancellation, please don't hesitate to contact us.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>
@@ -48,8 +47,7 @@ export const emailTemplates = {
       
 {table_details}
       
-      <p><strong>Project:</strong> {project_name}<br />
-      <strong>Due Date:</strong> {due_date}</p>
+
 
       <p>If you have already made this payment, please disregard this notice.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>
@@ -62,14 +60,14 @@ export const emailTemplates = {
       <p>Dear {client_name},</p>
       
       <div class="success" style="background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-        <strong>🎉 Thank you!</strong> We have received your payment for invoice <span class="status-badge" style="display: inline-block; background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9em;">PAID</span>
+        <strong>🎉 Thank you!</strong> We have received your payment for invoice <strong>{invoice_number}</strong>
       </div>
       
       <p>This email confirms that your payment has been successfully processed.</p>
       
 {table_details}
 
-      <p><strong>Project:</strong> {project_name}</p>
+
       
       <p>We appreciate your prompt payment and continued business.</p>
       <p>Best regards,<br><strong>{company_name}</strong></p>

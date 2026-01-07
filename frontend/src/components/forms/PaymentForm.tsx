@@ -22,28 +22,28 @@ const PaymentForm: React.FC<{
   const [formData, setFormData] = React.useState<PaymentFormData>(
     payment
       ? {
-          project_id: payment.project_id,
-          invoice_id: payment.invoice_id || invoice.id,
-          amount: payment.amount,
-          currency: payment.currency || invoice.currency || "INR",
-          payment_method: payment.payment_method,
-          payment_date: payment.payment_date,
-          remark: payment.remark,
-        }
+        project_id: payment.project_id,
+        invoice_id: payment.invoice_id || invoice.id,
+        amount: payment.amount,
+        currency: payment.currency || invoice.currency || "INR",
+        payment_method: payment.payment_method,
+        payment_date: payment.payment_date,
+        remark: payment.remark,
+      }
       : {
-          project_id:
-            typeof invoice.project_id === "string"
-              ? invoice.project_id
-              : (invoice.project_id as any)._id || invoice.project_id.id,
-          invoice_id: invoice.id,
-          amount:
-            (invoice.total_amount ?? invoice.amount) -
-            (invoice.paid_amount || 0),
-          currency: invoice.currency || "INR",
-          payment_method: invoice.payment_method || "bank_account",
-          payment_date: new Date().toISOString().split("T")[0],
-          remark: "",
-        }
+        project_id:
+          typeof invoice.project_id === "string"
+            ? invoice.project_id
+            : (invoice.project_id as any)._id || invoice.project_id.id,
+        invoice_id: invoice.id,
+        amount:
+          (invoice.total_amount ?? invoice.amount) -
+          (invoice.paid_amount || 0),
+        currency: invoice.currency || "INR",
+        payment_method: invoice.payment_method || "bank_account",
+        payment_date: new Date().toISOString().split("T")[0],
+        remark: "",
+      }
   );
   const [selectedBankAccount, setSelectedBankAccount] =
     React.useState<string>("");
@@ -122,11 +122,11 @@ const PaymentForm: React.FC<{
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Amount (Ex GST)
+              Total Amount
             </label>
             <div className="px-4 py-2 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 font-bold">
               {invoice.currency === "USD" ? "$" : "₹"}
-              {invoice.amount.toLocaleString()}
+              {(invoice.total_amount || invoice.amount).toLocaleString()}
             </div>
           </div>
         </div>
@@ -143,9 +143,8 @@ const PaymentForm: React.FC<{
             ]}
           />
           <FormInput
-            label={`Payment Amount (${
-              formData.currency === "USD" ? "$" : "₹"
-            })`}
+            label={`Payment Amount (${formData.currency === "USD" ? "$" : "₹"
+              })`}
             type="number"
             name="amount"
             value={String(formData.amount)}
@@ -173,21 +172,20 @@ const PaymentForm: React.FC<{
               Remaining after Payment:
             </span>
             <span
-              className={`text-lg font-bold ${
-                (invoice.total_amount ?? invoice.amount) -
+              className={`text-lg font-bold ${(invoice.total_amount ?? invoice.amount) -
                   (invoice.paid_amount || 0) -
                   Number(formData.amount) <
-                0
+                  0
                   ? "text-red-600"
                   : "text-blue-700 dark:text-blue-400"
-              }`}
+                }`}
             >
               {invoice.currency === "USD" ? "$" : "₹"}
               {Math.max(
                 0,
                 (invoice.total_amount ?? invoice.amount) -
-                  (invoice.paid_amount || 0) -
-                  Number(formData.amount)
+                (invoice.paid_amount || 0) -
+                Number(formData.amount)
               ).toLocaleString()}
             </span>
           </div>

@@ -225,11 +225,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Total Invoiced
               </p>
-              <p className="text-2xl font-bold text-slate-800 dark:text-white">
-                {loading
-                  ? "..."
-                  : formatCurrency(stats?.summary?.totalRevenue ?? 0)}
-              </p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold text-slate-800 dark:text-white">
+                  {loading
+                    ? "..."
+                    : formatCurrency(stats?.summary?.totalRevenue ?? 0)}
+                </p>
+                {stats?.summary?.totalGST ? (
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    (GST: {formatCurrency(stats.summary.totalGST)})
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30">
               <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-300" />
@@ -249,11 +256,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 Total Paid
               </p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {loading
-                  ? "..."
-                  : formatCurrency(stats?.summary?.totalPaid ?? 0)}
-              </p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {loading
+                    ? "..."
+                    : formatCurrency(stats?.summary?.totalPaid ?? 0)}
+                </p>
+                {stats?.summary?.totalPaidGST ? (
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    (GST: {formatCurrency(stats.summary.totalPaidGST)})
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
               <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />

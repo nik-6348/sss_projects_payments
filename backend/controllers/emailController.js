@@ -174,15 +174,15 @@ export const sendInvoiceEmail = async (req, res) => {
 
     // Update invoice status if needed (Update BEFORE sending to ensure PDF has correct status)
     if (invoice.status === "draft") {
-      invoice.status = "sent";
+      invoice.status = "unpaid";
     }
 
     // Prepare Invoice Data for PDF Generation
-    // User wants "UNPAID" status on PDF when sent, not "SENT"
+    // User wants "UNPAID" status on PDF when sent
     const pdfInvoiceData = invoice.toObject
       ? invoice.toObject()
       : { ...invoice };
-    if (pdfInvoiceData.status === "sent") {
+    if (pdfInvoiceData.status === "unpaid" || pdfInvoiceData.status === "sent") {
       pdfInvoiceData.status = "UNPAID";
     }
 
@@ -224,8 +224,7 @@ export const sendInvoiceEmail = async (req, res) => {
         .replace(/{company_name}/g, companyDetails.name || "Company")
         .replace(
           /{amount}/g,
-          `${invoice.currency || settings.currency || "INR"} ${
-            invoice.total_amount || invoice.amount
+          `${invoice.currency || settings.currency || "INR"} ${invoice.total_amount || invoice.amount
           }`
         )
         .replace(/{due_date}/g, new Date(invoice.due_date).toLocaleDateString())
@@ -239,9 +238,8 @@ export const sendInvoiceEmail = async (req, res) => {
 
     // Send Email
     const mailOptions = {
-      from: `"${settings?.company_details?.name || "Invoice System"}" <${
-        settings?.smtp_settings?.user
-      }>`,
+      from: `"${settings?.company_details?.name || "Invoice System"}" <${settings?.smtp_settings?.user
+        }>`,
       to,
       cc,
       bcc,
@@ -430,12 +428,11 @@ export const sendInvoiceStatusEmail = async (
       if (inv.gst_amount > 0) {
         footerRows += `
         <tr>
-          <td colspan="${colspanLabel}" style="${tdStyle} text-align: right; font-weight: 600; color: #64748b;">GST (${
-          inv.gst_percentage
-        }%)</td>
+          <td colspan="${colspanLabel}" style="${tdStyle} text-align: right; font-weight: 600; color: #64748b;">GST (${inv.gst_percentage
+          }%)</td>
           <td style="${tdNumStyle} font-weight: 600;">${currencySymbol} ${Number(
-          inv.gst_amount
-        ).toFixed(2)}</td>
+            inv.gst_amount
+          ).toFixed(2)}</td>
         </tr>
       `;
       }
@@ -453,12 +450,11 @@ export const sendInvoiceStatusEmail = async (
       // Wrapping in responsive div with header info
       return `
         <div style="margin-bottom: 24px; font-size: 14px; color: #334155;">
-          <p style="margin: 0 0 8px 0;"><strong>Project:</strong> ${
-            inv.project_id?.name || "-"
-          }</p>
+          <p style="margin: 0 0 8px 0;"><strong>Project:</strong> ${inv.project_id?.name || "-"
+        }</p>
           <p style="margin: 0;"><strong>Due Date:</strong> ${new Date(
-            inv.due_date
-          ).toLocaleDateString()}</p>
+          inv.due_date
+        ).toLocaleDateString()}</p>
         </div>
         <div style="margin-bottom: 32px; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
           <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
@@ -511,13 +507,51 @@ export const sendInvoiceStatusEmail = async (
     const transporter = await createTransporter();
 
     const mailOptions = {
-      from: `"${companyDetails.name || "Invoice System"}" <${
-        settings?.smtp_settings?.user
-      }>`,
+      from: `"${companyDetails.name || "Invoice System"}" <${settings?.smtp_settings?.user
+        }>`,
       to: recipientEmail,
       subject: finalSubject,
       html: finalBody,
     };
+
+    // Generate PDF for attachment if invoice details are available
+    let attachments = [];
+    try {
+      // We already have invoice populated with project, but we might need more details for PDF
+      // The generateInvoicePDF function expects: invoiceData, clientData, bankDetails, companyDetails
+
+      // Ensure we have the necessary data structures
+      const pdfInvoiceData = invoice.toObject ? invoice.toObject() : { ...invoice };
+      const pdfClientData = client.toObject ? client.toObject() : { ...client };
+
+      // Try to get bank details if not already populated correctly (it is populated in the query above)
+      let pdfBankDetails = invoice.bank_account_id;
+      if (!pdfBankDetails) {
+        const banks = await BankDetails.find();
+        if (banks.length > 0) pdfBankDetails = banks[0];
+      }
+
+      if (pdfBankDetails && pdfClientData) {
+        const pdfBase64 = generateInvoicePDF(
+          pdfInvoiceData,
+          pdfClientData,
+          pdfBankDetails,
+          companyDetails
+        );
+
+        const pdfBuffer = Buffer.from(pdfBase64, "base64");
+        attachments.push({
+          filename: `Invoice-${invoice.invoice_number}.pdf`,
+          content: pdfBuffer,
+        });
+      }
+    } catch (pdfError) {
+      console.error("Error generating PDF attachment for status email:", pdfError);
+      // Continue without attachment if PDF generation fails
+    }
+
+    // Update mailOptions with attachments
+    mailOptions.attachments = attachments;
 
     await transporter.sendMail(mailOptions);
 
@@ -615,9 +649,8 @@ export const sendTestEmail = async (req, res) => {
     const transporter = await createTransporter();
 
     await transporter.sendMail({
-      from: `"${companyDetails.name || "Invoice System"}" <${
-        settings?.smtp_settings?.user
-      }>`,
+      from: `"${companyDetails.name || "Invoice System"}" <${settings?.smtp_settings?.user
+        }>`,
       to: to,
       subject: finalSubject,
       html: finalBody,

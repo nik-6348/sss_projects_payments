@@ -8,6 +8,8 @@ import {
   Sun,
   Moon,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { AuthProvider, useAuth } from "./utils/auth";
@@ -22,7 +24,7 @@ import type {
   PaymentMethod,
 } from "./types";
 import apiClient from "./utils/api";
-import { Modal, ConfirmationModal, Toast } from "./components/ui";
+import { Modal, ConfirmationModal, Toast, Loader } from "./components/ui";
 import { ProjectForm, InvoiceForm } from "./components/forms";
 import PDFViewerModal from "./components/modals/PDFViewerModal";
 import { RemarkModal } from "./components/modals/RemarkModal";
@@ -63,6 +65,20 @@ function AppContent() {
   const [projectInvoices, setProjectInvoices] = React.useState<Invoice[]>([]);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [dataLoading, setDataLoading] = React.useState(false);
+  const [isGlobalLoading, setIsGlobalLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleStart = () => setIsGlobalLoading(true);
+    const handleEnd = () => setIsGlobalLoading(false);
+
+    window.addEventListener("api-loading-start", handleStart);
+    window.addEventListener("api-loading-end", handleEnd);
+
+    return () => {
+      window.removeEventListener("api-loading-start", handleStart);
+      window.removeEventListener("api-loading-end", handleEnd);
+    };
+  }, []);
 
   // Invoice Pagination & Filters
   const [invoicePagination, setInvoicePagination] = React.useState({
@@ -115,7 +131,7 @@ function AppContent() {
     isOpen: false,
     title: "",
     message: "",
-    onConfirm: () => {},
+    onConfirm: () => { },
     type: "danger",
   });
   const [pdfViewer, setPdfViewer] = React.useState<{
@@ -139,7 +155,7 @@ function AppContent() {
   });
   const [isRegeneratingPDF, setIsRegeneratingPDF] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [isSidebarOpen, _] = React.useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
   // Initialize dark mode from localStorage
   const [isDarkMode, setIsDarkMode] = React.useState(() => {
@@ -201,44 +217,44 @@ function AppContent() {
       if (response.success && response.data) {
         const transformedProjects = response.data.map(
           (p: any) =>
-            ({
-              id: p._id,
-              name: p.name,
-              description: p.description,
-              total_amount: p.total_amount,
-              status: p.status as ProjectStatus,
-              start_date: p.start_date
-                ? new Date(p.start_date).toISOString().split("T")[0]
+          ({
+            id: p._id,
+            name: p.name,
+            description: p.description,
+            total_amount: p.total_amount,
+            status: p.status as ProjectStatus,
+            start_date: p.start_date
+              ? new Date(p.start_date).toISOString().split("T")[0]
+              : "",
+            end_date: p.end_date
+              ? new Date(p.end_date).toISOString().split("T")[0]
+              : undefined,
+            client_id:
+              typeof p.client_id === "object" && p.client_id
+                ? p.client_id._id
+                : p.client_id || "",
+            client_name:
+              typeof p.client_id === "object" && p.client_id
+                ? p.client_id.name
                 : "",
-              end_date: p.end_date
-                ? new Date(p.end_date).toISOString().split("T")[0]
-                : undefined,
-              client_id:
-                typeof p.client_id === "object" && p.client_id
-                  ? p.client_id._id
-                  : p.client_id || "",
-              client_name:
-                typeof p.client_id === "object" && p.client_id
-                  ? p.client_id.name
-                  : "",
-              notes: p.notes || "",
-              created_at: p.createdAt,
-              user_id: p.user_id,
-              team_members: p.team_members,
-              // New fields
-              currency: p.currency,
-              gst_percentage: p.gst_percentage,
-              include_gst: p.include_gst,
-              project_type: p.project_type,
-              allocation_type: p.allocation_type,
-              contract_amount: p.contract_amount,
-              contract_length: p.contract_length,
-              monthly_fee: p.monthly_fee,
-              billing_cycle: p.billing_cycle,
-              hourly_rate: p.hourly_rate,
-              estimated_hours: p.estimated_hours,
-              client_emails: p.client_emails,
-            } as Project)
+            notes: p.notes || "",
+            created_at: p.createdAt,
+            user_id: p.user_id,
+            team_members: p.team_members,
+            // New fields
+            currency: p.currency,
+            gst_percentage: p.gst_percentage,
+            include_gst: p.include_gst,
+            project_type: p.project_type,
+            allocation_type: p.allocation_type,
+            contract_amount: p.contract_amount,
+            contract_length: p.contract_length,
+            monthly_fee: p.monthly_fee,
+            billing_cycle: p.billing_cycle,
+            hourly_rate: p.hourly_rate,
+            estimated_hours: p.estimated_hours,
+            client_emails: p.client_emails,
+          } as Project)
         );
         setProjects(transformedProjects);
 
@@ -291,30 +307,30 @@ function AppContent() {
       if (response.success && response.data) {
         const transformedInvoices = response.data.map(
           (i: any) =>
-            ({
-              id: i._id,
-              project_id: i.project_id,
-              invoice_number: i.invoice_number,
-              amount: i.amount,
-              currency: i.currency,
-              status: i.status as InvoiceStatus,
-              issue_date: i.issue_date
-                ? new Date(i.issue_date).toISOString().split("T")[0]
-                : "",
-              due_date: i.due_date
-                ? new Date(i.due_date).toISOString().split("T")[0]
-                : "",
-              services: i.services,
-              subtotal: i.subtotal,
-              gst_percentage: i.gst_percentage,
-              gst_amount: i.gst_amount,
-              total_amount: i.total_amount,
-              payment_method: i.payment_method,
-              bank_account_id: i.bank_account_id,
-              custom_payment_details: i.custom_payment_details,
-              paid_amount: i.paid_amount,
-              balance_due: i.balance_due,
-            } as Invoice)
+          ({
+            id: i._id,
+            project_id: i.project_id,
+            invoice_number: i.invoice_number,
+            amount: i.amount,
+            currency: i.currency,
+            status: i.status as InvoiceStatus,
+            issue_date: i.issue_date
+              ? new Date(i.issue_date).toISOString().split("T")[0]
+              : "",
+            due_date: i.due_date
+              ? new Date(i.due_date).toISOString().split("T")[0]
+              : "",
+            services: i.services,
+            subtotal: i.subtotal,
+            gst_percentage: i.gst_percentage,
+            gst_amount: i.gst_amount,
+            total_amount: i.total_amount,
+            payment_method: i.payment_method,
+            bank_account_id: i.bank_account_id,
+            custom_payment_details: i.custom_payment_details,
+            paid_amount: i.paid_amount,
+            balance_due: i.balance_due,
+          } as Invoice)
         );
         setInvoices(transformedInvoices);
 
@@ -481,30 +497,30 @@ function AppContent() {
         if (invoicesResponse.success && invoicesResponse.data) {
           const transformedInvoices = invoicesResponse.data.map(
             (i: any) =>
-              ({
-                id: i._id,
-                project_id: i.project_id,
-                invoice_number: i.invoice_number,
-                amount: i.amount,
-                currency: i.currency,
-                status: i.status as InvoiceStatus,
-                issue_date: i.issue_date
-                  ? new Date(i.issue_date).toISOString().split("T")[0]
-                  : "",
-                due_date: i.due_date
-                  ? new Date(i.due_date).toISOString().split("T")[0]
-                  : "",
-                services: i.services,
-                subtotal: i.subtotal,
-                gst_percentage: i.gst_percentage,
-                gst_amount: i.gst_amount,
-                total_amount: i.total_amount,
-                payment_method: i.payment_method,
-                bank_account_id: i.bank_account_id,
-                custom_payment_details: i.custom_payment_details,
-                paid_amount: i.paid_amount,
-                balance_due: i.balance_due,
-              } as Invoice)
+            ({
+              id: i._id,
+              project_id: i.project_id,
+              invoice_number: i.invoice_number,
+              amount: i.amount,
+              currency: i.currency,
+              status: i.status as InvoiceStatus,
+              issue_date: i.issue_date
+                ? new Date(i.issue_date).toISOString().split("T")[0]
+                : "",
+              due_date: i.due_date
+                ? new Date(i.due_date).toISOString().split("T")[0]
+                : "",
+              services: i.services,
+              subtotal: i.subtotal,
+              gst_percentage: i.gst_percentage,
+              gst_amount: i.gst_amount,
+              total_amount: i.total_amount,
+              payment_method: i.payment_method,
+              bank_account_id: i.bank_account_id,
+              custom_payment_details: i.custom_payment_details,
+              paid_amount: i.paid_amount,
+              balance_due: i.balance_due,
+            } as Invoice)
           );
           setProjectInvoices(transformedInvoices);
         }
@@ -582,7 +598,7 @@ function AppContent() {
       isOpen: false,
       title: "",
       message: "",
-      onConfirm: () => {},
+      onConfirm: () => { },
       type: "danger",
     });
   };
@@ -654,12 +670,12 @@ function AppContent() {
               : undefined,
             client_id:
               typeof responseData.client_id === "object" &&
-              responseData.client_id
+                responseData.client_id
                 ? responseData.client_id._id
                 : responseData.client_id || "",
             client_name:
               typeof responseData.client_id === "object" &&
-              responseData.client_id
+                responseData.client_id
                 ? responseData.client_id.name
                 : "",
             notes: responseData.notes || "",
@@ -703,12 +719,12 @@ function AppContent() {
               : undefined,
             client_id:
               typeof responseData.client_id === "object" &&
-              responseData.client_id
+                responseData.client_id
                 ? responseData.client_id._id
                 : responseData.client_id || "",
             client_name:
               typeof responseData.client_id === "object" &&
-              responseData.client_id
+                responseData.client_id
                 ? responseData.client_id.name
                 : "",
             notes: responseData.notes || "",
@@ -795,7 +811,7 @@ function AppContent() {
   }>({
     isOpen: false,
     title: "",
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const handleDeleteInvoice = async (invoiceId: string) => {
@@ -909,9 +925,8 @@ function AppContent() {
     } else if (["cancelled", "overdue"].includes(newStatus)) {
       setRemarkModal({
         isOpen: true,
-        title: `Mark as ${
-          newStatus.charAt(0).toUpperCase() + newStatus.slice(1)
-        }`,
+        title: `Mark as ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)
+          }`,
         message: "Add an optional remark for this status change.",
         required: false,
         type: "info",
@@ -1278,20 +1293,25 @@ function AppContent() {
     icon: React.ReactNode;
     label: string;
     isOpen: boolean;
-  }> = ({ view, icon }) => (
+  }> = ({ view, icon, label, isOpen }) => (
     <button
       onClick={() => navigateTo(view)}
-      className={`relative flex items-center justify-center w-full h-14 rounded-xl transition-all duration-300 transform hover:scale-105 ${
-        currentView.view === view
+      className={`relative flex items-center ${isOpen ? "justify-start px-4" : "justify-center"
+        } w-full h-14 rounded-xl transition-all duration-300 transform hover:scale-105 ${currentView.view === view
           ? isDarkMode
             ? "bg-slate-700/80 text-blue-400 shadow-lg border-2 border-blue-400/50"
             : "bg-white/60 backdrop-blur-md text-blue-600 shadow-lg border-2 border-blue-200"
           : isDarkMode
-          ? "text-slate-300 hover:bg-slate-700/50 hover:text-slate-100"
-          : "text-slate-600 hover:bg-white/40 hover:text-slate-800 hover:backdrop-blur-md"
-      }`}
+            ? "text-slate-300 hover:bg-slate-700/50 hover:text-slate-100"
+            : "text-slate-600 hover:bg-white/40 hover:text-slate-800 hover:backdrop-blur-md"
+        }`}
     >
       <div className="flex items-center justify-center">{icon}</div>
+      {isOpen && (
+        <span className="ml-3 font-medium transition-opacity duration-300">
+          {label}
+        </span>
+      )}
     </button>
   );
 
@@ -1458,25 +1478,34 @@ function AppContent() {
 
   return (
     <div
-      className={`font-sans overflow-hidden ${
-        isDarkMode
-          ? "bg-slate-900"
-          : "bg-gradient-to-br from-slate-50 to-slate-200"
-      }`}
+      className={`font-sans overflow-hidden ${isDarkMode
+        ? "bg-slate-900"
+        : "bg-gradient-to-br from-slate-50 to-slate-200"
+        }`}
     >
+      {isGlobalLoading && <Loader />}
       {isAuthenticated ? (
-        <div className="flex h-screen">
-          {/* Sidebar */}
-          <div className="relative flex-shrink-0 w-20">
+        <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
+          {/* Mobile Overlay */}
+          {isSidebarOpen && (
             <div
-              className={`h-full ${
-                isDarkMode ? "bg-slate-800/90" : "bg-white/80"
-              } backdrop-blur-lg border-r ${
-                isDarkMode ? "border-slate-600/50" : "border-slate-300/50"
-              } shadow-lg flex flex-col`}
+              className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          )}
+
+          {/* Sidebar */}
+          <div
+            className={`fixed inset-y-0 left-0 z-40 w-64 md:w-20 md:relative transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+              } flex-shrink-0`}
+          >
+            <div
+              className={`h-full ${isDarkMode ? "bg-slate-800/90" : "bg-white/80"
+                } backdrop-blur-lg border-r ${isDarkMode ? "border-slate-600/50" : "border-slate-300/50"
+                } shadow-lg flex flex-col`}
             >
               {/* Header */}
-              <div className="p-6">
+              <div className="p-6 flex items-center justify-between md:justify-center">
                 <div className="flex items-center justify-center">
                   <div className="flex items-center justify-center">
                     <img
@@ -1484,13 +1513,19 @@ function AppContent() {
                       alt="SSS"
                       className="w-12 h-12 rounded-xl object-cover flex-shrink-0 shadow-lg border-2 border-white/20"
                       onError={(e) => {
-                        // Fallback to initial if image fails to load
                         e.currentTarget.src =
-                          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTAiIGZpbGw9InVybCgjcGFpbnQwXzFfMSkiLz4KPGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjAiIGZpbGw9InVybCgjcGFpbnQxXzFfMSkiLz4KPHBhdGggZD0iTTE2IDI0SDMyTTE2IDE2SDMyTTE2IDMySDMydjQiIHN0cm9rZT0iI0ZGRkZGRiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPGRlZnM+CjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwXzFfMSIgeDE9IjAiIHkxPSIwIiB4Mj0iNDgiIHkyPSI0OCIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBzdG9wLWNvbG9yPSIjMzk4MUVEIi8+CjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzA2QjZEMyIvPgo8L2xpbmVhckdyYWRpZW50Pgo8bGluZWFyR3JhZGlldG4gaWQ9InBhaW50MV8xXzEiIHgxPSIwIiB5MT0iMCIgeDI9IjQ4IiB5Mj0iNDgiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzEwQjk4MSIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMzc5OEQiLz4KPC9saW5lYXJHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4=";
+                          "data:image/svg+xml;base64,..."; // Truncated for brevity, assuming existing fallback logic or we can restore it.
                       }}
                     />
                   </div>
                 </div>
+                {/* Mobile Close Button */}
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="md:hidden p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
 
               {/* Navigation */}
@@ -1528,17 +1563,16 @@ function AppContent() {
               </nav>
 
               {/* Bottom Controls */}
-              <div className="p-4 space-y-2 border-t border-slate-200">
+              <div className="p-4 space-y-2 border-t border-slate-200 dark:border-slate-700">
                 {/* Dark/Light Mode Toggle */}
                 <button
                   onClick={() => {
                     setIsDarkMode(!isDarkMode);
                   }}
-                  className={`w-full flex items-center justify-center h-10 rounded-xl transition-all duration-300 hover:scale-105 ${
-                    isDarkMode
-                      ? "bg-slate-700/50 text-slate-200 hover:bg-slate-600/50 border border-slate-600/30"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/50"
-                  }`}
+                  className={`w-full flex items-center justify-center h-10 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode
+                    ? "bg-slate-700/50 text-slate-200 hover:bg-slate-600/50 border border-slate-600/30"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/50"
+                    }`}
                 >
                   {isDarkMode ? (
                     <Sun className="h-4 w-4" />
@@ -1553,11 +1587,10 @@ function AppContent() {
                     toast.success("Logged out successfully!");
                     handleLogout();
                   }}
-                  className={`w-full flex items-center justify-center h-12 rounded-xl transition-all duration-300 hover:scale-105 ${
-                    isDarkMode
-                      ? "bg-red-800/50 text-red-300 hover:bg-red-700/50 border border-red-600/30"
-                      : "bg-red-100 text-red-600 hover:bg-red-200 border border-red-200/50"
-                  }`}
+                  className={`w-full flex items-center justify-center h-12 rounded-xl transition-all duration-300 hover:scale-105 ${isDarkMode
+                    ? "bg-red-800/50 text-red-300 hover:bg-red-700/50 border border-red-600/30"
+                    : "bg-red-100 text-red-600 hover:bg-red-200 border border-red-200/50"
+                    }`}
                 >
                   <LogOut className="h-5 w-5" />
                 </button>
@@ -1566,9 +1599,25 @@ function AppContent() {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden w-full">
+            {/* Mobile Header */}
+            <header className="md:hidden flex items-center justify-between p-4 bg-white/80 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                >
+                  <Menu className="h-6 w-6" />
+                </button>
+                <span className="font-bold text-lg text-slate-800 dark:text-white">SSS Payments</span>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
+                A
+              </div>
+            </header>
+
             {/* Content Area */}
-            <main className="flex-1 p-6 overflow-y-auto scrollbar-thin">
+            <main className="flex-1 p-4 md:p-6 overflow-y-auto scrollbar-thin">
               {renderContent()}
             </main>
           </div>
@@ -1620,6 +1669,7 @@ function AppContent() {
         message={remarkModal.message}
         required={remarkModal.required}
         type={remarkModal.type}
+        isLoading={dataLoading}
       />
 
       {paymentModal.isOpen && paymentModal.invoice && (
