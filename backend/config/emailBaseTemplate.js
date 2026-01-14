@@ -9,7 +9,7 @@ export const wrapEmailBody = (content, companyDetails = {}) => {
     name = "Company Name",
     // distinct variable to ensure we use this logo unless explicitly overridden by a non-empty value (if we wanted flexibility),
     // but user said "USE THIS LOGO", so we will default to it.
-    logo = "https://singaji.in/assest/SSS-Logo.png",
+    logo = "https://singaji.in/assets/sssLogo-Dh7tSyHW.png",
     website = "#",
     address = "",
   } = companyDetails;

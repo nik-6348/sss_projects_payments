@@ -1,3 +1,5 @@
+import logoImg from "../assets/logo.png";
+
 export const generateEmailPreview = (
   content: string,
   companyDetails: {
@@ -9,7 +11,7 @@ export const generateEmailPreview = (
 ) => {
   const {
     name = "Company Name",
-    logo = "https://singaji.in/assest/SSS-Logo.png",
+    logo = logoImg,
     website = "#",
     address = "",
   } = companyDetails;

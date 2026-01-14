@@ -1,4 +1,5 @@
 import React from "react";
+import logo from "../../assets/logo.png";
 
 export const Loader: React.FC = () => {
     return (
@@ -7,7 +8,7 @@ export const Loader: React.FC = () => {
                 <div className="relative flex items-center justify-center">
                     <div className="w-20 h-20 border-4 border-blue-200 rounded-full animate-spin border-t-blue-600 dark:border-slate-700 dark:border-t-blue-500"></div>
                     <img
-                        src="https://singaji.in/assest/SSS-Favicon-Design.png"
+                        src={logo}
                         alt="Loading"
                         className="absolute w-12 h-12 animate-pulse object-contain"
                     />

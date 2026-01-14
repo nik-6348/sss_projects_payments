@@ -4,6 +4,7 @@ import { GlassCard } from "../components/ui";
 import { FormInput } from "../components/forms";
 import { toast } from "react-toastify";
 import apiClient from "../utils/api";
+import logo from "../assets/logo.png";
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => void;
@@ -105,13 +106,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   const handleInputChange =
     (field: keyof LoginFormData) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData((prev) => ({ ...prev, [field]: e.target.value }));
-      // Clear error when user starts typing
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: undefined }));
-      }
-    };
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+        // Clear error when user starts typing
+        if (errors[field]) {
+          setErrors((prev) => ({ ...prev, [field]: undefined }));
+        }
+      };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-slate-200 dark:from-slate-900 dark:to-slate-800">
@@ -121,7 +122,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <img
-                src="https://singaji.in/assest/SSS-Favicon-Design.png"
+                src={logo}
                 alt="SSS Logo"
                 className="w-16 h-16 rounded-xl object-cover shadow-lg border-2 border-white/20"
                 onError={(e) => {
@@ -162,11 +163,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     placeholder="Enter your password"
                     value={formData.password}
                     onChange={handleInputChange("password")}
-                    className={`w-full p-2 pr-10 bg-white dark:bg-slate-700 dark:text-white border rounded-md focus:ring-2 focus:ring-blue-500 outline-none transition ${
-                      errors.password
-                        ? "border-red-500 dark:border-red-400"
-                        : "border-slate-300 dark:border-slate-600"
-                    }`}
+                    className={`w-full p-2 pr-10 bg-white dark:bg-slate-700 dark:text-white border rounded-md focus:ring-2 focus:ring-blue-500 outline-none transition ${errors.password
+                      ? "border-red-500 dark:border-red-400"
+                      : "border-slate-300 dark:border-slate-600"
+                      }`}
                     required
                   />
                   <button

@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import logo from "./assets/logo.png";
 import { AuthProvider, useAuth } from "./utils/auth";
 import type {
   Project,
@@ -1509,13 +1510,9 @@ function AppContent() {
                 <div className="flex items-center justify-center">
                   <div className="flex items-center justify-center">
                     <img
-                      src="https://singaji.in/assest/SSS-Favicon-Design.png"
+                      src={logo}
                       alt="SSS"
                       className="w-12 h-12 rounded-xl object-cover flex-shrink-0 shadow-lg border-2 border-white/20"
-                      onError={(e) => {
-                        e.currentTarget.src =
-                          "data:image/svg+xml;base64,..."; // Truncated for brevity, assuming existing fallback logic or we can restore it.
-                      }}
                     />
                   </div>
                 </div>
