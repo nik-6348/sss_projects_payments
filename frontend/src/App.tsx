@@ -25,7 +25,7 @@ import type {
   PaymentMethod,
 } from "./types";
 import apiClient from "./utils/api";
-import { Modal, ConfirmationModal, Toast, Loader } from "./components/ui";
+import { Modal, ConfirmationModal, Toast } from "./components/ui";
 import { ProjectForm, InvoiceForm } from "./components/forms";
 import PDFViewerModal from "./components/modals/PDFViewerModal";
 import { RemarkModal } from "./components/modals/RemarkModal";
@@ -66,21 +66,6 @@ function AppContent() {
   const [projectInvoices, setProjectInvoices] = React.useState<Invoice[]>([]);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [dataLoading, setDataLoading] = React.useState(false);
-  const [isGlobalLoading, setIsGlobalLoading] = React.useState(false);
-
-  React.useEffect(() => {
-    const handleStart = () => setIsGlobalLoading(true);
-    const handleEnd = () => setIsGlobalLoading(false);
-
-    window.addEventListener("api-loading-start", handleStart);
-    window.addEventListener("api-loading-end", handleEnd);
-
-    return () => {
-      window.removeEventListener("api-loading-start", handleStart);
-      window.removeEventListener("api-loading-end", handleEnd);
-    };
-  }, []);
-
   // Invoice Pagination & Filters
   const [invoicePagination, setInvoicePagination] = React.useState({
     currentPage: 1,
@@ -157,6 +142,7 @@ function AppContent() {
   const [isRegeneratingPDF, setIsRegeneratingPDF] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const hasCompletedInitialFetch = React.useRef(false);
 
   // Initialize dark mode from localStorage
   const [isDarkMode, setIsDarkMode] = React.useState(() => {
@@ -391,7 +377,10 @@ function AppContent() {
   // Initial Data Fetch
   React.useEffect(() => {
     const fetchData = async () => {
-      if (!isAuthenticated) return;
+      if (!isAuthenticated) {
+        hasCompletedInitialFetch.current = false;
+        return;
+      }
 
       try {
         setDataLoading(true);
@@ -421,6 +410,7 @@ function AppContent() {
         toast.error(errorMessage);
         console.error("Error fetching data:", err);
       } finally {
+        hasCompletedInitialFetch.current = true;
         setDataLoading(false);
       }
     };
@@ -430,13 +420,15 @@ function AppContent() {
 
   // Re-fetch projects when pagination or filters change
   React.useEffect(() => {
+    if (!isAuthenticated || !hasCompletedInitialFetch.current) return;
     fetchProjects();
-  }, [fetchProjects]);
+  }, [fetchProjects, isAuthenticated]);
 
   // Re-fetch invoices when pagination or filters change
   React.useEffect(() => {
+    if (!isAuthenticated || !hasCompletedInitialFetch.current) return;
     fetchInvoices();
-  }, [fetchInvoices]);
+  }, [fetchInvoices, isAuthenticated]);
 
   // Fetch single project details when viewing project detail
   const fetchProjectDetails = React.useCallback(async () => {
@@ -1559,7 +1551,6 @@ function AppContent() {
         : "bg-gradient-to-br from-slate-50 to-slate-200"
         }`}
     >
-      {isGlobalLoading && <Loader />}
       {isAuthenticated ? (
         <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
           {/* Mobile Overlay */}

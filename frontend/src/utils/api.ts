@@ -346,45 +346,10 @@ export class ApiClient {
     this.setupInterceptors();
   }
 
-
-
-  private requestCount = 0;
-  private minLoadingTime = 500; // Minimum 500ms loader display
-  private loadingTimeout: any = null;
-  private startTime = 0;
-
-  private startLoading() {
-    this.requestCount++;
-    if (this.requestCount === 1) {
-      this.startTime = Date.now();
-      window.dispatchEvent(new Event("api-loading-start"));
-    }
-  }
-
-  private stopLoading() {
-    this.requestCount--;
-    if (this.requestCount <= 0) {
-      this.requestCount = 0; // Reset to 0 just in case
-      const elapsedTime = Date.now() - this.startTime;
-      const remainingTime = Math.max(0, this.minLoadingTime - elapsedTime);
-
-      if (this.loadingTimeout) clearTimeout(this.loadingTimeout);
-
-      this.loadingTimeout = setTimeout(() => {
-        if (this.requestCount === 0) {
-          window.dispatchEvent(new Event("api-loading-end"));
-        }
-      }, remainingTime);
-    }
-  }
-
   private setupInterceptors() {
     // Request interceptor to add auth token
     this.axiosInstance.interceptors.request.use(
       (config) => {
-        // Trigger loader start
-        this.startLoading();
-
         const token = localStorage.getItem("token");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -392,7 +357,6 @@ export class ApiClient {
         return config;
       },
       (error) => {
-        this.stopLoading();
         return Promise.reject(error);
       }
     );
@@ -400,11 +364,9 @@ export class ApiClient {
     // Response interceptor to handle token expiration
     this.axiosInstance.interceptors.response.use(
       (response) => {
-        this.stopLoading();
         return response;
       },
       (error: AxiosError) => {
-        this.stopLoading();
         if (error.response?.status === 401) {
           // Token expired or invalid
           localStorage.removeItem("token");
