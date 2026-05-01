@@ -188,15 +188,13 @@ const createPayment = async (req, res, next) => {
       const invoice = await Invoice.findById(invoice_id);
       if (invoice) {
         const newPaidAmount = (invoice.paid_amount || 0) + Number(amount);
-
-        // Calculate balance based on Principal Amount (excluding GST) as per user requirement
-        // User wants "Due" to track Principal remaining, treating GST as separate/ untracked for due
-        const newBalanceDue = invoice.amount - newPaidAmount;
+        const payableAmount = invoice.total_amount || invoice.amount || 0;
+        const newBalanceDue = payableAmount - newPaidAmount;
 
         let newStatus = invoice.status;
         if (newBalanceDue <= 0) {
           newStatus = "paid";
-        } else if (newBalanceDue < invoice.amount) {
+        } else if (newPaidAmount > 0) {
           newStatus = "partial";
         }
 

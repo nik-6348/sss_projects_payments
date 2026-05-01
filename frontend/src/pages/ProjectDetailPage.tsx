@@ -68,28 +68,30 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     invoice: null,
   });
 
-  const { paidAmountIncGST } = React.useMemo(() => {
-    // Calculate from actual payments if available
-    const paymentTotal = payments.reduce((sum, p) => sum + p.amount, 0);
+  const invoiceTracking = React.useMemo(() => {
+    const activeInvoices = invoices.filter((i) => i.status !== "cancelled");
+    const paidFromInvoices = activeInvoices.reduce((sum, invoice) => {
+      const invoiceTotal = invoice.total_amount ?? invoice.amount;
+      if (invoice.status === "paid") return sum + invoiceTotal;
+      return sum + (invoice.paid_amount || 0);
+    }, 0);
+    const paidFromPayments = payments.reduce((sum, p) => sum + p.amount, 0);
+    const paidAmount = Math.max(paidFromInvoices, paidFromPayments);
+    const partialPaidAmount = activeInvoices
+      .filter((invoice) => invoice.status === "partial")
+      .reduce((sum, invoice) => sum + (invoice.paid_amount || 0), 0);
+    const unpaidAmount = activeInvoices.reduce((sum, invoice) => {
+      const invoiceTotal = invoice.total_amount ?? invoice.amount;
+      const paid = invoice.status === "paid" ? invoiceTotal : invoice.paid_amount || 0;
+      const balance = invoice.balance_due ?? invoiceTotal - paid;
+      return sum + Math.max(balance, 0);
+    }, 0);
 
-    if (paymentTotal > 0) {
-      return {
-        paidAmountIncGST: paymentTotal,
-      };
-    }
-
-    // If no payments but invoices are marked as paid, calculate from paid invoices
-    const paidInvoices = invoices.filter((i) => i.status === "paid");
-    if (paidInvoices.length > 0) {
-      return {
-        paidAmountIncGST: paidInvoices.reduce(
-          (sum, i) => sum + (i.total_amount || i.amount),
-          0
-        ),
-      };
-    }
-
-    return { paidAmountIncGST: 0 };
+    return {
+      paidAmount,
+      partialPaidAmount,
+      unpaidAmount,
+    };
   }, [payments, invoices]);
 
   const { displayTotal, totalLabel } = React.useMemo(() => {
@@ -112,8 +114,11 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       label = `Contract Value (${project.contract_length}mo x ${project.monthly_fee})`;
     }
 
-    // Calculate with GST
-    const gstRate = (project.gst_percentage || 0) / 100;
+    // Calculate with GST only for INR projects that include GST
+    const gstRate =
+      project.currency === "USD" || project.include_gst === false
+        ? 0
+        : (project.gst_percentage || 0) / 100;
     const withTax = total * (1 + gstRate);
 
     return {
@@ -125,10 +130,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   // Use GST-inclusive amounts for progress calculation
   const progress =
     displayTotal > 0
-      ? Math.min((paidAmountIncGST / displayTotal) * 100, 100)
+      ? Math.min((invoiceTracking.paidAmount / displayTotal) * 100, 100)
       : 0;
 
-  const dueAmount = displayTotal - paidAmountIncGST;
+  const projectBalanceAmount = Math.max(displayTotal - invoiceTracking.paidAmount, 0);
 
   // Calculate total invoiced amount (Inc-GST) to check if budget exceeded
   const totalInvoicedIncGST = React.useMemo(() => {
@@ -188,7 +193,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <GlassCard className="!p-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">
             {totalLabel}
@@ -196,21 +201,37 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
             {formatCurrency(displayTotal, project.currency)}
           </div>
+          {project.currency === "USD" && project.inr_converted_amount ? (
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              INR conversion: {formatCurrency(project.inr_converted_amount, "INR")}
+            </div>
+          ) : null}
         </GlassCard>
         <GlassCard className="!p-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">
             Total Paid
           </div>
           <div className="text-2xl font-bold text-green-700 dark:text-green-400">
-            {formatCurrency(paidAmountIncGST, project.currency)}
+            {formatCurrency(invoiceTracking.paidAmount, project.currency)}
           </div>
         </GlassCard>
         <GlassCard className="!p-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">
-            Total Due
+            Partial Paid
+          </div>
+          <div className="text-2xl font-bold text-orange-700 dark:text-orange-400">
+            {formatCurrency(invoiceTracking.partialPaidAmount, project.currency)}
+          </div>
+        </GlassCard>
+        <GlassCard className="!p-4">
+          <div className="text-slate-500 dark:text-slate-400 text-sm">
+            Unpaid
           </div>
           <div className="text-2xl font-bold text-red-700 dark:text-red-400">
-            {formatCurrency(dueAmount, project.currency)}
+            {formatCurrency(invoiceTracking.unpaidAmount, project.currency)}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Project balance: {formatCurrency(projectBalanceAmount, project.currency)}
           </div>
         </GlassCard>
       </div>
@@ -347,6 +368,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                   <tr>
                     <th className="px-6 py-3 whitespace-nowrap">Invoice #</th>
                     <th className="px-6 py-3 whitespace-nowrap">Amount</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Paid</th>
+                    <th className="px-6 py-3 whitespace-nowrap">Balance</th>
                     <th className="px-6 py-3 whitespace-nowrap">Due Date</th>
                     <th className="px-6 py-3 whitespace-nowrap">Status</th>
                     <th className="px-6 py-3 text-right whitespace-nowrap">
@@ -366,6 +389,24 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                       <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {formatCurrency(
                           invoice.total_amount ?? invoice.amount,
+                          invoice.currency || project.currency
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-green-700 dark:text-green-400">
+                        {formatCurrency(
+                          invoice.status === "paid"
+                            ? invoice.total_amount ?? invoice.amount
+                            : invoice.paid_amount || 0,
+                          invoice.currency || project.currency
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-red-700 dark:text-red-400">
+                        {formatCurrency(
+                          invoice.status === "paid"
+                            ? 0
+                            : invoice.balance_due ??
+                              (invoice.total_amount ?? invoice.amount) -
+                                (invoice.paid_amount || 0),
                           invoice.currency || project.currency
                         )}
                       </td>

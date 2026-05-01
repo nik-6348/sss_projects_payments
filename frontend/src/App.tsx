@@ -246,6 +246,10 @@ function AppContent() {
             currency: p.currency,
             gst_percentage: p.gst_percentage,
             include_gst: p.include_gst,
+            tds_percentage: p.tds_percentage,
+            include_tds: p.include_tds,
+            usd_to_inr_rate: p.usd_to_inr_rate,
+            inr_converted_amount: p.inr_converted_amount,
             project_type: p.project_type,
             allocation_type: p.allocation_type,
             contract_amount: p.contract_amount,
@@ -325,6 +329,10 @@ function AppContent() {
             subtotal: i.subtotal,
             gst_percentage: i.gst_percentage,
             gst_amount: i.gst_amount,
+            include_gst: i.include_gst,
+            tds_percentage: i.tds_percentage,
+            tds_amount: i.tds_amount,
+            include_tds: i.include_tds,
             total_amount: i.total_amount,
             payment_method: i.payment_method,
             bank_account_id: i.bank_account_id,
@@ -470,6 +478,10 @@ function AppContent() {
             currency: p.currency,
             gst_percentage: p.gst_percentage,
             include_gst: p.include_gst,
+            tds_percentage: p.tds_percentage,
+            include_tds: p.include_tds,
+            usd_to_inr_rate: p.usd_to_inr_rate,
+            inr_converted_amount: p.inr_converted_amount,
             project_type: p.project_type,
             allocation_type: p.allocation_type,
             contract_amount: p.contract_amount,
@@ -515,6 +527,10 @@ function AppContent() {
               subtotal: i.subtotal,
               gst_percentage: i.gst_percentage,
               gst_amount: i.gst_amount,
+              include_gst: i.include_gst,
+              tds_percentage: i.tds_percentage,
+              tds_amount: i.tds_amount,
+              include_tds: i.include_tds,
               total_amount: i.total_amount,
               payment_method: i.payment_method,
               bank_account_id: i.bank_account_id,
@@ -621,7 +637,9 @@ function AppContent() {
       const projectPayload = {
         name: projectData.name,
         description: projectData.description,
-        total_amount: parseFloat(String(projectData.total_amount)),
+        total_amount: Number.isNaN(parseFloat(String(projectData.total_amount)))
+          ? undefined
+          : parseFloat(String(projectData.total_amount)),
         currency: projectData.currency || "INR",
         status: statusMapping[projectData.status || "active"] || "active",
         start_date: projectData.start_date,
@@ -630,8 +648,20 @@ function AppContent() {
         notes: projectData.notes,
         team_members: projectData.team_members,
         // GST Settings
-        gst_percentage: projectData.gst_percentage ?? 18,
-        include_gst: projectData.include_gst ?? true,
+        gst_percentage:
+          projectData.currency === "USD" ? 0 : projectData.gst_percentage ?? 18,
+        include_gst:
+          projectData.currency === "USD" ? false : projectData.include_gst ?? true,
+        // TDS Settings
+        tds_percentage: projectData.tds_percentage ?? 10,
+        include_tds: projectData.include_tds ?? false,
+        // USD conversion
+        usd_to_inr_rate:
+          projectData.currency === "USD" ? projectData.usd_to_inr_rate || 0 : 0,
+        inr_converted_amount:
+          projectData.currency === "USD"
+            ? projectData.inr_converted_amount || 0
+            : 0,
         // Client Emails
         client_emails: projectData.client_emails || {},
         // Project Type
@@ -686,8 +716,13 @@ function AppContent() {
             // New fields
             gst_percentage: responseData.gst_percentage,
             include_gst: responseData.include_gst,
+            tds_percentage: responseData.tds_percentage,
+            include_tds: responseData.include_tds,
+            usd_to_inr_rate: responseData.usd_to_inr_rate,
+            inr_converted_amount: responseData.inr_converted_amount,
             client_emails: responseData.client_emails,
             project_type: responseData.project_type,
+            allocation_type: responseData.allocation_type,
             contract_amount: responseData.contract_amount,
             contract_length: responseData.contract_length,
             monthly_fee: responseData.monthly_fee,
@@ -695,8 +730,8 @@ function AppContent() {
             hourly_rate: responseData.hourly_rate,
             estimated_hours: responseData.estimated_hours,
           };
-          setProjects(
-            projects.map((p) => (p.id === projectData.id ? updatedProject : p))
+          setProjects((prev) =>
+            prev.map((p) => (p.id === projectData.id ? updatedProject : p))
           );
           toast.success("Project updated successfully!");
         }
@@ -735,8 +770,13 @@ function AppContent() {
             // New fields
             gst_percentage: responseData.gst_percentage,
             include_gst: responseData.include_gst,
+            tds_percentage: responseData.tds_percentage,
+            include_tds: responseData.include_tds,
+            usd_to_inr_rate: responseData.usd_to_inr_rate,
+            inr_converted_amount: responseData.inr_converted_amount,
             client_emails: responseData.client_emails,
             project_type: responseData.project_type,
+            allocation_type: responseData.allocation_type,
             contract_amount: responseData.contract_amount,
             contract_length: responseData.contract_length,
             monthly_fee: responseData.monthly_fee,
@@ -744,13 +784,23 @@ function AppContent() {
             hourly_rate: responseData.hourly_rate,
             estimated_hours: responseData.estimated_hours,
           };
-          setProjects([...projects, newProject]);
+          setProjectPagination((prev) => ({
+            ...prev,
+            currentPage: 1,
+            totalItems: prev.totalItems + 1,
+          }));
+          setProjects((prev) => [newProject, ...prev]);
           toast.success("Project created successfully!");
         }
       }
 
       if (!response?.success) {
         throw new Error(response?.error || "Failed to save project");
+      }
+
+      await fetchProjects();
+      if (currentView.view === "projectDetail") {
+        await fetchProjectDetails();
       }
 
       closeModal();
@@ -894,9 +944,13 @@ function AppContent() {
         );
         if (response.success) {
           // Update local state
+          const responseData = response.data as any;
           const updatedInvoice = {
             ...invoice,
-            status: newStatus as InvoiceStatus,
+            status: (responseData?.status || newStatus) as InvoiceStatus,
+            paid_amount: responseData?.paid_amount ?? invoice.paid_amount,
+            balance_due: responseData?.balance_due ?? invoice.balance_due,
+            total_amount: responseData?.total_amount ?? invoice.total_amount,
           };
           setInvoices(
             invoices.map((i) => (i.id === invoice.id ? updatedInvoice : i))
@@ -961,12 +1015,16 @@ function AppContent() {
           subtotal: d.subtotal,
           gst_percentage: d.gst_percentage,
           gst_amount: d.gst_amount,
+          include_gst: d.include_gst,
+          tds_percentage: d.tds_percentage,
+          tds_amount: d.tds_amount,
+          include_tds: d.include_tds,
           total_amount: d.total_amount,
           payment_method: d.payment_method,
           bank_account_id: d.bank_account_id,
           custom_payment_details: d.custom_payment_details,
           paid_amount: 0, // Duplicated invoice starts with 0 paid
-          balance_due: d.amount, // Balance due is full amount
+          balance_due: d.total_amount ?? d.amount,
           createdAt: d.createdAt,
           updatedAt: d.updatedAt,
         };
@@ -1090,13 +1148,18 @@ function AppContent() {
       const invoicePayload = {
         project_id: invoiceData.project_id,
         amount: parseFloat(String(invoiceData.amount)),
+        currency: invoiceData.currency || "INR",
         status: invoiceData.status || "draft",
         issue_date: new Date(invoiceData.issue_date).toISOString(),
         due_date: new Date(invoiceData.due_date).toISOString(),
         services: invoiceData.services || [],
         subtotal: invoiceData.subtotal || 0,
-        gst_percentage: invoiceData.gst_percentage || 18,
-        gst_amount: invoiceData.gst_amount || 0,
+        gst_percentage: invoiceData.gst_percentage ?? 18,
+        gst_amount: invoiceData.gst_amount ?? 0,
+        include_gst: invoiceData.include_gst ?? true,
+        tds_percentage: invoiceData.tds_percentage ?? 10,
+        tds_amount: invoiceData.tds_amount ?? 0,
+        include_tds: invoiceData.include_tds ?? false,
         total_amount:
           invoiceData.total_amount || parseFloat(String(invoiceData.amount)),
         payment_method: invoiceData.payment_method || "bank_account",
@@ -1130,10 +1193,16 @@ function AppContent() {
             subtotal: responseData.subtotal,
             gst_percentage: responseData.gst_percentage,
             gst_amount: responseData.gst_amount,
+            include_gst: responseData.include_gst,
+            tds_percentage: responseData.tds_percentage,
+            tds_amount: responseData.tds_amount,
+            include_tds: responseData.include_tds,
             total_amount: responseData.total_amount,
             payment_method: responseData.payment_method,
             bank_account_id: responseData.bank_account_id,
             custom_payment_details: responseData.custom_payment_details,
+            paid_amount: responseData.paid_amount,
+            balance_due: responseData.balance_due,
           };
           setInvoices(
             invoices.map((i) => (i.id === invoiceId ? updatedInvoice : i))
@@ -1166,10 +1235,16 @@ function AppContent() {
             subtotal: responseData.subtotal,
             gst_percentage: responseData.gst_percentage,
             gst_amount: responseData.gst_amount,
+            include_gst: responseData.include_gst,
+            tds_percentage: responseData.tds_percentage,
+            tds_amount: responseData.tds_amount,
+            include_tds: responseData.include_tds,
             total_amount: responseData.total_amount,
             payment_method: responseData.payment_method,
             bank_account_id: responseData.bank_account_id,
             custom_payment_details: responseData.custom_payment_details,
+            paid_amount: responseData.paid_amount,
+            balance_due: responseData.balance_due,
           };
           setInvoices([...invoices, newInvoice]);
           // If in Project Detail View, refresh everything to update stats and list

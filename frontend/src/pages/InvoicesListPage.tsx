@@ -50,8 +50,10 @@ type TabType =
   | "all"
   | "draft"
   | "sent"
+  | "unpaid"
   | "overdue"
   | "paid"
+  | "partial"
   | "cancelled"
   | "deleted";
 
@@ -122,7 +124,9 @@ export const InvoicesListPage: React.FC<InvoicesListPageProps> = ({
     { id: "all" as TabType, label: "All", icon: FileText },
     { id: "draft" as TabType, label: "Draft", icon: Edit2 },
     { id: "sent" as TabType, label: "Sent", icon: Send },
+    { id: "unpaid" as TabType, label: "Unpaid", icon: AlertCircle },
     { id: "overdue" as TabType, label: "Overdue", icon: AlertCircle },
+    { id: "partial" as TabType, label: "Partial", icon: AlertCircle },
     { id: "paid" as TabType, label: "Paid", icon: CheckCircle },
     { id: "cancelled" as TabType, label: "Cancelled", icon: Trash2 },
     { id: "deleted" as TabType, label: "Deleted", icon: Trash2 },

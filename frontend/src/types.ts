@@ -4,7 +4,14 @@ export type ProjectStatus =
   | "completed"
   | "cancelled"
   | "draft";
-export type InvoiceStatus = "draft" | "sent" | "unpaid" | "paid" | "overdue" | "cancelled";
+export type InvoiceStatus =
+  | "draft"
+  | "sent"
+  | "unpaid"
+  | "paid"
+  | "partial"
+  | "overdue"
+  | "cancelled";
 export type ProjectType =
   | "fixed_contract"
   | "monthly_retainer"
@@ -81,6 +88,12 @@ export interface Project {
   // GST Settings
   gst_percentage?: number;
   include_gst?: boolean;
+  // TDS Settings
+  tds_percentage?: number;
+  include_tds?: boolean;
+  // USD conversion
+  usd_to_inr_rate?: number;
+  inr_converted_amount?: number;
   // Multi-Email Support
   client_emails?: ProjectClientEmails;
   // Project Type
@@ -112,6 +125,12 @@ export interface ProjectApiResponse {
   // GST Settings
   gst_percentage?: number;
   include_gst?: boolean;
+  // TDS Settings
+  tds_percentage?: number;
+  include_tds?: boolean;
+  // USD conversion
+  usd_to_inr_rate?: number;
+  inr_converted_amount?: number;
   // Multi-Email Support
   client_emails?: ProjectClientEmails;
   // Project Type
@@ -154,6 +173,9 @@ export interface Invoice {
   gst_percentage?: number;
   gst_amount?: number;
   include_gst?: boolean;
+  tds_percentage?: number;
+  tds_amount?: number;
+  include_tds?: boolean;
   total_amount?: number;
   paid_amount?: number;
   balance_due?: number;
@@ -184,7 +206,12 @@ export interface InvoiceApiResponse {
   gst_percentage?: number;
   gst_amount?: number;
   include_gst?: boolean;
+  tds_percentage?: number;
+  tds_amount?: number;
+  include_tds?: boolean;
   total_amount?: number;
+  paid_amount?: number;
+  balance_due?: number;
   pdf_base64?: string;
   pdf_generated_at?: string;
   createdAt?: string;
@@ -251,6 +278,9 @@ export interface InvoiceFormData
   gst_percentage?: number;
   gst_amount?: number;
   include_gst?: boolean;
+  tds_percentage?: number;
+  tds_amount?: number;
+  include_tds?: boolean;
   total_amount?: number;
 }
 

@@ -63,7 +63,7 @@ const createInvoiceValidation = [
   body("due_date").isISO8601().withMessage("Please provide a valid due date"),
   body("status")
     .optional()
-    .isIn(["draft", "sent", "paid", "overdue", "cancelled"])
+    .isIn(["draft", "sent", "unpaid", "paid", "partial", "overdue", "cancelled"])
     .withMessage("Invalid status"),
   body("services")
     .optional()
@@ -84,6 +84,10 @@ const createInvoiceValidation = [
     .optional()
     .isFloat({ min: 0, max: 100 })
     .withMessage("GST percentage must be between 0 and 100"),
+  body("tds_percentage")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("TDS percentage must be between 0 and 100"),
 ];
 
 const updateInvoiceValidation = [
@@ -191,7 +195,7 @@ const updateProjectStatusValidation = [
 const updateInvoiceStatusValidation = [
   ...updateStatusValidation,
   body("status")
-    .isIn(["draft", "sent", "paid", "overdue", "cancelled"])
+    .isIn(["draft", "sent", "unpaid", "paid", "partial", "overdue", "cancelled"])
     .withMessage("Invalid invoice status"),
   body("paidDate")
     .optional()

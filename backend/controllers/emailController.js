@@ -437,6 +437,17 @@ export const sendInvoiceStatusEmail = async (
       `;
       }
 
+      if (inv.tds_amount > 0) {
+        footerRows += `
+        <tr>
+          <td colspan="${colspanLabel}" style="${tdStyle} text-align: right; font-weight: 600; color: #64748b;">TDS (${inv.tds_percentage || 0}%)</td>
+          <td style="${tdNumStyle} font-weight: 600;">-${currencySymbol} ${Number(
+          inv.tds_amount
+        ).toFixed(2)}</td>
+        </tr>
+      `;
+      }
+
       // Total
       footerRows += `
         <tr style="${trFooterStyle}">

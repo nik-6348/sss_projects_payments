@@ -112,6 +112,18 @@ const invoiceSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    tds_percentage: {
+      type: Number,
+      default: 10,
+    },
+    tds_amount: {
+      type: Number,
+      default: 0,
+    },
+    include_tds: {
+      type: Boolean,
+      default: false,
+    },
     total_amount: {
       type: Number,
       required: true,

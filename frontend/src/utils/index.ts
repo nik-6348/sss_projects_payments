@@ -84,33 +84,39 @@ export const calculateProjectStats = (
   payments: Payment[],
   invoices: any[] = []
 ): ProjectWithStats => {
+  const projectInvoices = invoices.filter(
+    (i) => i.project_id?._id === project.id || i.project_id === project.id
+  );
+
   // Calculate paid amounts from payments
   const paidFromPayments = payments
     .filter((p) => p.project_id === project.id)
     .reduce((sum, p) => sum + p.amount, 0);
 
-  // Calculate paid amounts from paid invoices
-  const paidFromInvoices = invoices
-    .filter(
-      (i) => i.project_id?._id === project.id || i.project_id === project.id
-    )
-    .filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + (i.total_amount ?? i.amount), 0);
+  // Calculate paid amounts from invoice status, including partial payments
+  const paidFromInvoices = projectInvoices.reduce((sum, i) => {
+    if (i.status === "paid") return sum + (i.total_amount ?? i.amount);
+    return sum + (i.paid_amount || 0);
+  }, 0);
 
-  const paidAmount = paidFromPayments + paidFromInvoices;
+  const paidAmount = Math.max(paidFromPayments, paidFromInvoices);
 
   // Calculate Ex-GST Paid Amount for Progress
-  const gstRate = (project.gst_percentage || 0) / 100;
+  const gstRate =
+    project.currency === "USD" || project.include_gst === false
+      ? 0
+      : (project.gst_percentage || 0) / 100;
 
   const paidFromPaymentsExGST = paidFromPayments / (1 + gstRate);
-  const paidFromInvoicesExGST = invoices
-    .filter(
-      (i) => i.project_id?._id === project.id || i.project_id === project.id
-    )
-    .filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + (i.subtotal ?? i.amount), 0);
+  const paidFromInvoicesExGST = projectInvoices.reduce((sum, i) => {
+    if (i.status === "paid") return sum + (i.subtotal ?? i.amount);
+    return sum + (i.paid_amount || 0) / (1 + gstRate);
+  }, 0);
 
-  const paidAmountExGST = paidFromPaymentsExGST + paidFromInvoicesExGST;
+  const paidAmountExGST = Math.max(
+    paidFromPaymentsExGST,
+    paidFromInvoicesExGST
+  );
 
   // Calculate effective total based on project type
   let calculatedTotal = project.total_amount || 0;
@@ -132,7 +138,7 @@ export const calculateProjectStats = (
   // Calculate Display Total (Inc-GST) for Due Amount
   const displayTotal = calculatedTotal * (1 + gstRate);
 
-  const dueAmount = displayTotal - paidAmount;
+  const dueAmount = Math.max(displayTotal - paidAmount, 0);
   // Progress based on Ex-GST values
   const progress =
     calculatedTotal > 0 ? (paidAmountExGST / calculatedTotal) * 100 : 0;

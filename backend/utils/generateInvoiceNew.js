@@ -194,10 +194,7 @@ const generateInvoicePDF = (
   const marginX = 15;
   const currencySymbol = getCurrencySymbol(invoiceData.currency);
 
-  // 1. Status Ribbon
-  drawStatusRibbon(doc, pageWidth, invoiceData.status || "UNPAID");
-
-  // 2. Company Logo
+  // 1. Company Logo
   let logoHeight = 0;
   if (logoBase64) {
     try {
@@ -324,16 +321,29 @@ const generateInvoicePDF = (
 
   // Footer Rows calculation
   const subTotalEx = formatCurrency(invoiceData.subtotal, currencySymbol);
-  const taxLabel = `GST (${invoiceData.gst_percentage || 0}%)`;
-  const taxAmount = formatCurrency(invoiceData.gst_amount, currencySymbol);
   const totalPayable = formatCurrency(invoiceData.total_amount, currencySymbol);
 
   // Push footer rows for AutoTable
-  bodyData.push(
-    { description: "Sub Total", amount: subTotalEx, _type: "summary" },
-    { description: taxLabel, amount: taxAmount, _type: "summary" },
-    { description: "Total Payable", amount: totalPayable, _type: "grand_total" }
-  );
+  bodyData.push({ description: "Sub Total", amount: subTotalEx, _type: "summary" });
+  if ((invoiceData.gst_amount || 0) > 0) {
+    bodyData.push({
+      description: `GST (${invoiceData.gst_percentage || 0}%)`,
+      amount: formatCurrency(invoiceData.gst_amount, currencySymbol),
+      _type: "summary",
+    });
+  }
+  if ((invoiceData.tds_amount || 0) > 0) {
+    bodyData.push({
+      description: `TDS (${invoiceData.tds_percentage || 0}%)`,
+      amount: `-${formatCurrency(invoiceData.tds_amount, currencySymbol)}`,
+      _type: "summary",
+    });
+  }
+  bodyData.push({
+    description: "Total Payable",
+    amount: totalPayable,
+    _type: "grand_total",
+  });
 
   autoTable(doc, {
     startY: cursorY + 5,

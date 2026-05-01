@@ -79,12 +79,19 @@ export interface Project {
   name: string;
   description: string;
   total_amount: number;
+  currency?: "INR" | "USD";
   status: "active" | "on_hold" | "completed" | "cancelled" | "draft";
   start_date: string;
   end_date?: string;
   client_name: string;
   notes?: string;
   user_id: string;
+  gst_percentage?: number;
+  include_gst?: boolean;
+  tds_percentage?: number;
+  include_tds?: boolean;
+  usd_to_inr_rate?: number;
+  inr_converted_amount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -118,6 +125,10 @@ export interface Invoice {
   subtotal: number | undefined;
   gst_percentage: number | undefined;
   gst_amount: number | undefined;
+  include_gst?: boolean;
+  tds_percentage?: number;
+  tds_amount?: number;
+  include_tds?: boolean;
   total_amount: number | undefined;
   payment_method: PaymentMethod | undefined;
   bank_account_id: string | undefined;
@@ -133,7 +144,9 @@ export interface Invoice {
   };
   invoice_number: string;
   amount: number;
-  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+  status: "draft" | "sent" | "unpaid" | "paid" | "partial" | "overdue" | "cancelled";
+  paid_amount?: number;
+  balance_due?: number;
   issue_date: string;
   due_date: string;
   createdAt: string;

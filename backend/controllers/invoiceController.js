@@ -10,6 +10,76 @@ import companyDetails from "../config/companyDetails.js";
 // Client is already imported if needed, or import here
 import Client from "../models/Client.js";
 
+const roundMoney = (amount) => Math.round((Number(amount) || 0) * 100) / 100;
+
+const toBoolean = (value, fallback = false) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  return value === "true";
+};
+
+const calculateInvoiceFinancials = ({
+  services = [],
+  body = {},
+  project,
+  existingInvoice,
+}) => {
+  const subtotal = roundMoney(
+    services.reduce((sum, s) => sum + Number(s.amount || 0), 0)
+  );
+  const currency =
+    body.currency || project?.currency || existingInvoice?.currency || "INR";
+  const include_gst =
+    currency === "USD"
+      ? false
+      : toBoolean(
+          body.include_gst,
+          project?.include_gst ?? existingInvoice?.include_gst ?? true
+        );
+  const gst_percentage = include_gst
+    ? Number(
+        body.gst_percentage ??
+          project?.gst_percentage ??
+          existingInvoice?.gst_percentage ??
+          18
+      )
+    : 0;
+  const gst_amount = include_gst
+    ? roundMoney((subtotal * gst_percentage) / 100)
+    : 0;
+  const include_tds = toBoolean(
+    body.include_tds,
+    project?.include_tds ?? existingInvoice?.include_tds ?? false
+  );
+  const tds_percentage = include_tds
+    ? Number(
+        body.tds_percentage ??
+          project?.tds_percentage ??
+          existingInvoice?.tds_percentage ??
+          10
+      )
+    : Number(body.tds_percentage ?? project?.tds_percentage ?? 10);
+  const tds_amount = include_tds
+    ? roundMoney((subtotal * tds_percentage) / 100)
+    : 0;
+  const total_amount = Math.max(
+    0,
+    roundMoney(subtotal + gst_amount - tds_amount)
+  );
+
+  return {
+    currency,
+    subtotal,
+    gst_percentage,
+    gst_amount,
+    include_gst,
+    tds_percentage,
+    tds_amount,
+    include_tds,
+    total_amount,
+  };
+};
+
 // @desc    Get all invoices
 // @route   GET /api/invoices
 // @access  Private
@@ -144,6 +214,9 @@ const getInvoices = async (req, res, next) => {
               gst_percentage: 1,
               gst_amount: 1,
               include_gst: 1,
+              tds_percentage: 1,
+              tds_amount: 1,
+              include_tds: 1,
               total_amount: 1,
               payment_method: 1,
               bank_account_id: 1,
@@ -261,15 +334,18 @@ const createInvoice = async (req, res, next) => {
       });
     }
 
-    const { services = [], gst_percentage = 18, include_gst = true } = req.body;
-    const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
-
-    let gst_amount = 0;
-    if (include_gst) {
-      gst_amount = (subtotal * gst_percentage) / 100;
-    }
-
-    const total_amount = subtotal + gst_amount;
+    const services = req.body.services || [];
+    const {
+      currency,
+      subtotal,
+      gst_percentage,
+      gst_amount,
+      include_gst,
+      tds_percentage,
+      tds_amount,
+      include_tds,
+      total_amount,
+    } = calculateInvoiceFinancials({ services, body: req.body, project });
 
     // Check project budget
     // We compare Principal (Subtotal) against Project Budget (Principal)
@@ -298,16 +374,19 @@ const createInvoice = async (req, res, next) => {
 
     const invoice = await Invoice.create({
       ...req.body,
-      currency: req.body.currency || project.currency || "INR",
+      currency,
       invoice_number,
       services,
       subtotal,
       gst_percentage,
       gst_amount,
       include_gst,
+      tds_percentage,
+      tds_amount,
+      include_tds,
       total_amount,
-      amount: total_amount, // Save Total Amount (Inc GST) as the main Amount for display/payment
-      balance_due: total_amount, // Initial balance is Total Amount (Inc GST)
+      amount: total_amount,
+      balance_due: total_amount,
     });
 
     await invoice.populate({
@@ -377,38 +456,44 @@ const updateInvoice = async (req, res, next) => {
     // Handle services calculation if services are provided
     let updateData = { ...req.body };
     if (req.body.services) {
+      const services = req.body.services || [];
+      const project = await Project.findById(req.body.project_id || invoice.project_id);
       const {
-        services = [],
-        gst_percentage = 18,
-        include_gst = req.body.include_gst !== undefined
-          ? req.body.include_gst
-          : invoice.include_gst,
-      } = req.body;
-
-      const subtotal = services.reduce((sum, s) => sum + Number(s.amount), 0);
-
-      let gst_amount = 0;
-      if (include_gst) {
-        gst_amount = (subtotal * gst_percentage) / 100;
-      }
-
-      const total_amount = subtotal + gst_amount;
+        currency,
+        subtotal,
+        gst_percentage,
+        gst_amount,
+        include_gst,
+        tds_percentage,
+        tds_amount,
+        include_tds,
+        total_amount,
+      } = calculateInvoiceFinancials({
+        services,
+        body: req.body,
+        project,
+        existingInvoice: invoice,
+      });
 
       updateData = {
         ...updateData,
+        currency,
         services,
         subtotal,
         gst_percentage,
         gst_amount,
         include_gst,
+        tds_percentage,
+        tds_amount,
+        include_tds,
         total_amount,
-        amount: subtotal, // Save Subtotal as Amount
+        amount: total_amount,
+        balance_due: total_amount,
         pdf_base64: null, // Clear cached PDF on update
         pdf_generated_at: null,
       };
 
       // Check project budget if amount changed
-      const project = await Project.findById(invoice.project_id);
       const existingInvoices = await Invoice.aggregate([
         {
           $match: {
@@ -582,7 +667,15 @@ const updateInvoiceStatus = async (req, res, next) => {
     }
 
     // Validate status
-    const validStatuses = ["draft", "sent", "paid", "overdue", "cancelled"];
+    const validStatuses = [
+      "draft",
+      "sent",
+      "unpaid",
+      "paid",
+      "partial",
+      "overdue",
+      "cancelled",
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,

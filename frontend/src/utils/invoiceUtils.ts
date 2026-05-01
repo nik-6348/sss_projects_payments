@@ -116,6 +116,19 @@ export const generateInvoiceTableHtml = (invoice: Invoice): string => {
   `;
   }
 
+  if ((invoice.tds_amount || 0) > 0) {
+    footerRows += `
+    <tr>
+      <td colspan="${colspanLabel}" style="${tdStyle} text-align: right; font-weight: 600; color: #64748b;">TDS (${
+      invoice.tds_percentage || 0
+    }%)</td>
+      <td style="${tdNumStyle} font-weight: 600;">-${currencySymbol} ${Number(
+      invoice.tds_amount || 0
+    ).toFixed(2)}</td>
+    </tr>
+  `;
+  }
+
   // Total
   footerRows += `
     <tr style="${trFooterStyle}">

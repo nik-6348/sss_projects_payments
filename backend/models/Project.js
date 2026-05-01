@@ -76,6 +76,24 @@ const projectSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // TDS Settings
+    tds_percentage: {
+      type: Number,
+      default: 10,
+    },
+    include_tds: {
+      type: Boolean,
+      default: false,
+    },
+    // USD conversion snapshot
+    usd_to_inr_rate: {
+      type: Number,
+      default: 0,
+    },
+    inr_converted_amount: {
+      type: Number,
+      default: 0,
+    },
     // Multi-Email Support
     client_emails: {
       business_email: { type: String, trim: true },

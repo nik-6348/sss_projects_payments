@@ -1,6 +1,36 @@
 import Project from "../models/Project.js";
 import { validationResult } from "express-validator";
 
+const roundMoney = (amount) => Math.round((Number(amount) || 0) * 100) / 100;
+
+const applyProjectTaxAndConversion = (projectData) => {
+  projectData.include_tds = projectData.include_tds === true;
+  projectData.tds_percentage =
+    projectData.tds_percentage === undefined || projectData.tds_percentage === null
+      ? 10
+      : Number(projectData.tds_percentage);
+
+  if (projectData.currency === "USD") {
+    projectData.include_gst = false;
+    projectData.gst_percentage = 0;
+    projectData.usd_to_inr_rate = Number(projectData.usd_to_inr_rate) || 0;
+    projectData.inr_converted_amount = roundMoney(
+      (Number(projectData.total_amount) || 0) * projectData.usd_to_inr_rate
+    );
+    return;
+  }
+
+  projectData.currency = projectData.currency || "INR";
+  projectData.usd_to_inr_rate = 0;
+  projectData.inr_converted_amount = 0;
+  if (projectData.include_gst === undefined) {
+    projectData.include_gst = true;
+  }
+  if (projectData.gst_percentage === undefined || projectData.gst_percentage === null) {
+    projectData.gst_percentage = 18;
+  }
+};
+
 // @desc    Get all projects
 // @route   GET /api/projects
 // @access  Private
@@ -216,6 +246,8 @@ const createProject = async (req, res, next) => {
       }
     }
 
+    applyProjectTaxAndConversion(projectData);
+
     const project = await Project.create(projectData);
     await project.populate("client_id", "name email phone");
     await project.populate("team_members.user_id", "name email role avatar");
@@ -360,6 +392,8 @@ const updateProject = async (req, res, next) => {
         }
       }
     }
+
+    applyProjectTaxAndConversion(projectData);
 
     project = await Project.findByIdAndUpdate(req.params.id, projectData, {
       new: true,
