@@ -11,6 +11,7 @@ import type { Project } from "../types";
 import {
   GlassCard,
   PrimaryButton,
+  Skeleton,
   StatusChip,
   Pagination,
 } from "../components/ui";
@@ -211,11 +212,6 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
       {/* Projects Table */}
       <GlassCard>
         <div className="overflow-x-auto relative min-h-[200px]">
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          )}
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-slate-600 dark:text-slate-300 uppercase border-b border-white/30 dark:border-slate-600/30">
               <tr>
@@ -230,7 +226,41 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
               </tr>
             </thead>
             <tbody>
-              {projects.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, index) => (
+                  <tr
+                    key={`project-skeleton-${index}`}
+                    className="border-b border-white/10 dark:border-slate-600/10"
+                  >
+                    <td className="px-6 py-4">
+                      <Skeleton className="w-40" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="w-32" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-6 w-28 rounded-full" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="w-24" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="w-24" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-end">
+                        <Skeleton className="h-8 w-16 rounded-lg" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : projects.length === 0 ? (
                 <tr>
                   <td
                     colSpan={8}

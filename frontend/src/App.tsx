@@ -1,4 +1,5 @@
 import React from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FolderOpen,
@@ -41,31 +42,125 @@ import {
 } from "./pages";
 import ClientsListPage from "./pages/ClientsListPage";
 
+type CurrentView = {
+  view: string;
+  id?: string;
+  params?: Record<string, any>;
+};
+
+const getViewFromLocation = (pathname: string, search = ""): CurrentView => {
+  const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+  const searchParams = new URLSearchParams(search);
+
+  if (normalizedPath.startsWith("/reset-password/")) {
+    return { view: "reset-password" };
+  }
+
+  if (normalizedPath === "/login") return { view: "login" };
+  if (normalizedPath === "/projects") return { view: "projects" };
+  if (normalizedPath.startsWith("/projects/")) {
+    return {
+      view: "projectDetail",
+      id: decodeURIComponent(normalizedPath.split("/")[2] || ""),
+    };
+  }
+  if (normalizedPath === "/invoices") {
+    const tab = searchParams.get("tab");
+    return { view: "invoices", params: tab ? { tab } : undefined };
+  }
+  if (normalizedPath === "/clients") return { view: "clients" };
+  if (normalizedPath === "/settings") return { view: "settings" };
+
+  return { view: "dashboard" };
+};
+
+const getPathForView = (view: string, id?: string, params?: any) => {
+  switch (view) {
+    case "login":
+      return "/login";
+    case "projects":
+      return "/projects";
+    case "projectDetail":
+      return id ? `/projects/${encodeURIComponent(id)}` : "/projects";
+    case "invoices":
+      return params?.tab
+        ? `/invoices?tab=${encodeURIComponent(params.tab)}`
+        : "/invoices";
+    case "clients":
+      return "/clients";
+    case "settings":
+      return "/settings";
+    case "reset-password":
+      return window.location.pathname;
+    case "dashboard":
+    default:
+      return "/";
+  }
+};
+
+const isSameView = (current: CurrentView, next: CurrentView) =>
+  current.view === next.view &&
+  current.id === next.id &&
+  JSON.stringify(current.params || {}) === JSON.stringify(next.params || {});
+
+const isSidebarViewActive = (currentView: string, itemView: string) =>
+  currentView === itemView ||
+  (itemView === "projects" && currentView === "projectDetail");
+
+const AppLoadingSkeleton = () => (
+  <div className="space-y-6 animate-pulse">
+    <div className="flex items-center gap-3">
+      <div className="h-8 w-8 rounded-lg bg-slate-200 dark:bg-slate-700" />
+      <div className="h-8 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={index}
+          className="h-32 rounded-3xl bg-white/60 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700"
+        />
+      ))}
+    </div>
+    <div className="h-[360px] rounded-3xl bg-white/60 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700" />
+  </div>
+);
+
+const ProjectDetailLoadingSkeleton = () => (
+  <div className="space-y-6 animate-pulse">
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-3">
+        <div className="h-8 w-64 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="h-4 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+      </div>
+      <div className="h-10 w-32 rounded-xl bg-slate-200 dark:bg-slate-700" />
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          className="h-28 rounded-3xl bg-white/60 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700"
+        />
+      ))}
+    </div>
+    <div className="h-[320px] rounded-3xl bg-white/60 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700" />
+  </div>
+);
+
 // App Content Component (uses auth context)
 function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, logout, isLoading, login } = useAuth();
-  const [currentView, setCurrentView] = React.useState<{
-    view: string;
-    id?: string;
-    params?: any;
-  }>(() => {
-    // Check for reset password URL first
-    if (window.location.pathname.startsWith("/reset-password/")) {
-      return { view: "reset-password" };
-    }
-    const saved = localStorage.getItem("currentView");
-    return saved ? JSON.parse(saved) : { view: "dashboard" };
-  });
-
-  // Save currentView to localStorage whenever it changes
-  React.useEffect(() => {
-    localStorage.setItem("currentView", JSON.stringify(currentView));
-  }, [currentView]);
+  const [currentView, setCurrentView] = React.useState<CurrentView>(() =>
+    getViewFromLocation(window.location.pathname, window.location.search)
+  );
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [projectInvoices, setProjectInvoices] = React.useState<Invoice[]>([]);
   const [payments, setPayments] = React.useState<Payment[]>([]);
   const [dataLoading, setDataLoading] = React.useState(false);
+  const [projectDetailNotFound, setProjectDetailNotFound] =
+    React.useState(false);
   // Invoice Pagination & Filters
   const [invoicePagination, setInvoicePagination] = React.useState({
     currentPage: 1,
@@ -95,6 +190,17 @@ function AppContent() {
   const [projectTypeFilter, setProjectTypeFilter] = React.useState("");
   const [projectAllocationFilter, setProjectAllocationFilter] =
     React.useState("");
+
+  React.useEffect(() => {
+    const nextView = getViewFromLocation(location.pathname, location.search);
+    setCurrentView((previousView) =>
+      isSameView(previousView, nextView) ? previousView : nextView
+    );
+
+    if (nextView.view !== "projectDetail") {
+      setProjectDetailNotFound(false);
+    }
+  }, [location.pathname, location.search]);
 
   const [modal, setModal] = React.useState<{
     isOpen: boolean;
@@ -432,8 +538,13 @@ function AppContent() {
 
   // Fetch single project details when viewing project detail
   const fetchProjectDetails = React.useCallback(async () => {
-    if (currentView.view === "projectDetail" && currentView.id) {
+    if (
+      currentView.view === "projectDetail" &&
+      currentView.id &&
+      isAuthenticated
+    ) {
       try {
+        setProjectDetailNotFound(false);
         setDataLoading(true);
         const [projectResponse, invoicesResponse] = await Promise.all([
           apiClient.getProject(currentView.id),
@@ -497,6 +608,8 @@ function AppContent() {
               return [...prevProjects, transformedProject];
             }
           });
+        } else {
+          setProjectDetailNotFound(true);
         }
 
         if (invoicesResponse.success && invoicesResponse.data) {
@@ -535,19 +648,42 @@ function AppContent() {
         }
       } catch (err: any) {
         console.error("Error fetching project details:", err);
+        setProjectDetailNotFound(true);
       } finally {
         setDataLoading(false);
       }
     }
-  }, [currentView]);
+  }, [currentView, isAuthenticated]);
 
   React.useEffect(() => {
     fetchProjectDetails();
   }, [fetchProjectDetails]);
 
-  const navigateTo = (view: string, id?: string, params?: any) => {
-    setCurrentView({ view, id: id || undefined, params });
-  };
+  const navigateTo = React.useCallback(
+    (view: string, id?: string, params?: any) => {
+      const nextView = { view, id: id || undefined, params };
+      setCurrentView(nextView);
+      setIsSidebarOpen(false);
+      navigate(getPathForView(view, id, params));
+    },
+    [navigate]
+  );
+
+  React.useEffect(() => {
+    if (isLoading) return;
+
+    if (
+      !isAuthenticated &&
+      currentView.view !== "login" &&
+      currentView.view !== "reset-password"
+    ) {
+      navigateTo("login");
+    }
+
+    if (isAuthenticated && currentView.view === "login") {
+      navigateTo("dashboard");
+    }
+  }, [currentView.view, isAuthenticated, isLoading, navigateTo]);
 
   const handleLogin = async (email: string, password: string) => {
     try {
@@ -1358,30 +1494,38 @@ function AppContent() {
 
   const SidebarItem: React.FC<{
     view: string;
+    path: string;
     icon: React.ReactNode;
     label: string;
     isOpen: boolean;
-  }> = ({ view, icon, label, isOpen }) => (
-    <button
-      onClick={() => navigateTo(view)}
-      className={`relative flex items-center ${isOpen ? "justify-start px-4" : "justify-center"
-        } w-full h-14 rounded-xl transition-all duration-300 transform hover:scale-105 ${currentView.view === view
-          ? isDarkMode
-            ? "bg-slate-700/80 text-blue-400 shadow-lg border-2 border-blue-400/50"
-            : "bg-white/60 backdrop-blur-md text-blue-600 shadow-lg border-2 border-blue-200"
-          : isDarkMode
-            ? "text-slate-300 hover:bg-slate-700/50 hover:text-slate-100"
-            : "text-slate-600 hover:bg-white/40 hover:text-slate-800 hover:backdrop-blur-md"
-        }`}
-    >
-      <div className="flex items-center justify-center">{icon}</div>
-      {isOpen && (
-        <span className="ml-3 font-medium transition-opacity duration-300">
-          {label}
-        </span>
-      )}
-    </button>
-  );
+  }> = ({ view, path, icon, label, isOpen }) => {
+    const isActive = isSidebarViewActive(currentView.view, view);
+
+    return (
+      <Link
+        to={path}
+        onClick={() => setIsSidebarOpen(false)}
+        aria-label={label}
+        title={isOpen ? undefined : label}
+        className={`relative flex items-center ${isOpen ? "justify-start px-4" : "justify-center"
+          } w-full h-14 rounded-xl transition-all duration-300 transform hover:scale-105 ${isActive
+            ? isDarkMode
+              ? "bg-slate-700/80 text-blue-400 shadow-lg border-2 border-blue-400/50"
+              : "bg-white/60 backdrop-blur-md text-blue-600 shadow-lg border-2 border-blue-200"
+            : isDarkMode
+              ? "text-slate-300 hover:bg-slate-700/50 hover:text-slate-100"
+              : "text-slate-600 hover:bg-white/40 hover:text-slate-800 hover:backdrop-blur-md"
+          }`}
+      >
+        <div className="flex items-center justify-center">{icon}</div>
+        {isOpen && (
+          <span className="ml-3 font-medium transition-opacity duration-300">
+            {label}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   // Memoized Handlers for Projects
   const handleProjectPageChange = React.useCallback((page: number) => {
@@ -1414,11 +1558,7 @@ function AppContent() {
 
     // Only show full-page loader for initial loading, not for data operations
     if (isLoading) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        </div>
-      );
+      return <AppLoadingSkeleton />;
     }
 
     switch (view) {
@@ -1426,7 +1566,6 @@ function AppContent() {
         return <LoginPage onLogin={handleLogin} />;
       case "dashboard":
         if (!isAuthenticated) {
-          navigateTo("login");
           return null;
         }
         return (
@@ -1442,7 +1581,6 @@ function AppContent() {
         );
       case "projects":
         if (!isAuthenticated) {
-          navigateTo("login");
           return null;
         }
         return (
@@ -1461,7 +1599,6 @@ function AppContent() {
         );
       case "invoices":
         if (!isAuthenticated) {
-          navigateTo("login");
           return null;
         }
         return (
@@ -1485,23 +1622,28 @@ function AppContent() {
         );
       case "settings":
         if (!isAuthenticated) {
-          navigateTo("login");
           return null;
         }
         return <SettingsPage />;
       case "clients":
         if (!isAuthenticated) {
-          navigateTo("login");
           return null;
         }
         return <ClientsListPage />;
       case "projectDetail":
         if (!isAuthenticated) {
-          navigateTo("login");
           return null;
         }
         const project = projects.find((p) => p.id === id);
-        if (!project) return <div>Project not found!</div>;
+        if (!project) {
+          return dataLoading || !projectDetailNotFound ? (
+            <ProjectDetailLoadingSkeleton />
+          ) : (
+            <div className="rounded-3xl bg-white/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-600/50 p-8 text-slate-600 dark:text-slate-300">
+              Project not found.
+            </div>
+          );
+        }
 
         const projectPayments = payments.filter((p) => p.project_id === id);
 
@@ -1538,7 +1680,6 @@ function AppContent() {
             />
           );
         } else {
-          navigateTo("login");
           return null;
         }
     }
@@ -1595,30 +1736,35 @@ function AppContent() {
               <nav className="flex-1 px-4 pb-6 space-y-2">
                 <SidebarItem
                   view="dashboard"
+                  path="/"
                   icon={<LayoutDashboard className="h-6 w-6" />}
                   label="Dashboard"
                   isOpen={isSidebarOpen}
                 />
                 <SidebarItem
                   view="projects"
+                  path="/projects"
                   icon={<FolderOpen className="h-6 w-6" />}
                   label="Projects"
                   isOpen={isSidebarOpen}
                 />
                 <SidebarItem
                   view="invoices"
+                  path="/invoices"
                   icon={<FileText className="h-6 w-6" />}
                   label="Invoices"
                   isOpen={isSidebarOpen}
                 />
                 <SidebarItem
                   view="clients"
+                  path="/clients"
                   icon={<Users className="h-6 w-6" />}
                   label="Clients"
                   isOpen={isSidebarOpen}
                 />
                 <SidebarItem
                   view="settings"
+                  path="/settings"
                   icon={<Settings className="h-6 w-6" />}
                   label="Settings"
                   isOpen={isSidebarOpen}
