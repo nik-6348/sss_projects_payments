@@ -42,6 +42,30 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    include_tds: {
+      type: Boolean,
+      default: false,
+    },
+    tds_percentage: {
+      type: Number,
+      default: 10,
+    },
+    tds_amount: {
+      type: Number,
+      default: 0,
+    },
+    credited_amount: {
+      type: Number,
+      default: 0,
+    },
+    usd_to_inr_rate: {
+      type: Number,
+      default: 0,
+    },
+    inr_converted_amount: {
+      type: Number,
+      default: 0,
+    },
     remark: {
       type: String,
       trim: true,

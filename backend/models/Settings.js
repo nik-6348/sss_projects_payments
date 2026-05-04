@@ -12,6 +12,23 @@ const settingsSchema = new mongoose.Schema(
         default: true,
       },
     },
+    tds_settings: {
+      default_percentage: {
+        type: Number,
+        default: 10,
+      },
+    },
+    currency_settings: {
+      usd_to_inr_rate: {
+        type: Number,
+        default: 83,
+      },
+    },
+    currency: {
+      type: String,
+      enum: ["INR", "USD"],
+      default: "INR",
+    },
     invoice_settings: {
       format: {
         type: String,

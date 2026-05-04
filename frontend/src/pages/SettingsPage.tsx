@@ -33,6 +33,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
     gstPercentage: 18,
     invoiceFormat: "INV-{YYYY}-{000}",
     currency: "INR",
+    gst_settings: {
+      default_percentage: 18,
+      enable_gst: true,
+    },
+    tds_settings: {
+      default_percentage: 10,
+    },
+    currency_settings: {
+      usd_to_inr_rate: 83,
+    },
     company_details: {
       name: "",
       logo: "", // Logo URL
@@ -135,6 +145,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
       if (response.success && response.data) {
         setSettings({
           ...response.data,
+          gst_settings: {
+            default_percentage: 18,
+            enable_gst: true,
+            ...response.data.gst_settings,
+          },
+          tds_settings: {
+            default_percentage: 10,
+            ...response.data.tds_settings,
+          },
+          currency_settings: {
+            usd_to_inr_rate: 83,
+            ...response.data.currency_settings,
+          },
           smtp_settings: response.data.smtp_settings || {
             host: "",
             port: 587,
@@ -630,6 +653,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
               Invoice Settings
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className="flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={settings.gst_settings?.enable_gst !== false}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      gst_settings: {
+                        ...settings.gst_settings,
+                        enable_gst: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                Default GST
+              </label>
               <FormInput
                 label="GST Percentage (%)"
                 type="number"
@@ -644,6 +684,34 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
                   })
                 }
               />
+              <FormInput
+                label="TDS Percentage (%)"
+                type="number"
+                value={settings.tds_settings?.default_percentage || 10}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    tds_settings: {
+                      ...settings.tds_settings,
+                      default_percentage: Number(e.target.value),
+                    },
+                  })
+                }
+              />
+              <FormInput
+                label="USD to INR Rate"
+                type="number"
+                value={settings.currency_settings?.usd_to_inr_rate || 83}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    currency_settings: {
+                      ...settings.currency_settings,
+                      usd_to_inr_rate: Number(e.target.value),
+                    },
+                  })
+                }
+              />
               <FormSelect
                 label="Currency"
                 value={settings.currency || "INR"}
@@ -653,7 +721,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
                 options={[
                   { value: "INR", label: "INR (₹)" },
                   { value: "USD", label: "USD ($)" },
-                  { value: "EUR", label: "EUR (€)" },
                 ]}
               />
             </div>

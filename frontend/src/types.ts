@@ -228,6 +228,12 @@ export interface Payment {
   payment_method: PaymentMethod;
   bank_account_id?: string;
   custom_payment_details?: string;
+  include_tds?: boolean;
+  tds_percentage?: number;
+  tds_amount?: number;
+  credited_amount?: number;
+  usd_to_inr_rate?: number;
+  inr_converted_amount?: number;
   remark?: string;
   payment_date: string;
   createdAt?: string;

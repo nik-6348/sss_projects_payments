@@ -2,8 +2,33 @@ import Payment from "../models/Payment.js";
 import Invoice from "../models/Invoice.js";
 import Project from "../models/Project.js";
 import BankDetails from "../models/BankDetails.js";
+import Settings from "../models/Settings.js";
 import { validationResult } from "express-validator";
 import { sendInvoiceStatusEmail } from "./emailController.js";
+
+const roundMoney = (amount) => Math.round((Number(amount) || 0) * 100) / 100;
+
+const toBoolean = (value, fallback = false) => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  return value === "true";
+};
+
+const getInvoicePrincipalRatio = (invoice) => {
+  const invoiceTotal = Number(invoice?.total_amount || invoice?.amount || 0);
+  if (invoiceTotal <= 0) return 1;
+  const subtotal = Number(invoice?.subtotal || invoiceTotal);
+  return Math.min(Math.max(subtotal / invoiceTotal, 0), 1);
+};
+
+const calculateTdsFromNetPayment = (amount, invoice, tdsPercentage) => {
+  const netAmount = Number(amount) || 0;
+  const tdsRate = ((Number(tdsPercentage) || 0) / 100) * getInvoicePrincipalRatio(invoice);
+
+  if (tdsRate <= 0 || tdsRate >= 1) return 0;
+
+  return roundMoney((netAmount / (1 - tdsRate)) * tdsRate);
+};
 
 // @desc    Get all payments
 // @route   GET /api/payments
@@ -53,7 +78,7 @@ const getPayments = async (req, res, next) => {
           select: "name",
         },
       })
-      .populate("invoice_id", "invoice_number amount")
+      .populate("invoice_id", "invoice_number amount total_amount currency")
       .sort({ payment_date: -1 })
       .skip(startIndex)
       .limit(limit);
@@ -97,7 +122,7 @@ const getPayment = async (req, res, next) => {
           select: "name",
         },
       })
-      .populate("invoice_id", "invoice_number amount");
+      .populate("invoice_id", "invoice_number amount total_amount currency");
 
     if (!payment) {
       return res.status(404).json({
@@ -139,16 +164,23 @@ const createPayment = async (req, res, next) => {
       invoice_id,
       project_id,
       amount,
+      currency,
       payment_method,
+      bank_account_id,
+      custom_payment_details,
       payment_date,
       remark,
+      include_tds,
+      tds_percentage,
+      usd_to_inr_rate,
     } = req.body;
 
     let projectIdToUse = project_id;
+    let invoice = null;
 
     // If project_id is missing but invoice_id is present, infer it
     if (!projectIdToUse && invoice_id) {
-      const invoice = await Invoice.findById(invoice_id);
+      invoice = await Invoice.findById(invoice_id);
       if (invoice) {
         projectIdToUse = invoice.project_id;
       }
@@ -165,7 +197,7 @@ const createPayment = async (req, res, next) => {
 
     // If invoice_id provided, verify invoice exists
     if (invoice_id) {
-      const invoice = await Invoice.findById(invoice_id);
+      invoice = invoice || (await Invoice.findById(invoice_id));
       if (!invoice) {
         return res.status(404).json({
           success: false,
@@ -174,22 +206,60 @@ const createPayment = async (req, res, next) => {
       }
     }
 
+    const settings = await Settings.findOne();
+    const paymentCurrency = currency || invoice?.currency || project.currency || "INR";
+    const shouldIncludeTds = toBoolean(include_tds, false);
+    const effectiveTdsPercentage = shouldIncludeTds
+      ? Number(
+          tds_percentage ??
+            settings?.tds_settings?.default_percentage ??
+            10
+        )
+      : Number(tds_percentage ?? settings?.tds_settings?.default_percentage ?? 10);
+    const tdsAmount = shouldIncludeTds
+      ? calculateTdsFromNetPayment(amount, invoice, effectiveTdsPercentage)
+      : 0;
+    const creditedAmount = roundMoney(Number(amount) + tdsAmount);
+    const effectiveUsdToInrRate =
+      paymentCurrency === "USD"
+        ? Number(
+            usd_to_inr_rate ??
+              settings?.currency_settings?.usd_to_inr_rate ??
+              0
+          )
+        : 0;
+    const inrConvertedAmount =
+      paymentCurrency === "USD"
+        ? roundMoney(Number(amount) * effectiveUsdToInrRate)
+        : 0;
+
     const payment = await Payment.create({
       invoice_id,
       project_id: projectIdToUse,
       amount,
+      currency: paymentCurrency,
       payment_method,
+      bank_account_id,
+      custom_payment_details,
       payment_date,
       remark,
+      include_tds: shouldIncludeTds,
+      tds_percentage: effectiveTdsPercentage,
+      tds_amount: tdsAmount,
+      credited_amount: creditedAmount,
+      usd_to_inr_rate: effectiveUsdToInrRate,
+      inr_converted_amount: inrConvertedAmount,
     });
 
     // Update invoice status and amounts
     if (invoice_id) {
-      const invoice = await Invoice.findById(invoice_id);
+      invoice = invoice || (await Invoice.findById(invoice_id));
       if (invoice) {
-        const newPaidAmount = (invoice.paid_amount || 0) + Number(amount);
+        const newPaidAmount = roundMoney(
+          (invoice.paid_amount || 0) + creditedAmount
+        );
         const payableAmount = invoice.total_amount || invoice.amount || 0;
-        const newBalanceDue = payableAmount - newPaidAmount;
+        const newBalanceDue = roundMoney(payableAmount - newPaidAmount);
 
         let newStatus = invoice.status;
         if (newBalanceDue <= 0) {
@@ -199,7 +269,7 @@ const createPayment = async (req, res, next) => {
         }
 
         invoice.paid_amount = newPaidAmount;
-        invoice.balance_due = newBalanceDue;
+        invoice.balance_due = Math.max(newBalanceDue, 0);
         invoice.status = newStatus;
         if (newStatus === "paid") {
           invoice.paid_date = payment_date;
@@ -228,7 +298,7 @@ const createPayment = async (req, res, next) => {
         select: "name",
       },
     });
-    await payment.populate("invoice_id", "invoice_number amount");
+    await payment.populate("invoice_id", "invoice_number amount total_amount currency");
 
     // Transform data for frontend compatibility
     const transformedPayment = {
@@ -282,7 +352,7 @@ const updatePayment = async (req, res, next) => {
         select: "name",
       },
     });
-    await payment.populate("invoice_id", "invoice_number amount");
+    await payment.populate("invoice_id", "invoice_number amount total_amount currency");
 
     // Transform data for frontend compatibility
     const transformedPayment = {

@@ -501,10 +501,17 @@ function AppContent() {
             invoice_id: p.invoice_id,
             project_id: p.project_id,
             amount: p.amount,
+            currency: p.currency,
             payment_method: p.payment_method as PaymentMethod,
             payment_date: p.payment_date
               ? new Date(p.payment_date).toISOString().split("T")[0]
               : "",
+            include_tds: p.include_tds,
+            tds_percentage: p.tds_percentage,
+            tds_amount: p.tds_amount,
+            credited_amount: p.credited_amount,
+            usd_to_inr_rate: p.usd_to_inr_rate,
+            inr_converted_amount: p.inr_converted_amount,
           }));
           setPayments(transformedPayments);
         }
@@ -775,21 +782,12 @@ function AppContent() {
         client_id: projectData.client_id,
         notes: projectData.notes,
         team_members: projectData.team_members,
-        // GST Settings
-        gst_percentage:
-          projectData.currency === "USD" ? 0 : projectData.gst_percentage ?? 18,
-        include_gst:
-          projectData.currency === "USD" ? false : projectData.include_gst ?? true,
-        // TDS Settings
-        tds_percentage: projectData.tds_percentage ?? 10,
-        include_tds: projectData.include_tds ?? false,
-        // USD conversion
-        usd_to_inr_rate:
-          projectData.currency === "USD" ? projectData.usd_to_inr_rate || 0 : 0,
-        inr_converted_amount:
-          projectData.currency === "USD"
-            ? projectData.inr_converted_amount || 0
-            : 0,
+        gst_percentage: 0,
+        include_gst: false,
+        tds_percentage: 0,
+        include_tds: false,
+        usd_to_inr_rate: 0,
+        inr_converted_amount: 0,
         // Client Emails
         client_emails: projectData.client_emails || {},
         // Project Type
@@ -1190,10 +1188,17 @@ function AppContent() {
           invoice_id: p.invoice_id,
           project_id: p.project_id,
           amount: p.amount,
+          currency: p.currency,
           payment_method: p.payment_method as PaymentMethod,
           payment_date: p.payment_date
             ? new Date(p.payment_date).toISOString().split("T")[0]
             : "",
+          include_tds: p.include_tds,
+          tds_percentage: p.tds_percentage,
+          tds_amount: p.tds_amount,
+          credited_amount: p.credited_amount,
+          usd_to_inr_rate: p.usd_to_inr_rate,
+          inr_converted_amount: p.inr_converted_amount,
         }));
         setPayments(transformedPayments);
       }
@@ -1285,9 +1290,9 @@ function AppContent() {
         gst_percentage: invoiceData.gst_percentage ?? 18,
         gst_amount: invoiceData.gst_amount ?? 0,
         include_gst: invoiceData.include_gst ?? true,
-        tds_percentage: invoiceData.tds_percentage ?? 10,
-        tds_amount: invoiceData.tds_amount ?? 0,
-        include_tds: invoiceData.include_tds ?? false,
+        tds_percentage: 0,
+        tds_amount: 0,
+        include_tds: false,
         total_amount:
           invoiceData.total_amount || parseFloat(String(invoiceData.amount)),
         payment_method: invoiceData.payment_method || "bank_account",

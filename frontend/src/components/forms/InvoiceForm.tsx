@@ -4,8 +4,6 @@ import { FormInput, FormSelect, FormTextarea } from "./";
 import apiClient from "../../utils/api";
 import type { BankAccount } from "../../utils/api";
 
-const DEFAULT_TDS_PERCENTAGE = 10;
-
 const getCurrencySymbol = (currency?: "INR" | "USD") =>
   currency === "USD" ? "$" : "Rs.";
 
@@ -77,12 +75,10 @@ const InvoiceForm: React.FC<{
   const [gstPercentage, setGstPercentage] = React.useState(
     invoice?.gst_percentage ?? 18
   );
-  const [includeTds, setIncludeTds] = React.useState(
-    invoice?.include_tds !== undefined ? invoice.include_tds : false
-  );
-  const [tdsPercentage, setTdsPercentage] = React.useState(
-    invoice?.tds_percentage ?? DEFAULT_TDS_PERCENTAGE
-  );
+  const [defaultGstSettings, setDefaultGstSettings] = React.useState({
+    enabled: true,
+    percentage: 18,
+  });
   const [selectedBankAccount, setSelectedBankAccount] =
     React.useState<string>("");
   const [customPaymentDetails, setCustomPaymentDetails] =
@@ -91,8 +87,6 @@ const InvoiceForm: React.FC<{
     currency: "INR" | "USD";
     gst_percentage: number;
     include_gst: boolean;
-    tds_percentage: number;
-    include_tds: boolean;
     allocation_type?: string;
     project_type?: string;
   } | null>(
@@ -101,8 +95,6 @@ const InvoiceForm: React.FC<{
           currency: invoice.currency || "INR",
           gst_percentage: invoice.gst_percentage ?? 18,
           include_gst: invoice.include_gst ?? true,
-          tds_percentage: invoice.tds_percentage ?? DEFAULT_TDS_PERCENTAGE,
-          include_tds: invoice.include_tds ?? false,
         }
       : null
   );
@@ -133,12 +125,16 @@ const InvoiceForm: React.FC<{
           }
         }
 
-        if (settingsResponse.success && !invoice) {
-          // Only set defaults for new invoices (if no project selected)
+        if (settingsResponse.success) {
           const settings = settingsResponse.data;
-          if (settings.gst_settings && !projectSettings) {
-            setGstPercentage(settings.gst_settings.default_percentage || 18);
-            setIncludeGst(settings.gst_settings.enable_gst !== false);
+          const gstDefaults = {
+            enabled: settings.gst_settings?.enable_gst !== false,
+            percentage: settings.gst_settings?.default_percentage || 18,
+          };
+          setDefaultGstSettings(gstDefaults);
+          if (!invoice && !projectSettings) {
+            setGstPercentage(gstDefaults.percentage);
+            setIncludeGst(gstDefaults.enabled);
           }
         }
       } catch (error) {
@@ -146,7 +142,7 @@ const InvoiceForm: React.FC<{
       }
     };
     fetchData();
-  }, [invoice, projectSettings]);
+  }, [invoice]);
 
   // Auto-fetch Currency & GST from selected project
   React.useEffect(() => {
@@ -166,18 +162,14 @@ const InvoiceForm: React.FC<{
       if (selectedProject) {
         const projectCurrency = selectedProject.currency || "INR";
         const projectIncludesGst =
-          projectCurrency === "USD" ? false : selectedProject.include_gst ?? true;
-        // Apply project's currency and GST settings
+          projectCurrency === "USD" ? false : defaultGstSettings.enabled;
         setProjectSettings({
           currency: projectCurrency,
           gst_percentage:
             projectCurrency === "USD"
               ? 0
-              : (selectedProject.gst_percentage ?? 18),
+              : defaultGstSettings.percentage,
           include_gst: projectIncludesGst,
-          tds_percentage:
-            selectedProject.tds_percentage ?? DEFAULT_TDS_PERCENTAGE,
-          include_tds: selectedProject.include_tds ?? false,
           allocation_type: selectedProject.allocation_type,
           project_type: selectedProject.project_type,
         });
@@ -190,13 +182,9 @@ const InvoiceForm: React.FC<{
 
         // Update GST settings from project
         setGstPercentage(
-          projectCurrency === "USD" ? 0 : (selectedProject.gst_percentage ?? 18)
+          projectCurrency === "USD" ? 0 : defaultGstSettings.percentage
         );
         setIncludeGst(projectIncludesGst);
-        setTdsPercentage(
-          selectedProject.tds_percentage ?? DEFAULT_TDS_PERCENTAGE
-        );
-        setIncludeTds(selectedProject.include_tds ?? false);
 
         // Auto-populate services for employee-based projects (only for new invoices)
         if (
@@ -241,7 +229,7 @@ const InvoiceForm: React.FC<{
       // Only auto-fetch for new invoices
       fetchProjectSettings();
     }
-  }, [formData.project_id, projects, invoice]);
+  }, [formData.project_id, projects, invoice, defaultGstSettings]);
 
   // Debug Logger
   React.useEffect(() => {
@@ -276,8 +264,7 @@ const InvoiceForm: React.FC<{
     const gstAmount = shouldIncludeGst
       ? (subtotal * effectiveGstPercentage) / 100
       : 0;
-    const tdsAmount = includeTds ? (subtotal * tdsPercentage) / 100 : 0;
-    const totalAmount = Math.max(0, subtotal + gstAmount - tdsAmount);
+    const totalAmount = subtotal + gstAmount;
 
     try {
       await onSave({
@@ -288,9 +275,9 @@ const InvoiceForm: React.FC<{
         gst_percentage: effectiveGstPercentage,
         gst_amount: gstAmount,
         include_gst: shouldIncludeGst,
-        tds_percentage: tdsPercentage,
-        tds_amount: tdsAmount,
-        include_tds: includeTds,
+        tds_percentage: 0,
+        tds_amount: 0,
+        include_tds: false,
         total_amount: totalAmount,
         bank_account_id:
           formData.payment_method === "bank_account"
@@ -352,8 +339,7 @@ const InvoiceForm: React.FC<{
   const gstAmount = shouldIncludeGst
     ? (subtotal * effectiveGstPercentage) / 100
     : 0;
-  const tdsAmount = includeTds ? (subtotal * tdsPercentage) / 100 : 0;
-  const totalAmount = Math.max(0, subtotal + gstAmount - tdsAmount);
+  const totalAmount = subtotal + gstAmount;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
@@ -543,6 +529,34 @@ const InvoiceForm: React.FC<{
               {subtotal.toFixed(2)}
             </span>
           </div>
+          {formData.currency !== "USD" && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-slate-200 dark:border-slate-600 pt-2">
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={includeGst}
+                  onChange={(e) => setIncludeGst(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                GST Included
+              </label>
+              {includeGst && (
+                <input
+                  type="number"
+                  value={gstPercentage}
+                  onChange={(e) =>
+                    setGstPercentage(
+                      e.target.value === "" ? 0 : Number(e.target.value)
+                    )
+                  }
+                  className="w-28 px-3 py-1.5 bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                />
+              )}
+            </div>
+          )}
           {shouldIncludeGst && (
             <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>GST ({effectiveGstPercentage}%):</span>
@@ -552,49 +566,12 @@ const InvoiceForm: React.FC<{
               </span>
             </div>
           )}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-slate-200 dark:border-slate-600 pt-2">
-            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-              <input
-                type="checkbox"
-                checked={includeTds}
-                onChange={(e) => setIncludeTds(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              TDS Included
-            </label>
-            {includeTds && (
-              <input
-                type="number"
-                value={tdsPercentage}
-                onChange={(e) =>
-                  setTdsPercentage(
-                    e.target.value === ""
-                      ? DEFAULT_TDS_PERCENTAGE
-                      : Number(e.target.value)
-                  )
-                }
-                className="w-28 px-3 py-1.5 bg-white/70 dark:bg-slate-800/70 border border-slate-300 dark:border-slate-600 rounded-lg text-sm"
-                min="0"
-                max="100"
-                step="0.01"
-              />
-            )}
-          </div>
-          {includeTds && (
-            <div className="flex justify-between text-slate-600 dark:text-slate-400">
-              <span>TDS ({tdsPercentage}%):</span>
-              <span>
-                -{currencySymbol}
-                {tdsAmount.toFixed(2)}
-              </span>
-            </div>
-          )}
           <div className="flex justify-between font-bold text-lg border-t border-slate-200 dark:border-slate-600 pt-2">
             <span>
               Total
-              {(shouldIncludeGst || includeTds) && (
+              {shouldIncludeGst && (
                 <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-1">
-                  ({includeTds ? "TDS Included" : "GST Included"})
+                  (GST Included)
                 </span>
               )}
             </span>

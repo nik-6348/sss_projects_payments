@@ -1,5 +1,6 @@
 import Invoice from "../models/Invoice.js";
 import Project from "../models/Project.js";
+import Settings from "../models/Settings.js";
 import { validationResult } from "express-validator";
 import mongoose from "mongoose";
 import { sendInvoiceStatusEmail } from "./emailController.js";
@@ -12,60 +13,50 @@ import Client from "../models/Client.js";
 
 const roundMoney = (amount) => Math.round((Number(amount) || 0) * 100) / 100;
 
-const toBoolean = (value, fallback = false) => {
+export const toBoolean = (value, fallback = false) => {
   if (value === undefined || value === null) return fallback;
   if (typeof value === "boolean") return value;
   return value === "true";
 };
 
-const calculateInvoiceFinancials = ({
+export const calculateInvoiceFinancials = ({
   services = [],
   body = {},
   project,
   existingInvoice,
+  settings,
 }) => {
   const subtotal = roundMoney(
     services.reduce((sum, s) => sum + Number(s.amount || 0), 0)
   );
   const currency =
     body.currency || project?.currency || existingInvoice?.currency || "INR";
+  const defaultGstPercentage =
+    settings?.gst_settings?.default_percentage ??
+    existingInvoice?.gst_percentage ??
+    18;
+  const defaultGstEnabled =
+    settings?.gst_settings?.enable_gst ??
+    existingInvoice?.include_gst ??
+    true;
+  const defaultTdsPercentage =
+    settings?.tds_settings?.default_percentage ??
+    existingInvoice?.tds_percentage ??
+    10;
   const include_gst =
     currency === "USD"
       ? false
-      : toBoolean(
-          body.include_gst,
-          project?.include_gst ?? existingInvoice?.include_gst ?? true
-        );
+      : toBoolean(body.include_gst, defaultGstEnabled);
   const gst_percentage = include_gst
-    ? Number(
-        body.gst_percentage ??
-          project?.gst_percentage ??
-          existingInvoice?.gst_percentage ??
-          18
-      )
+    ? Number(body.gst_percentage ?? defaultGstPercentage)
     : 0;
   const gst_amount = include_gst
     ? roundMoney((subtotal * gst_percentage) / 100)
     : 0;
-  const include_tds = toBoolean(
-    body.include_tds,
-    project?.include_tds ?? existingInvoice?.include_tds ?? false
-  );
-  const tds_percentage = include_tds
-    ? Number(
-        body.tds_percentage ??
-          project?.tds_percentage ??
-          existingInvoice?.tds_percentage ??
-          10
-      )
-    : Number(body.tds_percentage ?? project?.tds_percentage ?? 10);
-  const tds_amount = include_tds
-    ? roundMoney((subtotal * tds_percentage) / 100)
-    : 0;
-  const total_amount = Math.max(
-    0,
-    roundMoney(subtotal + gst_amount - tds_amount)
-  );
+  const include_tds = false;
+  const tds_percentage = Number(body.tds_percentage ?? defaultTdsPercentage);
+  const tds_amount = 0;
+  const total_amount = roundMoney(subtotal + gst_amount);
 
   return {
     currency,
@@ -335,6 +326,7 @@ const createInvoice = async (req, res, next) => {
     }
 
     const services = req.body.services || [];
+    const settings = await Settings.findOne();
     const {
       currency,
       subtotal,
@@ -345,7 +337,7 @@ const createInvoice = async (req, res, next) => {
       tds_amount,
       include_tds,
       total_amount,
-    } = calculateInvoiceFinancials({ services, body: req.body, project });
+    } = calculateInvoiceFinancials({ services, body: req.body, project, settings });
 
     // Check project budget
     // We compare Principal (Subtotal) against Project Budget (Principal)
@@ -458,6 +450,7 @@ const updateInvoice = async (req, res, next) => {
     if (req.body.services) {
       const services = req.body.services || [];
       const project = await Project.findById(req.body.project_id || invoice.project_id);
+      const settings = await Settings.findOne();
       const {
         currency,
         subtotal,
@@ -473,6 +466,7 @@ const updateInvoice = async (req, res, next) => {
         body: req.body,
         project,
         existingInvoice: invoice,
+        settings,
       });
 
       updateData = {

@@ -4,8 +4,8 @@ import Settings from "../models/Settings.js";
  * Calculate current financial year (April to March)
  * @returns {string} Format: YYYY-YY (e.g., 2024-25)
  */
-export const getFinancialYear = () => {
-  const today = new Date();
+export const getFinancialYear = (date = new Date()) => {
+  const today = new Date(date);
   const month = today.getMonth(); // 0-11 (Jan is 0, Mar is 2, Apr is 3)
   const year = today.getFullYear();
 

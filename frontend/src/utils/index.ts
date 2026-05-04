@@ -91,7 +91,7 @@ export const calculateProjectStats = (
   // Calculate paid amounts from payments
   const paidFromPayments = payments
     .filter((p) => p.project_id === project.id)
-    .reduce((sum, p) => sum + p.amount, 0);
+    .reduce((sum, p) => sum + (p.credited_amount ?? p.amount), 0);
 
   // Calculate paid amounts from invoice status, including partial payments
   const paidFromInvoices = projectInvoices.reduce((sum, i) => {
@@ -101,20 +101,13 @@ export const calculateProjectStats = (
 
   const paidAmount = Math.max(paidFromPayments, paidFromInvoices);
 
-  // Calculate Ex-GST Paid Amount for Progress
-  const gstRate =
-    project.currency === "USD" || project.include_gst === false
-      ? 0
-      : (project.gst_percentage || 0) / 100;
-
-  const paidFromPaymentsExGST = paidFromPayments / (1 + gstRate);
   const paidFromInvoicesExGST = projectInvoices.reduce((sum, i) => {
     if (i.status === "paid") return sum + (i.subtotal ?? i.amount);
-    return sum + (i.paid_amount || 0) / (1 + gstRate);
+    return sum + (i.paid_amount || 0);
   }, 0);
 
   const paidAmountExGST = Math.max(
-    paidFromPaymentsExGST,
+    paidFromPayments,
     paidFromInvoicesExGST
   );
 
@@ -135,8 +128,7 @@ export const calculateProjectStats = (
     calculatedTotal = project.monthly_fee * project.contract_length;
   }
 
-  // Calculate Display Total (Inc-GST) for Due Amount
-  const displayTotal = calculatedTotal * (1 + gstRate);
+  const displayTotal = calculatedTotal;
 
   const dueAmount = Math.max(displayTotal - paidAmount, 0);
   // Progress based on Ex-GST values
@@ -145,10 +137,10 @@ export const calculateProjectStats = (
 
   return {
     ...project,
-    paidAmount, // Inc-GST
-    dueAmount, // Inc-GST
+    paidAmount,
+    dueAmount,
     progress: Math.round(progress * 100) / 100,
-    calculatedTotal: displayTotal, // Return Inc-GST Total for display
+    calculatedTotal: displayTotal,
   };
 };
 

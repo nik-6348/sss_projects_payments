@@ -306,24 +306,8 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       <div>
-                        {formatCurrency(
-                          project.total_amount *
-                            (project.currency === "USD" ||
-                            project.include_gst === false
-                              ? 1
-                              : 1 + (project.gst_percentage || 0) / 100),
-                          project.currency
-                        )}
+                        {formatCurrency(project.total_amount, project.currency)}
                       </div>
-                      {project.currency === "USD" &&
-                        project.inr_converted_amount ? (
-                          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                            {formatCurrency(
-                              project.inr_converted_amount,
-                              "INR"
-                            )}
-                          </div>
-                        ) : null}
                     </td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       {formatDate(project.start_date)}

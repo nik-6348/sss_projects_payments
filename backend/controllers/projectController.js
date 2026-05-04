@@ -3,32 +3,14 @@ import { validationResult } from "express-validator";
 
 const roundMoney = (amount) => Math.round((Number(amount) || 0) * 100) / 100;
 
-const applyProjectTaxAndConversion = (projectData) => {
-  projectData.include_tds = projectData.include_tds === true;
-  projectData.tds_percentage =
-    projectData.tds_percentage === undefined || projectData.tds_percentage === null
-      ? 10
-      : Number(projectData.tds_percentage);
-
-  if (projectData.currency === "USD") {
-    projectData.include_gst = false;
-    projectData.gst_percentage = 0;
-    projectData.usd_to_inr_rate = Number(projectData.usd_to_inr_rate) || 0;
-    projectData.inr_converted_amount = roundMoney(
-      (Number(projectData.total_amount) || 0) * projectData.usd_to_inr_rate
-    );
-    return;
-  }
-
+export const applyProjectTaxAndConversion = (projectData) => {
   projectData.currency = projectData.currency || "INR";
   projectData.usd_to_inr_rate = 0;
   projectData.inr_converted_amount = 0;
-  if (projectData.include_gst === undefined) {
-    projectData.include_gst = true;
-  }
-  if (projectData.gst_percentage === undefined || projectData.gst_percentage === null) {
-    projectData.gst_percentage = 18;
-  }
+  projectData.include_gst = false;
+  projectData.gst_percentage = 0;
+  projectData.include_tds = false;
+  projectData.tds_percentage = 0;
 };
 
 // @desc    Get all projects

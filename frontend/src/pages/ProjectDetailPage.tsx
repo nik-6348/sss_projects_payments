@@ -75,7 +75,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       if (invoice.status === "paid") return sum + invoiceTotal;
       return sum + (invoice.paid_amount || 0);
     }, 0);
-    const paidFromPayments = payments.reduce((sum, p) => sum + p.amount, 0);
+    const paidFromPayments = payments.reduce(
+      (sum, p) => sum + (p.credited_amount ?? p.amount),
+      0
+    );
     const paidAmount = Math.max(paidFromInvoices, paidFromPayments);
     const partialPaidAmount = activeInvoices
       .filter((invoice) => invoice.status === "partial")
@@ -114,15 +117,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       label = `Contract Value (${project.contract_length}mo x ${project.monthly_fee})`;
     }
 
-    // Calculate with GST only for INR projects that include GST
-    const gstRate =
-      project.currency === "USD" || project.include_gst === false
-        ? 0
-        : (project.gst_percentage || 0) / 100;
-    const withTax = total * (1 + gstRate);
-
     return {
-      displayTotal: withTax,
+      displayTotal: total,
       totalLabel: label,
     };
   }, [project]);
@@ -135,12 +131,11 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
 
   const projectBalanceAmount = Math.max(displayTotal - invoiceTracking.paidAmount, 0);
 
-  // Calculate total invoiced amount (Inc-GST) to check if budget exceeded
-  const totalInvoicedIncGST = React.useMemo(() => {
-    return invoices.reduce((sum, i) => sum + (i.total_amount ?? i.amount), 0);
+  const totalInvoicedBase = React.useMemo(() => {
+    return invoices.reduce((sum, i) => sum + (i.subtotal ?? i.amount), 0);
   }, [invoices]);
 
-  const isBudgetExceeded = totalInvoicedIncGST > displayTotal;
+  const isBudgetExceeded = totalInvoicedBase > displayTotal;
 
   const TabButton: React.FC<{
     tabName: "details" | "invoices";
@@ -184,7 +179,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             </h3>
             <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
               The total invoiced amount (
-              {formatCurrency(totalInvoicedIncGST, project.currency)}) has
+              {formatCurrency(totalInvoicedBase, project.currency)}) has
               exceeded the project budget (
               {formatCurrency(displayTotal, project.currency)}).
             </p>
@@ -201,11 +196,6 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
             {formatCurrency(displayTotal, project.currency)}
           </div>
-          {project.currency === "USD" && project.inr_converted_amount ? (
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              INR conversion: {formatCurrency(project.inr_converted_amount, "INR")}
-            </div>
-          ) : null}
         </GlassCard>
         <GlassCard className="!p-4">
           <div className="text-slate-500 dark:text-slate-400 text-sm">

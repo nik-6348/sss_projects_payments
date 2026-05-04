@@ -9,68 +9,6 @@ interface Client {
   name: string;
 }
 
-const DEFAULT_USD_TO_INR_RATE = 83;
-const DEFAULT_TDS_PERCENTAGE = 10;
-
-const toNumber = (value: unknown): number => Number(value) || 0;
-
-const getDurationMonths = (
-  startDate?: string,
-  endDate?: string,
-  contractLength?: number
-) => {
-  if (contractLength && contractLength > 0) return contractLength;
-  if (!startDate || !endDate) return 1;
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1;
-
-  const diffDays = Math.ceil(
-    Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  return Math.max(diffDays / 30, 1);
-};
-
-const calculateProjectBaseAmount = (data: ProjectFormData) => {
-  const durationMonths = getDurationMonths(
-    data.start_date as string,
-    data.end_date as string,
-    toNumber(data.contract_length)
-  );
-
-  if (data.project_type === "monthly_retainer") {
-    if (data.allocation_type === "employee_based") {
-      const monthlyTotal = (data.team_members || []).reduce(
-        (sum, member) => sum + toNumber(member.rate),
-        0
-      );
-      return monthlyTotal * durationMonths;
-    }
-    return toNumber(data.monthly_fee) * durationMonths;
-  }
-
-  if (data.project_type === "hourly_billing") {
-    if (data.allocation_type === "employee_based") {
-      const monthlyTotal = (data.team_members || []).reduce(
-        (sum, member) =>
-          sum + toNumber(member.rate) * toNumber(member.monthly_hours),
-        0
-      );
-      return monthlyTotal * durationMonths;
-    }
-    return toNumber(data.hourly_rate) * toNumber(data.estimated_hours);
-  }
-
-  return toNumber(data.total_amount);
-};
-
-const formatInr = (amount: number) =>
-  `Rs. ${amount.toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
 const ProjectForm: React.FC<{
   project?: Project | null;
   onSave: (data: ProjectFormData) => void;
@@ -91,16 +29,6 @@ const ProjectForm: React.FC<{
           description: project.description,
           notes: project.notes || "",
           team_members: project.team_members || [],
-          // GST Settings
-          gst_percentage: project.gst_percentage ?? 18,
-          include_gst: project.include_gst ?? true,
-          // TDS Settings
-          tds_percentage: project.tds_percentage ?? DEFAULT_TDS_PERCENTAGE,
-          include_tds: project.include_tds ?? false,
-          // USD conversion
-          usd_to_inr_rate:
-            project.usd_to_inr_rate || DEFAULT_USD_TO_INR_RATE,
-          inr_converted_amount: project.inr_converted_amount || 0,
           // Client Emails
           client_emails: project.client_emails || {
             business_email: "",
@@ -127,15 +55,6 @@ const ProjectForm: React.FC<{
           end_date: "",
           description: "",
           notes: "",
-          // GST Settings
-          gst_percentage: 18,
-          include_gst: true,
-          // TDS Settings
-          tds_percentage: DEFAULT_TDS_PERCENTAGE,
-          include_tds: false,
-          // USD conversion
-          usd_to_inr_rate: DEFAULT_USD_TO_INR_RATE,
-          inr_converted_amount: 0,
           // Client Emails
           client_emails: {
             business_email: "",
@@ -155,15 +74,13 @@ const ProjectForm: React.FC<{
   );
 
   const [employees, setEmployees] = React.useState<any[]>([]);
-  const [defaultGstPercentage, setDefaultGstPercentage] = React.useState(18);
 
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clientsRes, teamRes, settingsRes] = await Promise.all([
+        const [clientsRes, teamRes] = await Promise.all([
           apiClient.getClients(),
           apiClient.getTeamMembers(),
-          apiClient.getSettings(),
         ]);
 
         if (clientsRes.success && clientsRes.data) {
@@ -171,16 +88,6 @@ const ProjectForm: React.FC<{
         }
         if (teamRes.success && teamRes.data) {
           setEmployees(teamRes.data);
-        }
-        // Update GST percentage from settings for new projects only
-        if (!project && settingsRes.success && settingsRes.data) {
-          const gstFromSettings =
-            settingsRes.data.gst_settings?.default_percentage ?? 18;
-          setDefaultGstPercentage(gstFromSettings);
-          setFormData((prev) => ({
-            ...prev,
-            gst_percentage: prev.currency === "USD" ? 0 : gstFromSettings,
-          }));
         }
       } catch (error: any) {
         console.error("Error fetching data:", apiClient.handleError(error));
@@ -195,33 +102,6 @@ const ProjectForm: React.FC<{
     >
   ) => {
     const { name, value } = e.target;
-    if (name === "currency") {
-      setFormData((prev) => {
-        if (value === "USD") {
-          return {
-            ...prev,
-            currency: "USD",
-            include_gst: false,
-            gst_percentage: 0,
-            usd_to_inr_rate:
-              toNumber(prev.usd_to_inr_rate) || DEFAULT_USD_TO_INR_RATE,
-          };
-        }
-
-        return {
-          ...prev,
-          currency: "INR",
-          gst_percentage:
-            toNumber(prev.gst_percentage) > 0
-              ? prev.gst_percentage
-              : defaultGstPercentage,
-          usd_to_inr_rate: 0,
-          inr_converted_amount: 0,
-        };
-      });
-      return;
-    }
-
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -229,28 +109,12 @@ const ProjectForm: React.FC<{
     e.preventDefault();
     console.log("Form Data:", formData);
     const dataToSend = { ...formData };
-    const baseAmount = calculateProjectBaseAmount(formData);
-
-    if (dataToSend.currency === "USD") {
-      dataToSend.include_gst = false;
-      dataToSend.gst_percentage = 0;
-      dataToSend.usd_to_inr_rate =
-        toNumber(dataToSend.usd_to_inr_rate) || DEFAULT_USD_TO_INR_RATE;
-      dataToSend.inr_converted_amount =
-        baseAmount * toNumber(dataToSend.usd_to_inr_rate);
-    } else {
-      dataToSend.usd_to_inr_rate = 0;
-      dataToSend.inr_converted_amount = 0;
-    }
-
-    if (!dataToSend.include_tds) {
-      dataToSend.include_tds = false;
-    }
-    dataToSend.tds_percentage =
-      dataToSend.tds_percentage === undefined ||
-      dataToSend.tds_percentage === null
-        ? DEFAULT_TDS_PERCENTAGE
-        : Number(dataToSend.tds_percentage);
+    dataToSend.include_gst = false;
+    dataToSend.gst_percentage = 0;
+    dataToSend.include_tds = false;
+    dataToSend.tds_percentage = 0;
+    dataToSend.usd_to_inr_rate = 0;
+    dataToSend.inr_converted_amount = 0;
 
     // For auto-calculated types, clear the total_amount so backend always recalculates it
     // This ensures updates to rates/dates are reflected in the total
@@ -268,12 +132,6 @@ const ProjectForm: React.FC<{
 
     onSave(dataToSend);
   };
-
-  const isUsdProject = formData.currency === "USD";
-  const projectBaseAmount = calculateProjectBaseAmount(formData);
-  const usdToInrRate =
-    toNumber(formData.usd_to_inr_rate) || DEFAULT_USD_TO_INR_RATE;
-  const inrConvertedAmount = projectBaseAmount * usdToInrRate;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
@@ -695,108 +553,6 @@ const ProjectForm: React.FC<{
               ]}
             />
           </div>
-          {isUsdProject && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-              <FormInput
-                label="USD to INR Rate"
-                type="number"
-                name="usd_to_inr_rate"
-                value={String(usdToInrRate)}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    usd_to_inr_rate: Number(e.target.value),
-                  }))
-                }
-                min="0"
-                step="0.01"
-              />
-              <div>
-                <label className="text-sm font-medium text-slate-600 dark:text-white block">
-                  INR Conversion
-                </label>
-                <div className="w-full p-2 bg-white dark:bg-slate-700 dark:text-white border border-slate-300 dark:border-slate-600 rounded-md">
-                  {formatInr(inrConvertedAmount)}
-                </div>
-              </div>
-            </div>
-          )}
-          {!isUsdProject ? (
-          <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-            <input
-              type="checkbox"
-              id="include_gst"
-              checked={formData.include_gst as boolean}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  include_gst: e.target.checked,
-                }))
-              }
-              className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-            />
-            <label
-              htmlFor="include_gst"
-              className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
-            >
-              Include GST in Invoices
-              {formData.include_gst && (
-                <span className="ml-2 text-blue-600 dark:text-blue-400 font-semibold">
-                  @ {formData.gst_percentage}%
-                </span>
-              )}
-            </label>
-          </div>
-          ) : null}
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            {isUsdProject
-              ? "GST is not applied for USD projects"
-              : `GST rate (${formData.gst_percentage}%) is from system settings`}
-          </p>
-          <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-            <input
-              type="checkbox"
-              id="include_tds"
-              checked={formData.include_tds as boolean}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  include_tds: e.target.checked,
-                }))
-              }
-              className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-            />
-            <label
-              htmlFor="include_tds"
-              className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
-            >
-              TDS Included
-              {formData.include_tds && (
-                <span className="ml-2 text-blue-600 dark:text-blue-400 font-semibold">
-                  @ {formData.tds_percentage}%
-                </span>
-              )}
-            </label>
-          </div>
-          {formData.include_tds && (
-            <div className="mt-4 max-w-xs">
-              <FormInput
-                label="TDS Percentage"
-                type="number"
-                name="tds_percentage"
-                value={String(formData.tds_percentage ?? DEFAULT_TDS_PERCENTAGE)}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    tds_percentage: Number(e.target.value),
-                  }))
-                }
-                min="0"
-                max="100"
-                step="0.01"
-              />
-            </div>
-          )}
         </div>
       </div>
 

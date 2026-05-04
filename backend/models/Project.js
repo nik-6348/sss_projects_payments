@@ -67,25 +67,24 @@ const projectSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    // GST Settings (moved from Invoice to Project level)
+    // Deprecated: tax defaults now live in global settings and invoice/payment snapshots.
     gst_percentage: {
       type: Number,
-      default: 18,
+      default: 0,
     },
     include_gst: {
       type: Boolean,
-      default: true,
+      default: false,
     },
-    // TDS Settings
     tds_percentage: {
       type: Number,
-      default: 10,
+      default: 0,
     },
     include_tds: {
       type: Boolean,
       default: false,
     },
-    // USD conversion snapshot
+    // Deprecated: USD conversion is recorded when payments are made.
     usd_to_inr_rate: {
       type: Number,
       default: 0,

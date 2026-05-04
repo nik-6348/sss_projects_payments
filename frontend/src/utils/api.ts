@@ -159,7 +159,16 @@ export interface Payment {
   invoice_id?: string;
   project_id: string;
   amount: number;
+  currency?: "INR" | "USD";
   payment_method: "bank_transfer" | "credit_card" | "upi" | "cash" | "other";
+  bank_account_id?: string;
+  custom_payment_details?: string;
+  include_tds?: boolean;
+  tds_percentage?: number;
+  tds_amount?: number;
+  credited_amount?: number;
+  usd_to_inr_rate?: number;
+  inr_converted_amount?: number;
   payment_date: string;
   createdAt: string;
   updatedAt: string;

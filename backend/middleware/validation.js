@@ -1,11 +1,16 @@
 import { body, param, query } from "express-validator";
 
+const optionalRule = (rule, optional) => (optional ? rule.optional() : rule);
+
 // Project validation rules
-const createProjectValidation = [
-  body("name")
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("Project name must be between 2 and 100 characters"),
+const projectValidationRules = (optional = false) => [
+  optionalRule(
+    body("name")
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("Project name must be between 2 and 100 characters"),
+    optional
+  ),
   body("description")
     .optional()
     .trim()
@@ -22,10 +27,16 @@ const createProjectValidation = [
     .optional()
     .isIn(["INR", "USD"])
     .withMessage("Currency must be either INR or USD"),
-  body("client_id").isMongoId().withMessage("Valid client ID is required"),
-  body("start_date")
-    .isISO8601()
-    .withMessage("Please provide a valid start date"),
+  optionalRule(
+    body("client_id").isMongoId().withMessage("Valid client ID is required"),
+    optional
+  ),
+  optionalRule(
+    body("start_date")
+      .isISO8601()
+      .withMessage("Please provide a valid start date"),
+    optional
+  ),
   body("end_date")
     .optional()
     .isISO8601()
@@ -41,14 +52,19 @@ const createProjectValidation = [
     .withMessage("Notes cannot exceed 1000 characters"),
 ];
 
+const createProjectValidation = projectValidationRules();
+
 const updateProjectValidation = [
   param("id").isMongoId().withMessage("Invalid project ID"),
-  ...createProjectValidation.map((rule) => rule.optional()),
+  ...projectValidationRules(true),
 ];
 
 // Invoice validation rules
-const createInvoiceValidation = [
-  body("project_id").isMongoId().withMessage("Valid project ID is required"),
+const invoiceValidationRules = (optional = false) => [
+  optionalRule(
+    body("project_id").isMongoId().withMessage("Valid project ID is required"),
+    optional
+  ),
   body("amount")
     .optional()
     .isFloat({ min: 0 })
@@ -57,10 +73,16 @@ const createInvoiceValidation = [
     .optional()
     .isIn(["INR", "USD"])
     .withMessage("Currency must be either INR or USD"),
-  body("issue_date")
-    .isISO8601()
-    .withMessage("Please provide a valid issue date"),
-  body("due_date").isISO8601().withMessage("Please provide a valid due date"),
+  optionalRule(
+    body("issue_date")
+      .isISO8601()
+      .withMessage("Please provide a valid issue date"),
+    optional
+  ),
+  optionalRule(
+    body("due_date").isISO8601().withMessage("Please provide a valid due date"),
+    optional
+  ),
   body("status")
     .optional()
     .isIn(["draft", "sent", "unpaid", "paid", "partial", "overdue", "cancelled"])
@@ -90,49 +112,86 @@ const createInvoiceValidation = [
     .withMessage("TDS percentage must be between 0 and 100"),
 ];
 
+const createInvoiceValidation = invoiceValidationRules();
+
 const updateInvoiceValidation = [
   param("id").isMongoId().withMessage("Invalid invoice ID"),
-  ...createInvoiceValidation.map((rule) => rule.optional()),
+  ...invoiceValidationRules(true),
 ];
 
 // Payment validation rules
-const createPaymentValidation = [
-  body("project_id").isMongoId().withMessage("Valid project ID is required"),
+const paymentValidationRules = (optional = false) => [
+  optionalRule(
+    body("project_id").isMongoId().withMessage("Valid project ID is required"),
+    optional
+  ),
   body("invoice_id").optional().isMongoId().withMessage("Invalid invoice ID"),
-  body("amount")
-    .isFloat({ min: 0 })
-    .withMessage("Amount must be a positive number"),
+  optionalRule(
+    body("amount")
+      .isFloat({ min: 0 })
+      .withMessage("Amount must be a positive number"),
+    optional
+  ),
   body("currency")
     .optional()
     .isIn(["INR", "USD"])
     .withMessage("Currency must be either INR or USD"),
-  body("payment_method")
-    .isIn(["bank_account", "other"])
-    .withMessage("Invalid payment method"),
-  body("payment_date")
-    .isISO8601()
-    .withMessage("Please provide a valid payment date"),
+  body("tds_percentage")
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("TDS percentage must be between 0 and 100"),
+  body("tds_amount")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("TDS amount must be a positive number"),
+  body("usd_to_inr_rate")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("USD to INR rate must be a positive number"),
+  optionalRule(
+    body("payment_method")
+      .isIn(["bank_account", "other"])
+      .withMessage("Invalid payment method"),
+    optional
+  ),
+  optionalRule(
+    body("payment_date")
+      .isISO8601()
+      .withMessage("Please provide a valid payment date"),
+    optional
+  ),
 ];
+
+const createPaymentValidation = paymentValidationRules();
 
 const updatePaymentValidation = [
   param("id").isMongoId().withMessage("Invalid payment ID"),
-  ...createPaymentValidation.map((rule) => rule.optional()),
+  ...paymentValidationRules(true),
 ];
 
 // Client validation rules
-const createClientValidation = [
-  body("name")
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("Client name must be between 2 and 100 characters"),
-  body("email")
-    .isEmail()
-    .normalizeEmail()
-    .withMessage("Please provide a valid email address"),
-  body("phone")
-    .trim()
-    .isLength({ min: 10, max: 15 })
-    .withMessage("Phone number must be between 10 and 15 characters"),
+const clientValidationRules = (optional = false) => [
+  optionalRule(
+    body("name")
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage("Client name must be between 2 and 100 characters"),
+    optional
+  ),
+  optionalRule(
+    body("email")
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("Please provide a valid email address"),
+    optional
+  ),
+  optionalRule(
+    body("phone")
+      .trim()
+      .isLength({ min: 10, max: 15 })
+      .withMessage("Phone number must be between 10 and 15 characters"),
+    optional
+  ),
   body("address.street")
     .optional()
     .trim()
@@ -170,9 +229,11 @@ const createClientValidation = [
     .withMessage("PAN number cannot exceed 10 characters"),
 ];
 
+const createClientValidation = clientValidationRules();
+
 const updateClientValidation = [
   param("id").isMongoId().withMessage("Invalid client ID"),
-  ...createClientValidation.map((rule) => rule.optional()),
+  ...clientValidationRules(true),
 ];
 
 // Status update validation
