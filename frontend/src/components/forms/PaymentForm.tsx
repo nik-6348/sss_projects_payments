@@ -136,7 +136,7 @@ const PaymentForm: React.FC<{
       ? roundMoney((Number(formData.amount) / (1 - tdsRate)) * tdsRate)
       : 0;
   const creditedAmount = roundMoney(Number(formData.amount) + tdsAmount);
-  const remainingAfterPayment = Math.max(0, currentDue - creditedAmount);
+  const remainingAfterPayment = currentDue - creditedAmount;
   const inrConvertedAmount =
     formData.currency === "USD"
       ? roundMoney(Number(formData.amount) * Number(usdToInrRate || 0))
@@ -287,7 +287,7 @@ const PaymentForm: React.FC<{
             <div className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
               <span>TDS ({tdsPercentage}%):</span>
               <span>
-                {invoice.currency === "USD" ? "$" : "â‚¹"}
+                {invoice.currency === "USD" ? "$" : "₹"}
                 {tdsAmount.toLocaleString()}
               </span>
             </div>
@@ -311,7 +311,7 @@ const PaymentForm: React.FC<{
                 Credited with TDS:
               </span>
               <span className="font-semibold text-slate-800 dark:text-slate-200">
-                {invoice.currency === "USD" ? "$" : "â‚¹"}
+                {invoice.currency === "USD" ? "$" : "₹"}
                 {creditedAmount.toLocaleString()}
               </span>
             </div>
@@ -322,13 +322,14 @@ const PaymentForm: React.FC<{
             </span>
             <span
               className={`text-lg font-bold ${
-                currentDue - creditedAmount < 0
+                remainingAfterPayment < 0
                   ? "text-red-600"
                   : "text-blue-700 dark:text-blue-400"
                 }`}
             >
-              {invoice.currency === "USD" ? "$" : "₹"}
-              {remainingAfterPayment.toLocaleString()}
+              {remainingAfterPayment < 0
+                ? `Overpaid by ${invoice.currency === "USD" ? "$" : "₹"}${Math.abs(remainingAfterPayment).toLocaleString()}`
+                : `${invoice.currency === "USD" ? "$" : "₹"}${remainingAfterPayment.toLocaleString()}`}
             </span>
           </div>
         </div>

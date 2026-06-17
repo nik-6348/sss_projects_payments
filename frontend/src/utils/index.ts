@@ -88,28 +88,50 @@ export const calculateProjectStats = (
     (i) => i.project_id?._id === project.id || i.project_id === project.id
   );
 
-  // Calculate paid amounts from payments
+  // For each invoice, compute its ex-GST ratio
+  const invoiceRatios = new Map<string, number>();
+  projectInvoices.forEach((i) => {
+    const id = i.id || i._id?.toString();
+    const total = Number(i.total_amount || i.amount || 0);
+    const sub = Number(i.subtotal || total);
+    const ratio = total > 0 ? sub / total : 1;
+    if (id) invoiceRatios.set(id, ratio);
+  });
+
+  // Calculate paid amounts from payments on an ex-GST basis
+  const paidFromPaymentsExGST = payments
+    .filter((p) => p.project_id === project.id)
+    .reduce((sum, p) => {
+      const invId = typeof p.invoice_id === "object" && p.invoice_id ? (p.invoice_id as any)._id : p.invoice_id;
+      const ratio = invId ? (invoiceRatios.get(invId.toString()) ?? 1) : 1;
+      const credited = Number(p.credited_amount ?? p.amount ?? 0);
+      return sum + credited * ratio;
+    }, 0);
+
+  // Calculate paid amounts from invoice status on an ex-GST basis
+  const paidFromInvoicesExGST = projectInvoices.reduce((sum, i) => {
+    const total = Number(i.total_amount || i.amount || 0);
+    const sub = Number(i.subtotal || total);
+    const ratio = total > 0 ? sub / total : 1;
+    const paid = Number(i.paid_amount || 0);
+    if (i.status === "paid") return sum + sub;
+    return sum + paid * ratio;
+  }, 0);
+
+  const paidAmountExGST = Math.max(paidFromPaymentsExGST, paidFromInvoicesExGST);
+
+  // Calculate paid amounts from payments (GST-inclusive)
   const paidFromPayments = payments
     .filter((p) => p.project_id === project.id)
-    .reduce((sum, p) => sum + (p.credited_amount ?? p.amount), 0);
+    .reduce((sum, p) => sum + Number(p.credited_amount ?? p.amount ?? 0), 0);
 
-  // Calculate paid amounts from invoice status, including partial payments
+  // Calculate paid amounts from invoice status, including partial payments (GST-inclusive)
   const paidFromInvoices = projectInvoices.reduce((sum, i) => {
-    if (i.status === "paid") return sum + (i.total_amount ?? i.amount);
-    return sum + (i.paid_amount || 0);
+    if (i.status === "paid") return sum + Number(i.total_amount ?? i.amount ?? 0);
+    return sum + Number(i.paid_amount || 0);
   }, 0);
 
   const paidAmount = Math.max(paidFromPayments, paidFromInvoices);
-
-  const paidFromInvoicesExGST = projectInvoices.reduce((sum, i) => {
-    if (i.status === "paid") return sum + (i.subtotal ?? i.amount);
-    return sum + (i.paid_amount || 0);
-  }, 0);
-
-  const paidAmountExGST = Math.max(
-    paidFromPayments,
-    paidFromInvoicesExGST
-  );
 
   // Calculate effective total based on project type
   let calculatedTotal = project.total_amount || 0;
@@ -130,7 +152,8 @@ export const calculateProjectStats = (
 
   const displayTotal = calculatedTotal;
 
-  const dueAmount = Math.max(displayTotal - paidAmount, 0);
+  // Use ex-GST paid amount for dueAmount calculation since total_amount is ex-GST
+  const dueAmount = Math.max(displayTotal - paidAmountExGST, 0);
   // Progress based on Ex-GST values
   const progress =
     calculatedTotal > 0 ? (paidAmountExGST / calculatedTotal) * 100 : 0;

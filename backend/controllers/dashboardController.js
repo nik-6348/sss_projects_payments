@@ -26,8 +26,8 @@ const getDashboardOverview = async (req, res, next) => {
       totalProjects,
       activeProjects,
       completedProjects,
-      projectStatusStats,
       totalProjectValue,
+      projectStatusStats,
       totalInvoices,
       paidInvoices,
       pendingInvoices,
@@ -522,14 +522,15 @@ const getFilteredDashboardStats = async (req, res, next) => {
           },
           payments: {
             total: paymentStats[0]?.total || 0,
-            totalAmount: totalPaid, // Show Inc-GST Paid Amount
+            totalAmount: totalPaid, // Show Inc-GST Paid Amount (invoice.paid_amount)
+            actualReceived: paymentStats[0]?.totalAmount || 0, // Actual payments received
           },
           summary: {
             totalRevenue: totalInvoiced,
             totalGST: totalGST,
             totalPaid: totalPaid,
             totalPaidGST: invoiceStats[0]?.paidGST || 0,
-            totalDue: totalDue > 0 ? totalDue : 0,
+            totalDue: totalDue, // Allow negative for overpayment
           },
         },
       },

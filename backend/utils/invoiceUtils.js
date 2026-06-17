@@ -34,16 +34,16 @@ export const getFinancialYear = (date = new Date()) => {
  */
 export const generateInvoiceNumber = async () => {
   const financialYear = getFinancialYear();
+  const sequenceKey = `invoice_settings.sequence_by_fy.${financialYear}`;
 
-  // Find and update the settings atomically to get the next sequence
-  // If settings don't exist, create them
+  // Find and update the settings atomically to get the next sequence per FY
   const settings = await Settings.findOneAndUpdate(
     {},
-    { $inc: { "invoice_settings.current_sequence": 1 } },
+    { $inc: { [sequenceKey]: 1 } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
 
-  const sequence = settings.invoice_settings.current_sequence;
+  const sequence = settings.invoice_settings?.sequence_by_fy?.get(financialYear) || 1;
 
   // Pad sequence with leading zeros (4 digits)
   const paddedSequence = sequence.toString().padStart(4, "0");

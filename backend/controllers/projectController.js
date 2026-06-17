@@ -5,12 +5,10 @@ const roundMoney = (amount) => Math.round((Number(amount) || 0) * 100) / 100;
 
 export const applyProjectTaxAndConversion = (projectData) => {
   projectData.currency = projectData.currency || "INR";
-  projectData.usd_to_inr_rate = 0;
-  projectData.inr_converted_amount = 0;
-  projectData.include_gst = false;
-  projectData.gst_percentage = 0;
-  projectData.include_tds = false;
-  projectData.tds_percentage = 0;
+  // Only clear conversion fields if not provided — these are calculated at invoice/payment time
+  projectData.usd_to_inr_rate = projectData.usd_to_inr_rate || 0;
+  projectData.inr_converted_amount = projectData.inr_converted_amount || 0;
+  // Don't override GST/TDS — they come from Settings at invoice creation time
 };
 
 // @desc    Get all projects

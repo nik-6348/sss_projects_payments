@@ -11,11 +11,31 @@ const settingsSchema = new mongoose.Schema(
         type: Boolean,
         default: true,
       },
+      apply_to_inr: {
+        type: Boolean,
+        default: true,
+      },
+      apply_to_usd: {
+        type: Boolean,
+        default: false,
+      },
     },
     tds_settings: {
       default_percentage: {
         type: Number,
         default: 10,
+      },
+      enable_tds: {
+        type: Boolean,
+        default: true,
+      },
+      apply_to_inr: {
+        type: Boolean,
+        default: true,
+      },
+      apply_to_usd: {
+        type: Boolean,
+        default: false,
       },
     },
     currency_settings: {
@@ -38,6 +58,11 @@ const settingsSchema = new mongoose.Schema(
       current_sequence: {
         type: Number,
         default: 1,
+      },
+      sequence_by_fy: {
+        type: Map,
+        of: Number,
+        default: {},
       },
     },
     company_details: {

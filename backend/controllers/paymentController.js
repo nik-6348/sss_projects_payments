@@ -330,16 +330,75 @@ const updatePayment = async (req, res, next) => {
       });
     }
 
-    let payment = await Payment.findById(req.params.id);
+    const oldPayment = await Payment.findById(req.params.id);
 
-    if (!payment) {
+    if (!oldPayment) {
       return res.status(404).json({
         success: false,
         error: "Payment not found",
       });
     }
 
-    payment = await Payment.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+
+    let invoice = null;
+    if (oldPayment.invoice_id) {
+      invoice = await Invoice.findById(oldPayment.invoice_id);
+    }
+
+    // Recalculate TDS and credited amount if payment details are updated
+    const newAmount = updateData.amount !== undefined ? Number(updateData.amount) : oldPayment.amount;
+    const newIncludeTds = updateData.include_tds !== undefined ? toBoolean(updateData.include_tds) : oldPayment.include_tds;
+    
+    const settings = await Settings.findOne();
+    const newTdsPercentage = updateData.tds_percentage !== undefined 
+      ? Number(updateData.tds_percentage) 
+      : (oldPayment.tds_percentage ?? settings?.tds_settings?.default_percentage ?? 10);
+
+    const shouldIncludeTds = toBoolean(newIncludeTds, false);
+    const newTdsAmount = shouldIncludeTds && invoice
+      ? calculateTdsFromNetPayment(newAmount, invoice, newTdsPercentage)
+      : 0;
+    const newCreditedAmount = roundMoney(Number(newAmount) + newTdsAmount);
+
+    updateData.tds_amount = newTdsAmount;
+    updateData.credited_amount = newCreditedAmount;
+    updateData.tds_percentage = newTdsPercentage;
+    updateData.include_tds = shouldIncludeTds;
+
+    const paymentCurrency = updateData.currency || oldPayment.currency || invoice?.currency || "INR";
+    const newUsdToInrRate = updateData.usd_to_inr_rate !== undefined
+      ? Number(updateData.usd_to_inr_rate)
+      : (oldPayment.usd_to_inr_rate ?? settings?.currency_settings?.usd_to_inr_rate ?? 0);
+    const newInrConvertedAmount = paymentCurrency === "USD"
+      ? roundMoney(Number(newAmount) * newUsdToInrRate)
+      : 0;
+    
+    updateData.usd_to_inr_rate = newUsdToInrRate;
+    updateData.inr_converted_amount = newInrConvertedAmount;
+
+    // Recalculate invoice financials
+    if (oldPayment.invoice_id && invoice) {
+      const oldCredited = oldPayment.credited_amount ?? oldPayment.amount;
+      // Revert old payment credit
+      invoice.paid_amount = Math.max(0, roundMoney((invoice.paid_amount || 0) - oldCredited));
+      // Apply new payment credit
+      invoice.paid_amount = roundMoney(invoice.paid_amount + newCreditedAmount);
+      invoice.balance_due = roundMoney((invoice.total_amount || invoice.amount || 0) - invoice.paid_amount);
+
+      // Recalculate status
+      if (invoice.balance_due <= 0) {
+        invoice.status = 'paid';
+        invoice.balance_due = 0;
+      } else if (invoice.paid_amount > 0) {
+        invoice.status = 'partial';
+      } else {
+        invoice.status = 'unpaid';
+      }
+      await invoice.save();
+    }
+
+    const payment = await Payment.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });
@@ -382,6 +441,26 @@ const deletePayment = async (req, res, next) => {
         success: false,
         error: "Payment not found",
       });
+    }
+
+    // Reverse invoice financial state
+    if (payment.invoice_id) {
+      const invoice = await Invoice.findById(payment.invoice_id);
+      if (invoice) {
+        const creditedAmt = payment.credited_amount ?? payment.amount;
+        invoice.paid_amount = Math.max(0, roundMoney((invoice.paid_amount || 0) - creditedAmt));
+        invoice.balance_due = roundMoney((invoice.total_amount || invoice.amount) - invoice.paid_amount);
+
+        // Recalculate status
+        if (invoice.paid_amount <= 0) {
+          invoice.status = 'unpaid';
+        } else if (invoice.balance_due <= 0) {
+          invoice.status = 'paid';
+        } else {
+          invoice.status = 'partial';
+        }
+        await invoice.save();
+      }
     }
 
     await Payment.findByIdAndDelete(req.params.id);

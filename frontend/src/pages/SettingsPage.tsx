@@ -650,79 +650,192 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
             </div>
 
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 border-b pb-2 border-slate-200 dark:border-slate-700 mt-8">
-              Invoice Settings
+              Tax & Invoice Settings
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={settings.gst_settings?.enable_gst !== false}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      gst_settings: {
-                        ...settings.gst_settings,
-                        enable_gst: e.target.checked,
-                      },
-                    })
-                  }
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                />
-                Default GST
-              </label>
-              <FormInput
-                label="GST Percentage (%)"
-                type="number"
-                value={settings.gst_settings?.default_percentage || 18}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    gst_settings: {
-                      ...settings.gst_settings,
-                      default_percentage: Number(e.target.value),
-                    },
-                  })
-                }
-              />
-              <FormInput
-                label="TDS Percentage (%)"
-                type="number"
-                value={settings.tds_settings?.default_percentage || 10}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    tds_settings: {
-                      ...settings.tds_settings,
-                      default_percentage: Number(e.target.value),
-                    },
-                  })
-                }
-              />
-              <FormInput
-                label="USD to INR Rate"
-                type="number"
-                value={settings.currency_settings?.usd_to_inr_rate || 83}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    currency_settings: {
-                      ...settings.currency_settings,
-                      usd_to_inr_rate: Number(e.target.value),
-                    },
-                  })
-                }
-              />
-              <FormSelect
-                label="Currency"
-                value={settings.currency || "INR"}
-                onChange={(e) =>
-                  setSettings({ ...settings, currency: e.target.value })
-                }
-                options={[
-                  { value: "INR", label: "INR (₹)" },
-                  { value: "USD", label: "USD ($)" },
-                ]}
-              />
+            
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                <h4 className="text-md font-semibold text-slate-800 dark:text-slate-200">GST Settings</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2 justify-center">
+                    <label className="flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={settings.gst_settings?.enable_gst !== false}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            gst_settings: {
+                              ...settings.gst_settings,
+                              enable_gst: e.target.checked,
+                            },
+                          })
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      Enable GST Globally
+                    </label>
+                  </div>
+                  <FormInput
+                    label="Default GST Percentage (%)"
+                    type="number"
+                    value={settings.gst_settings?.default_percentage || 18}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        gst_settings: {
+                          ...settings.gst_settings,
+                          default_percentage: Number(e.target.value),
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Apply GST to:</span>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={settings.gst_settings?.apply_to_inr !== false}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          gst_settings: {
+                            ...settings.gst_settings,
+                            apply_to_inr: e.target.checked,
+                          },
+                        })
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    INR (Domestic)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={!!settings.gst_settings?.apply_to_usd}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          gst_settings: {
+                            ...settings.gst_settings,
+                            apply_to_usd: e.target.checked,
+                          },
+                        })
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    USD (Export)
+                  </label>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                <h4 className="text-md font-semibold text-slate-800 dark:text-slate-200">TDS Settings</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2 justify-center">
+                    <label className="flex items-center gap-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={settings.tds_settings?.enable_tds !== false}
+                        onChange={(e) =>
+                          setSettings({
+                            ...settings,
+                            tds_settings: {
+                              ...settings.tds_settings,
+                              enable_tds: e.target.checked,
+                            },
+                          })
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      Enable TDS Globally
+                    </label>
+                  </div>
+                  <FormInput
+                    label="Default TDS Percentage (%)"
+                    type="number"
+                    value={settings.tds_settings?.default_percentage || 10}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        tds_settings: {
+                          ...settings.tds_settings,
+                          default_percentage: Number(e.target.value),
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Apply TDS to:</span>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={settings.tds_settings?.apply_to_inr !== false}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          tds_settings: {
+                            ...settings.tds_settings,
+                            apply_to_inr: e.target.checked,
+                          },
+                        })
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    INR (Domestic)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={!!settings.tds_settings?.apply_to_usd}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          tds_settings: {
+                            ...settings.tds_settings,
+                            apply_to_usd: e.target.checked,
+                          },
+                        })
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    USD (Export)
+                  </label>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                <h4 className="text-md font-semibold text-slate-800 dark:text-slate-200">Currency Settings</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormInput
+                    label="USD to INR Rate"
+                    type="number"
+                    value={settings.currency_settings?.usd_to_inr_rate || 83}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        currency_settings: {
+                          ...settings.currency_settings,
+                          usd_to_inr_rate: Number(e.target.value),
+                        },
+                      })
+                    }
+                  />
+                  <FormSelect
+                    label="Default Base Currency"
+                    value={settings.currency || "INR"}
+                    onChange={(e) =>
+                      setSettings({ ...settings, currency: e.target.value })
+                    }
+                    options={[
+                      { value: "INR", label: "INR (₹)" },
+                      { value: "USD", label: "USD ($)" },
+                    ]}
+                  />
+                </div>
+              </div>
             </div>
             <div className="pt-4">
               <PrimaryButton type="submit" disabled={loading}>

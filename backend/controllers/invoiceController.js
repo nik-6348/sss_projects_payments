@@ -39,24 +39,43 @@ export const calculateInvoiceFinancials = ({
     settings?.gst_settings?.enable_gst ??
     existingInvoice?.include_gst ??
     true;
-  const defaultTdsPercentage =
-    settings?.tds_settings?.default_percentage ??
-    existingInvoice?.tds_percentage ??
-    10;
-  const include_gst =
-    currency === "USD"
-      ? false
-      : toBoolean(body.include_gst, defaultGstEnabled);
+  const applyGstToCurrency =
+    settings?.gst_settings?.[`apply_to_${currency.toLowerCase()}`] ?? (currency === "INR");
+
+  const include_gst = applyGstToCurrency
+    ? toBoolean(body.include_gst, defaultGstEnabled)
+    : false;
+
   const gst_percentage = include_gst
     ? Number(body.gst_percentage ?? defaultGstPercentage)
     : 0;
   const gst_amount = include_gst
     ? roundMoney((subtotal * gst_percentage) / 100)
     : 0;
-  const include_tds = false;
-  const tds_percentage = Number(body.tds_percentage ?? defaultTdsPercentage);
-  const tds_amount = 0;
-  const total_amount = roundMoney(subtotal + gst_amount);
+
+  const defaultTdsPercentage =
+    settings?.tds_settings?.default_percentage ??
+    existingInvoice?.tds_percentage ??
+    10;
+  const defaultTdsEnabled =
+    settings?.tds_settings?.enable_tds ??
+    existingInvoice?.include_tds ??
+    true;
+  const applyTdsToCurrency =
+    settings?.tds_settings?.[`apply_to_${currency.toLowerCase()}`] ?? (currency === "INR");
+
+  const include_tds = applyTdsToCurrency
+    ? toBoolean(body.include_tds, defaultTdsEnabled)
+    : false;
+
+  const tds_percentage = include_tds
+    ? Number(body.tds_percentage ?? defaultTdsPercentage)
+    : 0;
+  const tds_amount = include_tds
+    ? roundMoney((subtotal * tds_percentage) / 100)
+    : 0;
+
+  const total_amount = roundMoney(subtotal + gst_amount - tds_amount);
 
   return {
     currency,
@@ -482,7 +501,7 @@ const updateInvoice = async (req, res, next) => {
         include_tds,
         total_amount,
         amount: total_amount,
-        balance_due: total_amount,
+        balance_due: roundMoney(total_amount - (invoice.paid_amount || 0)),
         pdf_base64: null, // Clear cached PDF on update
         pdf_generated_at: null,
       };
@@ -545,7 +564,7 @@ const updateInvoice = async (req, res, next) => {
         const invoiceData = invoice.toObject();
         const clientData = invoiceData.project_id.client_id;
 
-        const pdfBase64 = generateInvoicePDF(
+        const pdfBase64 = generatePDF(
           invoiceData,
           clientData,
           bankDetails,
@@ -689,23 +708,8 @@ const updateInvoiceStatus = async (req, res, next) => {
       updateData.paid_amount = invoice.total_amount;
       updateData.balance_due = 0;
     } else if (status === "partial") {
-      // For partial, we expect paid_amount in body
-      const { paid_amount } = req.body;
-      if (!paid_amount) {
-        return res.status(400).json({
-          success: false,
-          error: "Paid amount is required for partial status",
-        });
-      }
-      updateData.paid_amount = (invoice.paid_amount || 0) + Number(paid_amount);
-      updateData.balance_due = invoice.total_amount - updateData.paid_amount;
-
-      // Auto-switch to paid if balance is 0
-      if (updateData.balance_due <= 0) {
-        updateData.status = "paid";
-        updateData.paid_date = new Date();
-        updateData.balance_due = 0;
-      }
+      // Don't accumulate paid_amount here — let Payment controller handle it
+      // This endpoint only changes the status label
     } else {
       // Reset if moving back to sent/draft (optional, depending on business logic)
       // For now, we keep paid history unless explicitly cleared
@@ -1010,6 +1014,7 @@ const duplicateInvoice = async (req, res, next) => {
           project_id: sourceInvoice.project_id,
           isDeleted: false,
           status: { $ne: "cancelled" },
+          _id: { $ne: sourceInvoice._id },
         },
       },
       { $group: { _id: null, total: { $sum: "$subtotal" } } },

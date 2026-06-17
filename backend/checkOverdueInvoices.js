@@ -17,7 +17,7 @@ export async function checkOverdueInvoices() {
     // Logic: Status is 'sent' OR 'overdue', due_date < today
     // This allows sending reminders for already overdue invoices too
     const overdueInvoices = await Invoice.find({
-      status: { $in: ["sent", "overdue"] },
+      status: { $in: ["sent", "unpaid", "partial", "overdue"] },
       due_date: { $lt: today },
       isDeleted: false,
     });
@@ -32,8 +32,8 @@ export async function checkOverdueInvoices() {
       try {
         let statusUpdated = false;
 
-        // Only update status if it was "sent" (newly overdue)
-        if (invoice.status === "sent") {
+        // Only update status if it was "sent", "unpaid", or "partial" (newly overdue)
+        if (["sent", "unpaid", "partial"].includes(invoice.status)) {
           invoice.status = "overdue";
           invoice.status_history.push({
             status: "overdue",

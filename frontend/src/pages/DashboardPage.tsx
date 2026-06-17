@@ -87,6 +87,23 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     fetchStats();
   }, [selectedYear, selectedMonth, selectedProjectId]);
 
+  const [defaultCurrency, setDefaultCurrency] = React.useState<"INR" | "USD">("INR");
+
+  // Fetch settings for default currency on mount
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await apiClient.getSettings();
+        if (response.success && response.data?.currency) {
+          setDefaultCurrency(response.data.currency);
+        }
+      } catch (err) {
+        console.error("Error fetching settings in Dashboard:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   const activeProjects = projects.filter(
     (p) => p.status === "active" || p.status === "on_hold"
   );
@@ -97,6 +114,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
   // Use stats from API or fallback to local calculation
   const stats = dashboardStats?.stats;
+
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const dashboardCurrency = selectedProject?.currency || defaultCurrency;
 
   return (
     <div className="space-y-8">
@@ -229,11 +249,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <p className="text-2xl font-bold text-slate-800 dark:text-white">
                   {loading
                     ? "..."
-                    : formatCurrency(stats?.summary?.totalRevenue ?? 0)}
+                    : formatCurrency(stats?.summary?.totalRevenue ?? 0, dashboardCurrency)}
                 </p>
                 {stats?.summary?.totalGST ? (
                   <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    (GST: {formatCurrency(stats.summary.totalGST)})
+                    (GST: {formatCurrency(stats.summary.totalGST, dashboardCurrency)})
                   </span>
                 ) : null}
               </div>
@@ -260,11 +280,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {loading
                     ? "..."
-                    : formatCurrency(stats?.summary?.totalPaid ?? 0)}
+                    : formatCurrency(stats?.summary?.totalPaid ?? 0, dashboardCurrency)}
                 </p>
                 {stats?.summary?.totalPaidGST ? (
                   <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    (GST: {formatCurrency(stats.summary.totalPaidGST)})
+                    (GST: {formatCurrency(stats.summary.totalPaidGST, dashboardCurrency)})
                   </span>
                 ) : null}
               </div>
@@ -290,7 +310,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                 {loading
                   ? "..."
-                  : formatCurrency(stats?.summary?.totalDue ?? 0)}
+                  : formatCurrency(stats?.summary?.totalDue ?? 0, dashboardCurrency)}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-red-100 dark:bg-red-900/30">
@@ -359,13 +379,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                       Paid:
                     </span>
                     <span className="font-semibold text-green-700 dark:text-green-400">
-                      {formatCurrency(projectStats.paidAmount)}
+                      {formatCurrency(projectStats.paidAmount, project.currency)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-500 dark:text-white">Due:</span>
                     <span className="font-semibold text-red-700 dark:text-red-400">
-                      {formatCurrency(projectStats.dueAmount)}
+                      {formatCurrency(projectStats.dueAmount, project.currency)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-md">
@@ -373,7 +393,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                       Total:
                     </span>
                     <span className="font-bold text-slate-800 dark:text-white">
-                      {formatCurrency(projectStats.calculatedTotal)}
+                      {formatCurrency(projectStats.calculatedTotal, project.currency)}
                     </span>
                   </div>
                 </div>
